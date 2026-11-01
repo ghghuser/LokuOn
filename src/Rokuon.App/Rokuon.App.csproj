@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Rokuon.App</RootNamespace>
+    <AssemblyName>Rokuon</AssemblyName>
+    <ApplicationIcon>Assets\rokuon.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <Product>Rokuon</Product>
+    <!-- WPF0001: Fluent(ダークモード対応)テーマは .NET 9 では試験的機能の扱い -->
+    <NoWarn>$(NoWarn);WPF0001;CS8981</NoWarn>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WinForms(タスクトレイ用)を有効にすると名前が衝突するため、暗黙の using を外す -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\rokuon.ico" />
+    <ProjectReference Include="..\Rokuon.Audio\Rokuon.Audio.csproj" />
+  </ItemGroup>
+
+</Project>
