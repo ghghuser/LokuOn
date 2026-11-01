@@ -15,7 +15,7 @@ public partial class MainWindow
 {
     private readonly ObservableCollection<FileItem> files = new();
 
-    private MediaPlayer? player;
+    private FilePlayer? player;
     private FileItem? loadedItem;        // プレイヤーに読み込んでいるファイル
     private bool playerIsPlaying;
     private bool seekDragging;
@@ -249,32 +249,17 @@ public partial class MainWindow
     {
         try
         {
-            player = new MediaPlayer { Volume = VolumeSlider.Value };
-            player.MediaOpened += (s, e) => OnPlayerOpened();
-            player.MediaEnded += (s, e) => OnPlayerEnded();
-            player.MediaFailed += (s, e) =>
-            {
-                string msg = e.ErrorException?.Message ?? "不明なエラー";
-                StopPlayback(true);
-                AddLog("再生できません: " + msg);
-            };
+            player = new FilePlayer { Volume = VolumeSlider.Value };
+            player.Ended += () => Dispatcher.InvokeAsync(OnPlayerEnded);
+            player.Failed += msg => Dispatcher.InvokeAsync(() => { StopPlayback(true); AddLog("再生できません: " + msg); });
         }
         catch (Exception ex) { App.WriteCrashLog("プレイヤー初期化: " + ex); player = null; }
     }
 
     private void ShutdownPlayer()
     {
-        try { player?.Close(); } catch { }
+        try { player?.Dispose(); } catch { }
         player = null;
-    }
-
-    private static Uri ToFileUri(string path)
-    {
-        // # や % を含む名前でも正しく開けるように、手でエスケープする
-        string p = path.Replace("%", "%25").Replace("#", "%23").Replace("?", "%3F");
-        p = p.Replace('\\', '/');
-        string text = p.StartsWith("//", StringComparison.Ordinal) ? "file:" + p : "file:///" + p;
-        return new Uri(text, UriKind.Absolute);
     }
 
     private double SelectedSpeed() => ValueOf(SpeedCombo, 1.0);
@@ -302,14 +287,14 @@ public partial class MainWindow
         try
         {
             loadedItem = item;
-            player.Open(ToFileUri(item.Path));
+            player.Open(item.Path);
             player.Volume = VolumeSlider.Value;
             player.SpeedRatio = SelectedSpeed();
+            OnPlayerOpened();
             player.Play();
             playerIsPlaying = true;
             BtnPlay.Content = "❚❚ 一時停止";
-            PlayPosText.Text = "0:00 / 0:00";
-            SeekSlider.Maximum = 1;
+            PlayPosText.Text = "0:00 / " + FileItem.FormatClock(SeekSlider.Maximum);
             SetSeek(0);
         }
         catch (Exception ex)
@@ -323,7 +308,7 @@ public partial class MainWindow
     {
         if (player == null || loadedItem == null) return;
         if (playerIsPlaying) { player.Pause(); playerIsPlaying = false; BtnPlay.Content = "▶ 再生"; }
-        else { player.Play(); player.SpeedRatio = SelectedSpeed(); playerIsPlaying = true; BtnPlay.Content = "❚❚ 一時停止"; }
+        else { player.SpeedRatio = SelectedSpeed(); player.Play(); playerIsPlaying = true; BtnPlay.Content = "❚❚ 一時停止"; }
     }
 
     /// <summary>停止。close=true のときはファイルも閉じる(名前変更・削除の前など)。</summary>
@@ -333,8 +318,7 @@ public partial class MainWindow
         {
             if (player != null)
             {
-                player.Stop();
-                if (close) player.Close();
+                if (close) player.Close(); else player.Stop();
             }
         }
         catch { }
@@ -350,13 +334,12 @@ public partial class MainWindow
         if (player == null) return;
         try
         {
-            if (player.NaturalDuration.HasTimeSpan)
+            double total = player.Duration.TotalSeconds;
+            if (total > 0)
             {
-                double total = player.NaturalDuration.TimeSpan.TotalSeconds;
                 SeekSlider.Maximum = Math.Max(1, total);
                 if (loadedItem != null && loadedItem.Seconds == null) loadedItem.Seconds = total;   // 長さがわかったので一覧にも反映
             }
-            player.SpeedRatio = SelectedSpeed();
         }
         catch { }
     }
@@ -364,7 +347,7 @@ public partial class MainWindow
     private void OnPlayerEnded()
     {
         // 最後まで再生したら先頭に戻して停止状態にする
-        try { if (player != null) { player.Pause(); player.Position = TimeSpan.Zero; } } catch { }
+        try { if (player != null) player.Stop(); } catch { }
         playerIsPlaying = false;
         BtnPlay.Content = "▶ 再生";
         SetSeek(0);

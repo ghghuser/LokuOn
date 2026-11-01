@@ -111,6 +111,12 @@ public partial class MainWindow
     {
         BtnRecord.Click += OnRecordClick;
         BtnSplit.Click += OnSplitClick;
+        TemplateCombo.SelectionChanged += (s, e) => OnTemplateComboChanged();
+        TemplateBox.TextChanged += (s, e) => SyncTemplateCombo();
+        BtnTemplateSave.Click += (s, e) => OnTemplateSave();
+        BtnTemplateDelete.Click += (s, e) => OnTemplateDelete();
+        BtnTemplateReset.Click += (s, e) => { TemplateBox.Text = Preset.DefaultTemplate; };
+        BtnPauseRec.Click += (s, e) => { ctl.TogglePauseRecording(); UpdateButtons(); };
 
         foreach (var cb in DevCombos) cb.SelectionChanged += (s, e) => { if (loading) return; OnSettingChanged(); UpdateMeterSlots(); RestartMonitor(); };
         MixModeMix.Click += (s, e) => OnSettingChanged();
@@ -450,6 +456,7 @@ public partial class MainWindow
             UseDateFolderCheck.IsChecked = p.UseDateFolder;
             DateFormatBox.Text = p.DateFolderFormat;
             TemplateBox.Text = p.FileNameTemplate;
+            RefreshTemplateCombo();
             SelectValue(TimeStyleCombo, p.TimeStyle);
             AutoSplitBox.Text = p.AutoSplitMinutes.ToString(CultureInfo.InvariantCulture);
             MaxHoursBox.Text = p.MaxFileHours.ToString(CultureInfo.InvariantCulture);
@@ -638,6 +645,91 @@ public partial class MainWindow
     {
         if (PresetCombo.SelectedItem is not string name || name.Length == 0) { OnPresetSaveAs(); return; }
         StorePreset(name);
+    }
+
+    // ---------------------------------------------------------------- ファイル名テンプレートの保存
+
+    private bool templateComboBusy;
+
+    private List<(string Name, string Template, bool BuiltIn)> AllTemplates()
+    {
+        var l = TemplateLibrary.BuiltIn.Select(b => (b.Name, b.Template, true)).ToList();
+        l.AddRange(ctl.Settings.Templates.Select(t => (t.Name, t.Template, false)));
+        return l;
+    }
+
+    private void RefreshTemplateCombo()
+    {
+        templateComboBusy = true;
+        try
+        {
+            TemplateCombo.ItemsSource = AllTemplates().Select(t => t.BuiltIn ? t.Name : "★ " + t.Name).ToList();
+        }
+        finally { templateComboBusy = false; }
+        SyncTemplateCombo();
+    }
+
+    /// <summary>入力欄の内容と同じテンプレートがあれば、プルダウンをそれに合わせる。</summary>
+    private void SyncTemplateCombo()
+    {
+        if (templateComboBusy || TemplateCombo.ItemsSource == null) return;
+        templateComboBusy = true;
+        try
+        {
+            var all = AllTemplates();
+            int idx = all.FindIndex(t => t.Template == TemplateBox.Text.Trim());
+            TemplateCombo.SelectedIndex = idx;
+            BtnTemplateDelete.IsEnabled = idx >= 0 && !all[idx].BuiltIn;
+        }
+        finally { templateComboBusy = false; }
+    }
+
+    private void OnTemplateComboChanged()
+    {
+        if (templateComboBusy) return;
+        int idx = TemplateCombo.SelectedIndex;
+        var all = AllTemplates();
+        if (idx < 0 || idx >= all.Count) return;
+        TemplateBox.Text = all[idx].Template;
+    }
+
+    private void OnTemplateSave()
+    {
+        string t = TemplateBox.Text.Trim();
+        if (t.Length == 0) return;
+        string initial = TemplateCombo.SelectedIndex >= 0 && !AllTemplates()[TemplateCombo.SelectedIndex].BuiltIn
+            ? AllTemplates()[TemplateCombo.SelectedIndex].Name : "";
+        string? input = PromptWindow.Show(this, "テンプレートを保存", "このファイル名テンプレートの名前を入力してください。", initial);
+        if (input == null) return;
+        string name = input.Trim();
+        string? err = TemplateLibrary.ValidateName(name);
+        if (err != null) { MessageBox.Show(this, err, "LokuOn", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+        var list = ctl.Settings.Templates;
+        int i = list.FindIndex(x => x.Name == name);
+        if (i >= 0)
+        {
+            var r = MessageBox.Show(this, $"「{name}」はすでにあります。上書きしますか？", "LokuOn", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (r != MessageBoxResult.Yes) return;
+            list[i].Template = t;
+        }
+        else list.Add(new SavedTemplate { Name = name, Template = t });
+        RefreshTemplateCombo();
+        ctl.SaveSettings();
+        AddLog($"テンプレート「{name}」を保存しました");
+    }
+
+    private void OnTemplateDelete()
+    {
+        int idx = TemplateCombo.SelectedIndex;
+        var all = AllTemplates();
+        if (idx < 0 || idx >= all.Count || all[idx].BuiltIn) return;
+        string name = all[idx].Name;
+        var r = MessageBox.Show(this, $"テンプレート「{name}」を削除しますか？", "LokuOn", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
+        if (r != MessageBoxResult.Yes) return;
+        ctl.Settings.Templates.RemoveAll(x => x.Name == name);
+        RefreshTemplateCombo();
+        ctl.SaveSettings();
+        AddLog($"テンプレート「{name}」を削除しました");
     }
 
     private void OnPresetSaveAs()

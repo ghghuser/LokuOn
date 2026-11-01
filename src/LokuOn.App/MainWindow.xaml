@@ -106,8 +106,22 @@
                             </Grid>
                             <WrapPanel Margin="0,0,0,3">
                                 <CheckBox x:Name="UseDateFolderCheck" Content="日付フォルダを作る" VerticalContentAlignment="Center" Margin="0,0,6,0"/>
-                                <TextBox x:Name="DateFormatBox" Width="110" VerticalContentAlignment="Center" ToolTip="例: yyyy-MM-dd"/>
+                                <TextBox x:Name="DateFormatBox" Width="110" VerticalContentAlignment="Center" ToolTip="例: {yyyy}-{MM}-{dd}（録音を始めた日で固定）"/>
                             </WrapPanel>
+                            <Grid Margin="0,0,0,3">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="テンプレート" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <ComboBox x:Name="TemplateCombo" Grid.Column="1"/>
+                                <WrapPanel Grid.Column="2" Margin="4,0,0,0">
+                                    <Button x:Name="BtnTemplateSave" Content="保存" Padding="8,2" Margin="0,0,4,0"/>
+                                    <Button x:Name="BtnTemplateDelete" Content="削除" Padding="8,2" Margin="0,0,4,0"/>
+                                    <Button x:Name="BtnTemplateReset" Content="初期に戻す" Padding="8,2"/>
+                                </WrapPanel>
+                            </Grid>
                             <Grid Margin="0,0,0,2">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
@@ -117,7 +131,7 @@
                                 <TextBox x:Name="TemplateBox" Grid.Column="1" VerticalContentAlignment="Center"/>
                             </Grid>
                             <TextBlock x:Name="TemplateHint" TextWrapping="Wrap" Opacity="0.7" Margin="0,0,0,2"
-                                       Text="{}変数: {No} {Track:000} {Start} {End} {Length} {Date} {Time} {Device} {Preset}   {End:m}=125：30 形式 / {End:s}=秒数"/>
+                                       Text="{}変数: {Date} {Time} {yyyy} {yy} {MM} {dd} {HH} {mm} {ss}(そのファイルを始めた時刻) {No} {Track:000} {Start} {End} {Length} {Device} {Preset} {ext}   {End:m}=125：30 形式 / {End:s}=秒数"/>
                             <TextBlock x:Name="TemplatePreview" TextWrapping="Wrap" Margin="0,0,0,4" FontWeight="SemiBold"/>
                             <WrapPanel>
                                 <TextBlock Text="時間表記" VerticalAlignment="Center" Margin="0,0,4,0"/>
@@ -205,6 +219,7 @@
                         <!-- ボタン -->
                         <StackPanel Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Top">
                             <Button x:Name="BtnRecord" Content="●  録音開始" Width="150" Height="46" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                            <Button x:Name="BtnPauseRec" Content="❚❚  一時停止" Width="150" Height="38" FontSize="14" IsEnabled="False" Margin="0,0,0,6"/>
                             <Button x:Name="BtnSplit" Content="✂  分割" Width="150" Height="38" FontSize="14" IsEnabled="False" Margin="0,0,0,6"/>
                             <CheckBox x:Name="MonitorCheck" Content="入力確認(待機中も表示)" Margin="0,2,0,0"/>
                         </StackPanel>

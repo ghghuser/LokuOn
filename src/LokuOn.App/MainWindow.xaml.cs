@@ -97,13 +97,21 @@ public partial class MainWindow : Window
     {
         try
         {
+            var pending = ctl.PendingRecoveryFiles();
+            if (pending.Count == 0) { ctl.DiscardRecovery(); return; }
+            var ask = MessageBox.Show(this,
+                $"前回、正常に終了しなかった録音ファイルが {pending.Count} 件あります。\n\n" +
+                string.Join("\n", pending.Take(8).Select(x => System.IO.Path.GetFileName(x))) + (pending.Count > 8 ? "\n…" : "") +
+                "\n\n長さを調べて、名前の終わりに「_restored」を付けたファイルに整えますか？\n(「いいえ」の場合、ファイルはそのまま残します)",
+                "LokuOn - 録音の復旧", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (ask != MessageBoxResult.Yes) { ctl.DiscardRecovery(); AddLog("前回の録音ファイルの復旧は行いませんでした"); return; }
             var list = await ctl.RecoverPendingAsync();
             if (list.Count == 0) return;
             foreach (var f in list) files.Insert(0, FileItem.FromPath(f.Path, f.Seconds));
             UpdateFileCount();
             AddLog($"前回、正常に終了しなかった録音を {list.Count} 件復旧しました");
-            MessageBox.Show(this, $"前回、正常に終了しなかった録音ファイルを {list.Count} 件復旧しました。\n\n" +
-                                  string.Join("\n", list.Take(8).Select(x => Path.GetFileName(x.Path))) +
+            MessageBox.Show(this, $"{list.Count} 件を復旧しました。\n\n" +
+                                  string.Join("\n", list.Take(8).Select(x => System.IO.Path.GetFileName(x.Path))) +
                                   (list.Count > 8 ? "\n…" : ""),
                 "LokuOn - 録音の復旧", MessageBoxButton.OK, MessageBoxImage.Information);
         }
@@ -233,7 +241,8 @@ public partial class MainWindow : Window
                 StateText.Text = "保存しています…";
                 break;
             default:
-                StateText.Text = eng.IsPaused ? "デバイス待機中(一時停止)" : "● 録音中";
+                StateText.Text = eng.IsUserPaused ? "❚❚ 一時停止中(この間の音は保存されません)"
+                    : eng.IsPaused ? "デバイス待機中(一時停止)" : "● 録音中";
                 ElapsedText.Text = Hms(eng.ElapsedSeconds);
                 break;
         }
@@ -241,7 +250,7 @@ public partial class MainWindow : Window
         FileNameText.Text = string.IsNullOrEmpty(eng.CurrentFilePath) ? "" : Path.GetFileName(eng.CurrentFilePath);
         long free = eng.FreeDiskBytes;
         DiskText.Text = free >= 0 ? $"ディスク空き {free / 1073741824.0:0.0} GB" : "";
-        SetTray(st == EngineState.Recording ? "録音中 " + Hms(eng.ElapsedSeconds) : "待機");
+        SetTray(st == EngineState.Recording ? (eng.IsUserPaused ? "一時停止中 " : "録音中 ") + Hms(eng.ElapsedSeconds) : "待機");
         UpdateButtons();
     }
 

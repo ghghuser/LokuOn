@@ -30,7 +30,21 @@ string s2 = NameTemplate.Sanitize(NameTemplate.Render(tpl, ctx));
 Check(s2 == "No.917-Track002_36：25-40：00(03：35)", "例2の再現(秒は整合)", s2);
 ctx.StartSec = 0; ctx.EndSec = 125 * 60 + 30;
 Check(NameTemplate.Sanitize(NameTemplate.Render("{End}/{End:m}/{Length:h}/{End:s}", ctx)) == "2：05：30／125：30／2：05：30／7530", "表記の切替");
-Check(NameTemplate.Render("{Date}_{Time}_{DateTime:yyyyMMdd}", ctx) == "2025-07-06_13-05-09_20250706", "日付変数");
+Check(NameTemplate.Render("{Date}_{Time}_{DateTime:yyyyMMdd}", ctx) == "2025-07-06_13:05:09_20250706", "日付変数");
+Check(NameTemplate.Render("{yyyy}{yy}{MM}{dd}-{HH}{mm}{ss}", ctx) == "20252507" + "06-130509", "日付の部品変数");
+{
+    var dctx = new NameContext { No = 917, FileStartTime = new DateTime(2025, 7, 6, 13, 5, 9), Ext = "flac" };
+    string dn = NameTemplate.RenderFileBase(Preset.DefaultTemplate, dctx);
+    Check(dn == "2025-07-06 13：05：09 (No.917)", "既定テンプレート(日時形式)", dn);
+    dctx.Ext = "mp3";
+    Check(NameTemplate.RenderFileBase("{Date} {Time} (No.{No}).{ext}", dctx) == dn, "{ext}は名前に残らない");
+    Check(NameTemplate.RenderFolder("{yyyy}-{MM}-{dd}", dctx.FileStartTime) == "2025-07-06", "日付フォルダ(変数形式)");
+    Check(NameTemplate.RenderFolder("yyyy-MM-dd", dctx.FileStartTime) == "2025-07-06", "日付フォルダ(書式形式)");
+    Check(new Preset().DateFolderFormat == "{yyyy}-{MM}-{dd}", "日付フォルダの既定");
+    Check(new Preset().FileNameTemplate == "{Date} {Time} (No.{No}).{ext}", "ファイル名の既定");
+    var tctx = new NameContext { No = 917, Track = 1, StartSec = 0, EndSec = 36 * 60 + 25, Ext = "mp3" };
+    Check(NameTemplate.RenderFileBase(Preset.TrackTemplate, tctx) == "No.917-Track001_00：00-36：25(36：25)", "トラック形式");
+}
 Check(NameTemplate.Render("{Unknown}{{x}}", ctx) == "{Unknown}{x}", "未知の変数と{{}}");
 ctx.Provisional = true;
 Check(NameTemplate.Render("{End}({Length})", ctx) == "録音中(録音中)", "録音中の仮名");
@@ -69,6 +83,22 @@ var bad = SettingsStore.Load(ini);
 Check(bad.No == 1 && bad.Current.Format == AudioFormat.Flac && bad.Current.SampleRate == 48000, "壊れた値は既定値へ");
 
 // ---------------------------------------------------------------- リサンプラ
+Section("テンプレート保存・初期値");
+{
+    string tp = Path.Combine(tmp, "tpl.ini");
+    var st0 = new AppSettings();
+    st0.Templates.Add(new SavedTemplate { Name = "自分用：日付のみ", Template = "{yyyy}{MM}{dd}_{HH}{mm}{ss}" });
+    SettingsStore.Save(tp, st0);
+    var st1 = SettingsStore.Load(tp);
+    Check(st1.Templates.Count == 1 && st1.Templates[0].Name == "自分用：日付のみ" && st1.Templates[0].Template == "{yyyy}{MM}{dd}_{HH}{mm}{ss}", "独自テンプレートの保存と読み込み");
+    Check(TemplateLibrary.IsBuiltIn("日時形式") && TemplateLibrary.ValidateName("日時形式") != null, "最初のテンプレート名は使えない");
+    Check(TemplateLibrary.ValidateName("OK名") == null && TemplateLibrary.ValidateName("a[b") != null, "テンプレート名の検査");
+    Check(new Preset().Sources[0].DeviceId == "wasapi-cap:default", "初期の入力は既定のマイク");
+    Check(new Preset().Sources[1].DeviceId == "", "2つ目以降は未使用");
+    Check(new Preset().Format == AudioFormat.Flac, "形式の初期値はflac");
+    Check(Preset.DefaultSaveFolder.EndsWith(Path.Combine("LokuOn", "Rec")), "保存先の初期値");
+}
+
 Section("リサンプラ");
 foreach (var (inR, outR) in new[] { (44100, 48000), (48000, 44100), (96000, 48000), (48000, 48000), (22050, 48000) })
 {
@@ -116,6 +146,54 @@ Section("チャンネル変換・PCM変換");
     Check(Math.Abs(f[0] - 0.5f) < 1e-4 && Math.Abs(f[1] + 0.5f) < 1e-4, "16bit");
     PcmConverter.ToFloat(new byte[] { 0x00, 0x00, 0x40, 0x00, 0x00, 0xC0 }, 6, 24, false, f);
     Check(Math.Abs(f[0] - 0.5f) < 1e-4 && Math.Abs(f[1] + 0.5f) < 1e-4, "24bit");
+}
+
+Section("再生速度(音程を変えない)");
+{
+    const int R = 48000;
+    // 440Hz のステレオの正弦波 10秒を読み出し関数にする
+    Func<Func<float[], int, int, int>> mk = () =>
+    {
+        long pos = 0; long total = R * 10L;
+        return (buf, off, cnt) =>
+        {
+            int frames = (int)Math.Min(cnt / 2, total - pos);
+            for (int i = 0; i < frames; i++)
+            {
+                float v = (float)(0.5 * Math.Sin(2 * Math.PI * 440.0 * (pos + i) / R));
+                buf[off + i * 2] = v; buf[off + i * 2 + 1] = v;
+            }
+            pos += frames;
+            return frames * 2;
+        };
+    };
+    foreach (double tempo in new[] { 0.5, 0.75, 1.0, 1.5, 2.0 })
+    {
+        var wst = new WsolaStretcher(mk(), R, 2) { Tempo = tempo };
+        var all = new List<float>();
+        var b = new float[8192];
+        int got;
+        while ((got = wst.Read(b, 0, b.Length)) > 0) { for (int i = 0; i < got; i += 2) all.Add(b[i]); }
+        double sec = all.Count / (double)R;
+        Check(Math.Abs(sec - 10.0 / tempo) < 0.15 * (1 + 1 / tempo), $"テンポ{tempo}: 長さ≒{10.0 / tempo:0.0}秒", $"実際 {sec:0.00}秒");
+        // 中ほど2秒の周波数(ゼロ交差)が 440Hz のまま
+        int a0 = (int)(all.Count * 0.4), a1 = a0 + R * 2 > all.Count ? all.Count : a0 + R * 2;
+        int cross = 0;
+        for (int i = a0 + 1; i < a1; i++) if (all[i - 1] < 0 && all[i] >= 0) cross++;
+        double hz = cross / ((a1 - a0) / (double)R);
+        Check(Math.Abs(hz - 440) < 440 * 0.03, $"テンポ{tempo}: 音程が440Hzのまま", $"実際 {hz:0.0}Hz");
+        double peak = all.Skip(a0).Take(a1 - a0).Max(x => Math.Abs(x));
+        Check(peak > 0.4 && peak < 0.6, $"テンポ{tempo}: 音量が変わらない", $"ピーク {peak:0.00}");
+    }
+    // 等倍はほぼそのまま
+    {
+        var wst = new WsolaStretcher(mk(), R, 2) { Tempo = 1.0 };
+        var b = new float[R * 2];
+        int got = wst.Read(b, 0, b.Length);
+        double err = 0;
+        for (int i = 0; i < R / 2; i++) { float want = (float)(0.5 * Math.Sin(2 * Math.PI * 440.0 * (i + 2000) / R)); err = Math.Max(err, Math.Abs(b[(i + 2000) * 2] - want)); }
+        Check(got == b.Length && err < 0.02, "等倍はほぼそのまま", $"最大誤差 {err:0.0000}");
+    }
 }
 
 Section("入力バッファ");

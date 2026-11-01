@@ -76,7 +76,7 @@ public sealed class RecordedFile
 public static class Recovery
 {
     /// <summary>前回、異常終了などで「録音中」のまま残ったファイルの長さを調べ、正しいファイル名にする。</summary>
-    public static List<RecordedFile> Recover(string journalPath, string ffmpeg, Action<string>? log = null)
+    public static List<RecordedFile> Recover(string journalPath, string ffmpeg, Action<string>? log = null, string suffix = "")
     {
         var result = new List<RecordedFile>();
         foreach (var e in JournalEntry_ReadAll(journalPath))
@@ -91,10 +91,11 @@ public static class Recovery
                 var ctx = new NameContext
                 {
                     No = e.No, Track = e.Track, StartSec = e.StartSec, EndSec = e.StartSec + dur.Value,
-                    FileStartTime = e.StartTime, Device = e.Device, Preset = e.Preset, TimeStyle = e.TimeStyle,
+                    FileStartTime = e.StartTime, Device = e.Device, Preset = e.Preset, TimeStyle = e.TimeStyle, Ext = ext,
                 };
-                string name = NameTemplate.Sanitize(NameTemplate.Render(e.Template, ctx));
+                string name = NameTemplate.RenderFileBase(e.Template, ctx);
                 if (e.DeviceSuffix) name += "_" + NameTemplate.Sanitize(e.Device);
+                name += suffix;
                 string final = NameTemplate.UniquePath(dir, name, ext);
                 File.Move(e.Path, final);
                 if (ext.Equals(".m4a", StringComparison.OrdinalIgnoreCase)) FfmpegTools.Remux(ffmpeg, final, true, null);
@@ -110,4 +111,14 @@ public static class Recovery
     private static List<JournalEntry> JournalEntry_ReadAll(string p) => RecordingJournal.ReadAll(p);
 
     public static bool HasPending(string journalPath) => RecordingJournal.ReadAll(journalPath).Count > 0;
+
+    /// <summary>閉じられていないファイルのパス一覧(復旧の確認用)。</summary>
+    public static List<string> PendingPaths(string journalPath)
+        => RecordingJournal.ReadAll(journalPath).Select(e => e.Path).Where(File.Exists).ToList();
+
+    /// <summary>復旧せずに記録だけ消す(ファイルはそのまま残す)。</summary>
+    public static void Discard(string journalPath)
+    {
+        try { if (File.Exists(journalPath)) File.Delete(journalPath); } catch { }
+    }
 }

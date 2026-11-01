@@ -121,7 +121,10 @@ public sealed class RecorderController : IDisposable
     {
         if (deviceId.EndsWith(":default", StringComparison.OrdinalIgnoreCase))
             return deviceId.StartsWith("wasapi-loop", StringComparison.OrdinalIgnoreCase) ? "PC内部音" : "マイク";
-        string t = display ?? "";
+        string t = (display ?? "").Trim();
+        if (t.EndsWith(DeviceCatalog.DefaultMark)) t = t.Substring(0, t.Length - DeviceCatalog.DefaultMark.Length).TrimEnd();
+        if (t.StartsWith(DeviceCatalog.SpeakerIcon)) return "PC内部音 " + t.Substring(DeviceCatalog.SpeakerIcon.Length).Trim();
+        if (t.StartsWith(DeviceCatalog.MicIcon)) return "マイク " + t.Substring(DeviceCatalog.MicIcon.Length).Trim();
         int i = t.IndexOf("] ", StringComparison.Ordinal);
         if (t.StartsWith("[") && i > 0) return t.Substring(1, i - 1) + " " + t.Substring(i + 2);
         return string.IsNullOrWhiteSpace(t) ? deviceId : t;
@@ -139,13 +142,20 @@ public sealed class RecorderController : IDisposable
         catch { }
     }
 
-    /// <summary>前回、異常終了などで名前が整っていない録音ファイルがあれば整える(時間がかかることがあるので別スレッドで)。</summary>
+    /// <summary>前回、異常終了などで閉じられていないファイルのパス(確認用)。</summary>
+    public List<string> PendingRecoveryFiles()
+        => FfmpegPath == null ? new List<string>() : Recovery.PendingPaths(JournalPath);
+
+    /// <summary>確認のうえ、閉じられていないファイルを「…_restored.拡張子」に整える(時間がかかることがあるので別スレッドで)。</summary>
     public Task<List<RecordedFile>> RecoverPendingAsync()
     {
         if (FfmpegPath == null || !Recovery.HasPending(JournalPath)) return Task.FromResult(new List<RecordedFile>());
         string ff = FfmpegPath;
-        return Task.Run(() => Recovery.Recover(JournalPath, ff, m => Log(m)));
+        return Task.Run(() => Recovery.Recover(JournalPath, ff, m => Log(m), "_restored"));
     }
+
+    /// <summary>復旧しない場合。記録だけ消してファイルはそのまま残す。</summary>
+    public void DiscardRecovery() => Recovery.Discard(JournalPath);
 
     // ---------------------------------------------------------------- 入力デバイスの開閉
 
@@ -372,6 +382,15 @@ public sealed class RecorderController : IDisposable
     }
 
     public void Split() => engine?.Split();
+
+    /// <summary>録音の一時停止/再開。停止中の時間と音はファイルに入らない。</summary>
+    public void TogglePauseRecording()
+    {
+        var e = engine; if (e == null) return;
+        if (e.IsUserPaused) e.Resume(); else e.Pause();
+    }
+
+    public bool IsUserPaused => engine?.IsUserPaused ?? false;
 
     private void FinishRecording()
     {

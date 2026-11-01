@@ -79,6 +79,7 @@ public partial class MainWindow
             var menu = new System.Windows.Forms.ContextMenuStrip();
             menu.Items.Add("ウィンドウを表示", null, (s, e) => ShowFromTray());
             menu.Items.Add("録音の開始 / 停止", null, (s, e) => OnRecordClick(this, new RoutedEventArgs()));
+            menu.Items.Add("一時停止 / 再開", null, (s, e) => { if (ctl.IsRecording) { ctl.TogglePauseRecording(); UpdateButtons(); } });
             menu.Items.Add("分割", null, (s, e) => { if (ctl.IsRecording) OnSplitClick(this, new RoutedEventArgs()); });
             menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
             menu.Items.Add("終了", null, (s, e) => { ShowFromTray(); Close(); });

@@ -17,6 +17,8 @@ public sealed class NameContext
     public DateTime FileStartTime { get; set; } = DateTime.Now;
     public string Device { get; set; } = "";
     public string Preset { get; set; } = "";
+    /// <summary>拡張子(ドットなし。{ext} 用)。</summary>
+    public string Ext { get; set; } = "";
     public TimeStyle TimeStyle { get; set; } = TimeStyle.Auto;
 }
 
@@ -31,7 +33,7 @@ public static class NameTemplate
 
     public static readonly string[] KnownVariables =
     {
-        "No", "Track", "Start", "End", "Length", "Date", "Time", "DateTime", "Device", "Preset",
+        "No", "Track", "Start", "End", "Length", "Date", "Time", "DateTime", "yyyy", "yy", "MM", "dd", "HH", "mm", "ss", "Device", "Preset", "ext",
     };
 
     private static readonly Dictionary<char, char> FullWidth = new()
@@ -94,6 +96,17 @@ public static class NameTemplate
 
     private static string? Evaluate(string name, string? fmt, NameContext c)
     {
+        // 日時の部品は大文字小文字を区別する(MM=月 / mm=分)
+        switch (name)
+        {
+            case "yyyy": return c.FileStartTime.ToString("yyyy", CultureInfo.InvariantCulture);
+            case "yy": return c.FileStartTime.ToString("yy", CultureInfo.InvariantCulture);
+            case "MM": return c.FileStartTime.ToString("MM", CultureInfo.InvariantCulture);
+            case "dd": return c.FileStartTime.ToString("dd", CultureInfo.InvariantCulture);
+            case "HH": return c.FileStartTime.ToString("HH", CultureInfo.InvariantCulture);
+            case "mm": return c.FileStartTime.ToString("mm", CultureInfo.InvariantCulture);
+            case "ss": return c.FileStartTime.ToString("ss", CultureInfo.InvariantCulture);
+        }
         switch (name.ToLowerInvariant())
         {
             case "no": return FormatInt(c.No, fmt);
@@ -107,10 +120,11 @@ public static class NameTemplate
                 long end = TimeText.ToWholeSeconds(c.EndSec);
                 return FormatTime(Math.Max(0, end - start), fmt, c.TimeStyle);
             case "date": return FormatDate(c.FileStartTime, fmt, "yyyy-MM-dd");
-            case "time": return FormatDate(c.FileStartTime, fmt, "HH-mm-ss");
+            case "time": return FormatDate(c.FileStartTime, fmt, "HH:mm:ss");
             case "datetime": return FormatDate(c.FileStartTime, fmt, "yyyy-MM-dd_HH-mm-ss");
             case "device": return c.Device ?? "";
             case "preset": return c.Preset ?? "";
+            case "ext": return (c.Ext ?? "").TrimStart('.');
             default: return null;
         }
     }
@@ -175,6 +189,26 @@ public static class NameTemplate
             if (s.Length == 0) s = "録音";
         }
         return s;
+    }
+
+    /// <summary>テンプレートを展開してファイル名(拡張子なし)にする。{ext} で末尾に入れた拡張子は取り除く。</summary>
+    public static string RenderFileBase(string template, NameContext c)
+    {
+        string name = Sanitize(Render(template, c));
+        string ext = (c.Ext ?? "").TrimStart('.');
+        if (ext.Length > 0 && name.EndsWith("." + ext, StringComparison.OrdinalIgnoreCase) && name.Length > ext.Length + 1)
+            name = name.Substring(0, name.Length - ext.Length - 1).TrimEnd('.', ' ');
+        return name.Length == 0 ? "録音" : name;
+    }
+
+    /// <summary>日付フォルダ名。「{yyyy}-{MM}-{dd}」形式のテンプレート、または「yyyy-MM-dd」形式の書式のどちらでもよい。</summary>
+    public static string RenderFolder(string format, DateTime t)
+    {
+        string f = string.IsNullOrWhiteSpace(format) ? "{yyyy}-{MM}-{dd}" : format;
+        string name;
+        if (f.Contains('{')) name = Render(f, new NameContext { FileStartTime = t });
+        else { try { name = t.ToString(f, CultureInfo.InvariantCulture); } catch (FormatException) { name = t.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture); } }
+        return SanitizeFolderName(name);
     }
 
     public static string SanitizeFolderName(string name) => Sanitize(name, 100);

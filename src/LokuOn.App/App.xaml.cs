@@ -14,10 +14,13 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        singleInstance = new Mutex(true, "LokuOn.SingleInstance.7c1f2a", out bool createdNew);
+        // 多重起動の判定は「同じフォルダのexe」だけ(別のフォルダにコピーした LokuOn は同時に起動できる)
+        string dirKey = Path.GetFullPath(AppContext.BaseDirectory).TrimEnd('\\', '/').ToLowerInvariant();
+        string hash = Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(Encoding.UTF8.GetBytes(dirKey)))[..16];
+        singleInstance = new Mutex(true, "LokuOn.SingleInstance." + hash, out bool createdNew);
         if (!createdNew)
         {
-            MessageBox.Show("LokuOn はすでに起動しています。\nタスクトレイや他のウィンドウの後ろを確認してください。",
+            MessageBox.Show("このフォルダの LokuOn はすでに起動しています。\nタスクトレイや他のウィンドウの後ろを確認してください。\n(設定ファイルを守るため、2つ目は起動しません)",
                 "LokuOn", MessageBoxButton.OK, MessageBoxImage.Information);
             singleInstance = null;
             Shutdown();

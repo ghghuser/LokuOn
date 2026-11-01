@@ -82,8 +82,11 @@ public sealed class Preset
 
     public string SaveFolder { get; set; } = "";
     public bool UseDateFolder { get; set; } = true;
-    public string DateFolderFormat { get; set; } = "yyyy-MM-dd";
-    public string FileNameTemplate { get; set; } = "No.{No}-Track{Track:000}_{Start}-{End}({Length})";
+    public string DateFolderFormat { get; set; } = "{yyyy}-{MM}-{dd}";
+    public string FileNameTemplate { get; set; } = DefaultTemplate;
+    public const string DefaultTemplate = "{Date} {Time} (No.{No}).{ext}";
+    public const string TrackTemplate = "No.{No}-Track{Track:000}_{Start}-{End}({Length}).{ext}";
+    public static string DefaultSaveFolder => System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "LokuOn", "Rec");
     public TimeStyle TimeStyle { get; set; } = TimeStyle.Auto;
 
     public int AutoSplitMinutes { get; set; } = 0;
@@ -108,6 +111,9 @@ public sealed class Preset
     {
         var a = new SourceSetting[SourceSlots];
         for (int i = 0; i < a.Length; i++) a[i] = new SourceSetting();
+        // 初期値は「既定の入力(マイク)」。前回の選択がある場合は設定ファイルのほうが優先される
+        a[0].DeviceId = "wasapi-cap:default";
+        a[0].DeviceName = "🎤 既定のマイク(Windowsの既定に追従)";
         return a;
     }
 
@@ -159,7 +165,8 @@ public sealed class Preset
         AutoStopSilenceSeconds = ClampD(AutoStopSilenceSeconds, 0, 864000, 0);
 
         SaveFolder = (SaveFolder ?? "").Trim();
-        if (string.IsNullOrWhiteSpace(DateFolderFormat)) DateFolderFormat = "yyyy-MM-dd";
+        if (SaveFolder.Length == 0) SaveFolder = DefaultSaveFolder;
+        if (string.IsNullOrWhiteSpace(DateFolderFormat)) DateFolderFormat = "{yyyy}-{MM}-{dd}";
         if (string.IsNullOrWhiteSpace(FileNameTemplate)) FileNameTemplate = new Preset().FileNameTemplate;
     }
 
@@ -202,9 +209,9 @@ public sealed class Preset
 
         s.Set("SaveFolder", SaveFolder, C("保存先フォルダ"));
         s.Set("UseDateFolder", UseDateFolder, C("保存先の中に日付フォルダを作る"));
-        s.Set("DateFolderFormat", DateFolderFormat, C("日付フォルダの書式(例: yyyy-MM-dd)"));
+        s.Set("DateFolderFormat", DateFolderFormat, C("日付フォルダ名({yyyy}-{MM}-{dd} など。録音を始めた日で固定)"));
         s.Set("FileNameTemplate", FileNameTemplate,
-            C("ファイル名(拡張子は自動)。変数: {No} {Track:000} {Start} {End} {Length} {Date} {Time} {DateTime:書式} {Device} {Preset}。時間は {End:m}=125：30 形式 / {End:h}=時：分：秒 / {End:s}=秒数"));
+            C("ファイル名。{ext}を書かなくても拡張子は自動で付く。変数: {No} {Track:000} {Start} {End} {Length} {Date} {Time} {yyyy} {yy} {MM} {dd} {HH} {mm} {ss} {DateTime:書式} {Device} {Preset} {ext}。時間は {End:m}=125：30 形式 / {End:h}=時：分：秒 / {End:s}=秒数"));
         s.Set("TimeStyle", TimeStyle, C("{Start}{End}{Length}の既定の表記。Auto=36：25 / 1：05：30、TotalMinutes=125：30"));
 
         s.Set("AutoSplitMinutes", AutoSplitMinutes, C("この分数ごとに自動分割(0=しない)"));

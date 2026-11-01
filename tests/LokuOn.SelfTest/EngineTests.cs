@@ -38,7 +38,7 @@ static class EngineTests
     static Preset BasePreset(string folder, AudioFormat fmt) => new()
     {
         Name = "テスト", Format = fmt, SampleRate = 48000, Channels = 2, BitrateKbps = 192, BitDepth = 16,
-        SaveFolder = folder, UseDateFolder = true, DateFolderFormat = "yyyy-MM-dd",
+        SaveFolder = folder, UseDateFolder = true, DateFolderFormat = "{yyyy}-{MM}-{dd}", FileNameTemplate = Preset.TrackTemplate,
         Sources = { [0] = new SourceSetting { DeviceId = "x", DeviceName = "テスト入力" } },
     };
 

@@ -48,6 +48,7 @@ public sealed class RecorderEngine : IDisposable
         public DateTime FileStartTime;
         public bool HasSplit;
         public bool Paused;
+        public bool UPaused;            // 利用者の一時停止
         public bool SplitPending;
         public long SilentFrames;
         public bool SoundSeen;
@@ -66,6 +67,9 @@ public sealed class RecorderEngine : IDisposable
     private readonly TaskCompletionSource<bool> done = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private Thread? thread;
     private volatile bool stopRequested;
+    private volatile bool userPause;
+    private DateTime sessionStart;
+    private bool sessionStartSet;
     private volatile string stopReason = "";
     private int splitRequested;
     private volatile int state;
@@ -92,6 +96,8 @@ public sealed class RecorderEngine : IDisposable
     public string CurrentFilePath => outputs.Count > 0 ? outputs[0].ProvPath : "";
     public long FreeDiskBytes => Interlocked.Read(ref freeDiskBytes);
     public bool IsPaused => outputs.Count > 0 && outputs.All(o => o.Paused);
+    /// <summary>利用者が一時停止中か。</summary>
+    public bool IsUserPaused => userPause;
 
     public RecorderEngine(EngineOptions options, IReadOnlyList<SourceBuffer> sourceBuffers)
     {
@@ -132,7 +138,7 @@ public sealed class RecorderEngine : IDisposable
         foreach (var o in outputs) { o.Track = opt.TrackStart; o.Mix = new float[(rate / 100) * ch]; }
         for (int i = 0; i < sources.Count; i++) { sources[i].Clear(); lastConnected[i] = sources[i].Connected; }
         Waveform.Clear();
-        stopRequested = false; stopReason = ""; splitRequested = 0;
+        stopRequested = false; stopReason = ""; splitRequested = 0; userPause = false; sessionStartSet = false;
 
         if (p.AutoStartOnSound) state = (int)EngineState.Armed;
         else
@@ -154,7 +160,22 @@ public sealed class RecorderEngine : IDisposable
     }
 
     /// <summary>今の位置でファイルを分割して、新しいファイルへ続ける。</summary>
-    public void Split() { if (state == (int)EngineState.Recording) Interlocked.Exchange(ref splitRequested, 1); }
+    public void Split() { if (state == (int)EngineState.Recording && !userPause) Interlocked.Exchange(ref splitRequested, 1); }
+
+    /// <summary>一時停止。止めている間の時間と音はファイルに入らない(直前は短いフェードアウト)。</summary>
+    public void Pause() { if (state == (int)EngineState.Recording) userPause = true; }
+
+    /// <summary>一時停止から再開。同じファイルの続きに書く(最初は短いフェードイン)。</summary>
+    public void Resume() { userPause = false; }
+
+    private void Ramp(float[] buf, int frames, bool fadeOut)
+    {
+        for (int f = 0; f < frames; f++)
+        {
+            float g = fadeOut ? 1f - (f + 1) / (float)frames : f / (float)frames;
+            for (int c = 0; c < ch; c++) buf[f * ch + c] *= g;
+        }
+    }
 
     public EngineLevels ReadLevels()
     {
@@ -318,6 +339,14 @@ public sealed class RecorderEngine : IDisposable
             }
             if (!recording) continue;
 
+            // 利用者の一時停止(止めている間は書かない。つなぎ目はフェードでプツッを防ぐ)
+            if (userPause)
+            {
+                if (!o.UPaused) { Ramp(o.Mix, n, true); WriteToOutput(o, o.Mix, n); o.UPaused = true; }
+                continue;
+            }
+            if (o.UPaused) { Ramp(o.Mix, n, false); o.UPaused = false; o.SilentFrames = 0; }
+
             // 切断時の挙動
             bool lost = o.Src.All(si => !sources[si].Connected);
             if (lost)
@@ -395,16 +424,10 @@ public sealed class RecorderEngine : IDisposable
 
     // ------------------------------------------------------------ ファイルの開閉
 
-    private string DestinationFolder(DateTime t)
+    private string DestinationFolder()
     {
         string dir = p.SaveFolder;
-        if (p.UseDateFolder)
-        {
-            string name;
-            try { name = t.ToString(p.DateFolderFormat, System.Globalization.CultureInfo.InvariantCulture); }
-            catch (FormatException) { name = t.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture); }
-            dir = Path.Combine(dir, NameTemplate.SanitizeFolderName(name));
-        }
+        if (p.UseDateFolder) dir = Path.Combine(dir, NameTemplate.RenderFolder(p.DateFolderFormat, sessionStart));
         return dir;
     }
 
@@ -414,12 +437,12 @@ public sealed class RecorderEngine : IDisposable
     {
         No = opt.No, Track = o.Track, StartSec = o.FileStartFrames / (double)rate, EndSec = endSec,
         Provisional = provisional, FileStartTime = o.FileStartTime, Device = o.Label,
-        Preset = p.Name, TimeStyle = p.TimeStyle,
+        Preset = p.Name, TimeStyle = p.TimeStyle, Ext = EncoderSpec.Extension(p.Format),
     };
 
     private string BuildBaseName(Output o, NameContext ctx)
     {
-        string name = NameTemplate.Sanitize(NameTemplate.Render(p.FileNameTemplate, ctx));
+        string name = NameTemplate.RenderFileBase(p.FileNameTemplate, ctx);
         if (NeedDeviceSuffix) name += "_" + NameTemplate.Sanitize(o.Label, 60);
         return name;
     }
@@ -427,10 +450,11 @@ public sealed class RecorderEngine : IDisposable
     private void OpenFile(Output o)
     {
         o.FileStartTime = DateTime.Now;
+        if (!sessionStartSet) { sessionStart = o.FileStartTime; sessionStartSet = true; }
         o.FileStartFrames = o.SessionFrames;
         o.FileFrames = 0;
         var ctx = MakeContext(o, true, 0);
-        string dir = DestinationFolder(o.FileStartTime);
+        string dir = DestinationFolder();
         Directory.CreateDirectory(dir);
         string ext = EncoderSpec.Extension(p.Format);
         string path = NameTemplate.UniquePath(dir, BuildBaseName(o, ctx), ext);

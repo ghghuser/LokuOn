@@ -9,6 +9,34 @@ public sealed class ScheduleSettings
 }
 
 /// <summary>アプリ全体の設定(プリセットに含まれないもの)と、現在の作業用プリセット、保存済みプリセット一覧。</summary>
+/// <summary>名前を付けて保存したファイル名テンプレート。</summary>
+public sealed class SavedTemplate
+{
+    public string Name { get; set; } = "";
+    public string Template { get; set; } = "";
+}
+
+/// <summary>最初から入っているテンプレート(削除・上書きはできない)。</summary>
+public static class TemplateLibrary
+{
+    public static readonly (string Name, string Template)[] BuiltIn =
+    {
+        ("日時形式", Preset.DefaultTemplate),
+        ("トラック形式", Preset.TrackTemplate),
+    };
+
+    public static bool IsBuiltIn(string name) => BuiltIn.Any(b => string.Equals(b.Name, name, StringComparison.Ordinal));
+
+    /// <summary>テンプレート名として使えるか(使えないときは理由を返す)。</summary>
+    public static string? ValidateName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "名前を入力してください。";
+        if (name.IndexOfAny(new[] { '[', ']', '\r', '\n', '\t' }) >= 0) return "名前に [ ] や改行は使えません。";
+        if (IsBuiltIn(name.Trim())) return "最初から入っているテンプレートの名前は使えません。";
+        return null;
+    }
+}
+
 public sealed class AppSettings
 {
     /// <summary>次に使う録音ナンバー(録音が終わるたびに+1。アプリを閉じても保持)。</summary>
@@ -39,6 +67,9 @@ public sealed class AppSettings
     /// <summary>画面に出ている現在の設定(終了時に保存され、次回そのまま復元される)。</summary>
     public Preset Current { get; set; } = new();
     public List<Preset> Presets { get; set; } = new();
+
+    /// <summary>保存したファイル名テンプレート(最初から入っているものは含まない)。</summary>
+    public List<SavedTemplate> Templates { get; set; } = new();
 }
 
 public static class SettingsStore
@@ -97,6 +128,14 @@ public static class SettingsStore
             if (name.Length == 0) continue;
             s.Presets.Add(Preset.ReadFrom(sec, name));
         }
+        foreach (var sec in doc.Sections)
+        {
+            if (!sec.Name.StartsWith("Template:", StringComparison.OrdinalIgnoreCase)) continue;
+            string name = sec.Name.Substring(9).Trim();
+            string t = sec.GetString("Template");
+            if (name.Length == 0 || t.Length == 0 || TemplateLibrary.IsBuiltIn(name)) continue;
+            s.Templates.Add(new SavedTemplate { Name = name, Template = t });
+        }
         return s;
     }
 
@@ -129,6 +168,8 @@ public static class SettingsStore
         s.Current.WriteTo(doc.Section("Current"), true);
         foreach (var p in s.Presets)
             p.WriteTo(doc.Section("Preset:" + p.Name), false);
+        foreach (var t in s.Templates)
+            doc.Section("Template:" + t.Name).Set("Template", t.Template);
         doc.Save(path);
     }
 }
