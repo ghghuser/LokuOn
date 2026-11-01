@@ -63,26 +63,33 @@ jobs:
           $env:PATH = "$((Resolve-Path ffmpeg-dl/bin).Path);$env:PATH"
           dotnet run --project tests/LokuOn.SelfTest -c Release
 
-      - name: 発行(インストール不要の自己完結版)
+      - name: 発行(インストール不要・単一exe)
         shell: pwsh
         run: |
-          dotnet publish src/LokuOn.App/LokuOn.App.csproj -c Release -r win-x64 --self-contained true -o publish/LokuOn
+          $ErrorActionPreference = 'Stop'
+          dotnet publish src/LokuOn.App/LokuOn.App.csproj -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
+            -p:DebugType=none -p:DebugSymbols=false -o publish-tmp
+          # 配布フォルダには LokuOn.exe と ffmpeg だけを置く(設定ファイルは初回起動時に自動で作られる)
           New-Item -ItemType Directory -Force -Path publish/LokuOn/ffmpeg | Out-Null
+          Copy-Item publish-tmp/LokuOn.exe publish/LokuOn/LokuOn.exe -Force
           Copy-Item ffmpeg-dl/bin/ffmpeg.exe publish/LokuOn/ffmpeg/ffmpeg.exe -Force
-          Copy-Item README.md publish/LokuOn/README.md -Force
-          Get-ChildItem publish/LokuOn | Select-Object -First 40 | Format-Table Name, Length
+          Write-Host '--- 配布フォルダの中身 ---'
+          Get-ChildItem publish -Recurse -File | ForEach-Object { '{0}  {1:N1} MB' -f $_.FullName.Substring((Get-Location).Path.Length + 1), ($_.Length / 1MB) }
 
-      - name: ZIP を作成
+      - name: ZIP を作成(ZIPの中は LokuOn\LokuOn.exe)
         shell: pwsh
         run: |
           Compress-Archive -Path publish/LokuOn -DestinationPath LokuOn-win-x64.zip -Force
           (Get-Item LokuOn-win-x64.zip).Length
 
+      # Artifacts は自動でZIPにされるため、ZIPを入れると二重になる。
+      # 「publish」フォルダごと渡すと、ダウンロードした LokuOn-win-x64.zip の中が LokuOn\LokuOn.exe になる。
       - name: Artifacts にアップロード
         uses: actions/upload-artifact@v4
         with:
           name: LokuOn-win-x64
-          path: LokuOn-win-x64.zip
+          path: publish
 
       - name: Releases に公開(タグ v* のとき)
         if: startsWith(github.ref, 'refs/tags/v')
