@@ -1,4 +1,4 @@
-# Rokuon（録音）
+# LokuOn（録音）
 
 Windows 11 用の録音ソフトです。インストール不要（ポータブル）で、設定はテキストの `settings.ini` に保存されます。
 
@@ -9,9 +9,9 @@ Windows 11 用の録音ソフトです。インストール不要（ポータブ
 
 ## ダウンロードと起動
 
-1. このリポジトリの **Releases**（または Actions の Artifacts）から `Rokuon-win-x64.zip` をダウンロード
+1. このリポジトリの **Releases**（または Actions の Artifacts）から `LokuOn-win-x64.zip` をダウンロード
 2. 好きなフォルダに展開（デスクトップでも USB メモリでも可）
-3. `Rokuon.exe` を起動
+3. `LokuOn.exe` を起動
 
 .NET のインストールは不要です。削除するときはフォルダごと消すだけです。
 初回起動時に `settings.ini` が作られます。バックアップはこのファイルをコピーするだけです。
@@ -21,7 +21,7 @@ Windows 11 用の録音ソフトです。インストール不要（ポータブ
 1. GitHub で新しいリポジトリを作る（Private でOK）
 2. 展開したこのフォルダの中身（`src`、`tests`、`.github`、`README.md`、`.gitignore`）を **Add file → Upload files** でアップロード
    - `.github` フォルダが見えない場合は、エクスプローラーで「隠しファイルを表示」にしてください
-3. **Actions** タブで「Build Rokuon」が動き、数分で完了すると `Rokuon-win-x64` というファイルが **Artifacts** に出ます
+3. **Actions** タブで「Build LokuOn」が動き、数分で完了すると `LokuOn-win-x64` というファイルが **Artifacts** に出ます
 4. Releases に公開したいときは、Releases → **Draft a new release** でタグ（例 `v1.0.0`）を作って公開すると、ZIP が自動で添付されます
    （または、タグを作成して push しても同じです）
 
@@ -77,9 +77,9 @@ Windows 11 用の録音ソフトです。インストール不要（ポータブ
 
 ## 構成
 
-- `src/Rokuon.Core` … 録音エンジン、命名、設定、FFmpeg 呼び出し（OS 非依存。`tests/Rokuon.SelfTest` で自動テスト）
-- `src/Rokuon.Audio` … NAudio による入力（WASAPI / ループバック / ASIO）
-- `src/Rokuon.App` … WPF の画面
+- `src/LokuOn.Core` … 録音エンジン、命名、設定、FFmpeg 呼び出し（OS 非依存。`tests/LokuOn.SelfTest` で自動テスト）
+- `src/LokuOn.Audio` … NAudio による入力（WASAPI / ループバック / ASIO）
+- `src/LokuOn.App` … WPF の画面
 
 ## ライセンスについて
 
