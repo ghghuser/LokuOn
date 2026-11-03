@@ -321,8 +321,7 @@ public partial class MainWindow
             string date = "";
             if (p.UseDateFolder)
             {
-                try { date = NameTemplate.SanitizeFolderName(DateTime.Now.ToString(p.DateFolderFormat, CultureInfo.InvariantCulture)) + "\\"; }
-                catch (FormatException) { date = "(日付の書式が正しくありません)\\"; }
+                date = NameTemplate.RenderFolder(p.DateFolderFormat, DateTime.Now) + "\\";
             }
             TemplatePreview.Text = $"例: {date}{name}{ext}\n分割後: {date}{name2}{ext}";
         }
@@ -666,7 +665,7 @@ public partial class MainWindow
     /// <summary>背景の効果(Mica / アクリル)とタイトルバーの明暗を反映する。</summary>
     private void ApplyBackdrop()
     {
-        WindowEffects.Apply(this, ctl.Settings.Backdrop, ThemeHelper.IsDark(ctl.Settings.Theme));
+        WindowEffects.Apply(this, ctl.Settings.Backdrop, ThemeHelper.IsDark(ctl.Settings.Theme), ctl.Settings.BackdropStrength);
     }
 
     // ---------------------------------------------------------------- ファイル名テンプレートの保存

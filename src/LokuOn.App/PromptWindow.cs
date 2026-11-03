@@ -19,6 +19,8 @@ public sealed class PromptWindow : Window
         ShowInTaskbar = false;
         FontFamily = new System.Windows.Media.FontFamily("Yu Gothic UI, Meiryo UI, Segoe UI");
         FontSize = 12;
+        ThemeHelper.ApplyWindowMode(this);
+        SourceInitialized += (s, e) => ThemeHelper.ApplyWindow(this);
 
         var panel = new StackPanel { Margin = new Thickness(14) };
         panel.Children.Add(new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });

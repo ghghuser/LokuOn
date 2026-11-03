@@ -9,6 +9,30 @@ public sealed class ScheduleSettings
 }
 
 /// <summary>アプリ全体の設定(プリセットに含まれないもの)と、現在の作業用プリセット、保存済みプリセット一覧。</summary>
+/// <summary>背景の効果(Mica / アクリル)の決まりごと。</summary>
+public static class BackdropRules
+{
+    public const int MinStrength = 30, MaxStrength = 100, DefaultStrength = 80;
+
+    /// <summary>実際に使う背景の効果。ライトテーマでは、設定に関係なく「none」に固定する。</summary>
+    public static string Effective(string? mode, bool dark)
+    {
+        if (!dark) return "none";
+        string m = (mode ?? "").Trim().ToLowerInvariant();
+        return m == "mica" || m == "acrylic" ? m : "none";
+    }
+
+    /// <summary>
+    /// 効果の上に重ねる暗い色の濃さ(0〜1)。大きいほど無地に近く、背景の模様が目立たなくなる。
+    /// アクリルは、Mica より透けるように 0.8 倍にする。
+    /// </summary>
+    public static double TintAlpha(string? mode, int strength)
+    {
+        double s = Math.Clamp(strength, MinStrength, MaxStrength) / 100.0;
+        return string.Equals(mode, "acrylic", StringComparison.OrdinalIgnoreCase) ? s * 0.8 : s;
+    }
+}
+
 /// <summary>名前を付けて保存したファイル名テンプレート。</summary>
 public sealed class SavedTemplate
 {
@@ -55,6 +79,8 @@ public sealed class AppSettings
     public bool MinimizeToTray { get; set; } = false;
     /// <summary>背景の効果(Windows 11): "none" / "mica" / "acrylic"</summary>
     public string Backdrop { get; set; } = "none";
+    /// <summary>背景の効果の上に重ねる色の濃さ(30〜100。大きいほど無地に近い)。</summary>
+    public int BackdropStrength { get; set; } = BackdropRules.DefaultStrength;
     /// <summary>利用者が削除した、最初から入っているテンプレートの名前(「初期に戻す」で復活)。</summary>
     public List<string> HiddenTemplates { get; set; } = new();
     public bool HideToTrayWhileRecording { get; set; } = false;
@@ -109,6 +135,7 @@ public static class SettingsStore
             s.MinimizeToTray = string.Equals(a.GetString("MinimizeBehavior", "taskbar"), "tray", StringComparison.OrdinalIgnoreCase);
             s.Backdrop = a.GetString("Backdrop", d.Backdrop).Trim().ToLowerInvariant();
             if (s.Backdrop != "mica" && s.Backdrop != "acrylic") s.Backdrop = "none";
+            s.BackdropStrength = Math.Clamp(a.GetInt("BackdropStrength", d.BackdropStrength), BackdropRules.MinStrength, BackdropRules.MaxStrength);
             s.HiddenTemplates = a.GetString("HiddenTemplates").Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
             s.HideToTrayWhileRecording = a.GetBool("HideToTrayWhileRecording", d.HideToTrayWhileRecording);
             s.HotkeysEnabled = a.GetBool("HotkeysEnabled", d.HotkeysEnabled);
@@ -159,7 +186,8 @@ public static class SettingsStore
         a.Set("MonitorInput", s.MonitorInput, "録音していないときも入力のメーターと波形を表示する(入力確認)");
         a.Set("ConfirmCloseWhileRecording", s.ConfirmCloseWhileRecording);
         a.Set("MinimizeBehavior", s.MinimizeToTray ? "tray" : "taskbar", "最小化したとき: taskbar=タスクバーに残す / tray=タスクトレイにしまう");
-        a.Set("Backdrop", s.Backdrop, "背景の効果(Windows 11): none / mica / acrylic");
+        a.Set("Backdrop", s.Backdrop, "背景の効果(Windows 11、ダークテーマのときだけ有効): none / mica / acrylic");
+        a.Set("BackdropStrength", s.BackdropStrength, "背景の効果の上に重ねる色の濃さ 30〜100(大きいほど無地に近く、背景の模様が目立たない)");
         a.Set("HiddenTemplates", string.Join("|", s.HiddenTemplates), "削除した最初のテンプレート名(「初期に戻す」で復活)");
         a.Set("HideToTrayWhileRecording", s.HideToTrayWhileRecording);
         a.Set("HotkeysEnabled", s.HotkeysEnabled, "グローバルホットキー(他のアプリ使用中でも操作可)");

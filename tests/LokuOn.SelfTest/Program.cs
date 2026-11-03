@@ -118,6 +118,24 @@ Section("名前の重複判定・設定の追加項目");
     Check(!SettingsStore.Load(old).MinimizeToTray, "古い設定の MinimizeToTray は引き継がず、新しい初期値(タスクバー)になる");
 }
 
+Section("背景の効果のルール");
+{
+    Check(BackdropRules.Effective("mica", false) == "none" && BackdropRules.Effective("acrylic", false) == "none", "ライトテーマでは背景の効果はなしに固定");
+    Check(BackdropRules.Effective("mica", true) == "mica" && BackdropRules.Effective("acrylic", true) == "acrylic", "ダークテーマでは選んだ効果");
+    Check(BackdropRules.Effective("xxx", true) == "none" && BackdropRules.Effective(null, true) == "none", "不正な値はなし");
+    Check(BackdropRules.TintAlpha("mica", 80) > BackdropRules.TintAlpha("acrylic", 80), "アクリルは同じ濃さでもMicaより透ける");
+    Check(Math.Abs(BackdropRules.TintAlpha("mica", 80) - 0.8) < 1e-9 && Math.Abs(BackdropRules.TintAlpha("acrylic", 80) - 0.64) < 1e-9, "濃さ80のとき Mica 0.80 / アクリル 0.64");
+    Check(BackdropRules.TintAlpha("mica", 0) == 0.3 && BackdropRules.TintAlpha("mica", 500) == 1.0, "濃さは30〜100に収まる");
+    var b0 = new AppSettings { Backdrop = "acrylic", BackdropStrength = 55 };
+    string bp = Path.Combine(tmp, "bd.ini");
+    SettingsStore.Save(bp, b0);
+    var b1 = SettingsStore.Load(bp);
+    Check(b1.Backdrop == "acrylic" && b1.BackdropStrength == 55, "背景の効果と濃さの保存");
+    Check(new AppSettings().BackdropStrength == 80, "濃さの初期値は80");
+    File.WriteAllText(Path.Combine(tmp, "bd2.ini"), "[App]\nBackdropStrength=5\n");
+    Check(SettingsStore.Load(Path.Combine(tmp, "bd2.ini")).BackdropStrength == 30, "範囲外の濃さは30に直る");
+}
+
 Section("リサンプラ");
 foreach (var (inR, outR) in new[] { (44100, 48000), (48000, 44100), (96000, 48000), (48000, 48000), (22050, 48000) })
 {
