@@ -540,8 +540,8 @@ public sealed class RecorderEngine : IDisposable
             var ctx = MakeContext(o, false, endSec);
             string dir = Path.GetDirectoryName(c.ProvPath) ?? ".";
             string ext = Path.GetExtension(c.ProvPath);
-            string final = NameTemplate.UniquePath(dir, BuildBaseName(o, ctx), ext);
-            File.Move(c.ProvPath, final);
+            string final = NameTemplate.UniquePath(dir, BuildBaseName(o, ctx), ext, c.ProvPath);
+            if (!string.Equals(final, c.ProvPath, StringComparison.Ordinal)) File.Move(c.ProvPath, final);
 
             bool tagTrack = p.WriteTrackTag && c.FileIndex == 0 && c.HadSplit;
             bool faststart = p.Format == AudioFormat.M4a;

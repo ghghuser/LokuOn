@@ -65,6 +65,40 @@ public partial class MainWindow
         finally { DestroyIconNative(h); }
     }
 
+    private static System.Drawing.Icon? LoadAppIcon()
+    {
+        try
+        {
+            string? path = Environment.ProcessPath;
+            if (!string.IsNullOrEmpty(path)) return System.Drawing.Icon.ExtractAssociatedIcon(path);
+        }
+        catch { }
+        return null;
+    }
+
+    /// <summary>アプリのアイコンの右下に赤い点を付けた、録音中用のアイコン。</summary>
+    private static System.Drawing.Icon MakeRecordingIcon(System.Drawing.Icon baseIcon)
+    {
+        try
+        {
+            using var bmp = new System.Drawing.Bitmap(32, 32);
+            using (var g = System.Drawing.Graphics.FromImage(bmp))
+            {
+                g.Clear(System.Drawing.Color.Transparent);
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                g.DrawIcon(baseIcon, new System.Drawing.Rectangle(0, 0, 32, 32));
+                using var white = new System.Drawing.SolidBrush(System.Drawing.Color.White);
+                using var red = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(235, 40, 40));
+                g.FillEllipse(white, 15, 15, 17, 17);
+                g.FillEllipse(red, 17, 17, 13, 13);
+            }
+            IntPtr h = bmp.GetHicon();
+            try { return (System.Drawing.Icon)System.Drawing.Icon.FromHandle(h).Clone(); }
+            finally { DestroyIconNative(h); }
+        }
+        catch { return MakeDot(System.Drawing.Color.FromArgb(235, 60, 50)); }
+    }
+
     [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "DestroyIcon")]
     private static extern bool DestroyIconNative(IntPtr handle);
 
@@ -73,8 +107,9 @@ public partial class MainWindow
         if (tray != null) return;
         try
         {
-            trayIconIdle = MakeDot(System.Drawing.Color.FromArgb(120, 170, 230));
-            trayIconRec = MakeDot(System.Drawing.Color.FromArgb(235, 60, 50));
+            // 待機中は通常のアプリのアイコン、録音中はそれに赤い点を付けたアイコン
+            trayIconIdle = LoadAppIcon() ?? MakeDot(System.Drawing.Color.FromArgb(120, 170, 230));
+            trayIconRec = MakeRecordingIcon(trayIconIdle);
 
             var menu = new System.Windows.Forms.ContextMenuStrip();
             menu.Items.Add("ウィンドウを表示", null, (s, e) => ShowFromTray());

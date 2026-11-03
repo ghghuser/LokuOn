@@ -112,6 +112,25 @@ static class EngineTests
             }
         }
 
+        // ---- 2b) 既定の日時形式では、重複していないのに「(2)」が付かない
+        {
+            section("エンジン: 日時形式の名前に(2)が付かない");
+            string dir = Path.Combine(tmp, "dflt");
+            var p = BasePreset(dir, AudioFormat.Mp3);
+            p.FileNameTemplate = Preset.DefaultTemplate;
+            var sb = new SourceBuffer(48000, 2) { Label = "テスト入力" };
+            var eng = new RecorderEngine(new EngineOptions { Preset = p, No = 9, FfmpegPath = ffmpeg }, new[] { sb });
+            using var dev = new FakeDevice(sb, 48000, 1000);
+            eng.Start(); Thread.Sleep(2200); eng.StopAsync().Wait();
+            var files = Files(dir);
+            check(files.Count == 1, "ファイルは1つだけ", string.Join(",", files));
+            if (files.Count == 1)
+            {
+                string n = Path.GetFileName(files[0]);
+                check(n.EndsWith("(No.9).mp3") && !n.Contains("(2)"), "名前に(2)が付かない", n);
+            }
+        }
+
         // ---- 3) 2デバイスのミックス/別ファイル、時間による自動分割、デバイス切断(無音挿入)
         section("エンジン: 2デバイス・ミックス + 自動分割");
         {

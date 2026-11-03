@@ -51,7 +51,12 @@ public sealed class AppSettings
     /// <summary>録音していないときも入力のメーターと波形を表示する(入力確認)。</summary>
     public bool MonitorInput { get; set; } = true;
     public bool ConfirmCloseWhileRecording { get; set; } = true;
-    public bool MinimizeToTray { get; set; } = true;
+    /// <summary>最小化したとき: false=タスクバーに残す(既定) / true=タスクトレイにしまう</summary>
+    public bool MinimizeToTray { get; set; } = false;
+    /// <summary>背景の効果(Windows 11): "none" / "mica" / "acrylic"</summary>
+    public string Backdrop { get; set; } = "none";
+    /// <summary>利用者が削除した、最初から入っているテンプレートの名前(「初期に戻す」で復活)。</summary>
+    public List<string> HiddenTemplates { get; set; } = new();
     public bool HideToTrayWhileRecording { get; set; } = false;
 
     public bool HotkeysEnabled { get; set; } = false;
@@ -101,7 +106,10 @@ public static class SettingsStore
             s.PreventSleep = a.GetBool("PreventSleep", d.PreventSleep);
             s.MonitorInput = a.GetBool("MonitorInput", d.MonitorInput);
             s.ConfirmCloseWhileRecording = a.GetBool("ConfirmCloseWhileRecording", d.ConfirmCloseWhileRecording);
-            s.MinimizeToTray = a.GetBool("MinimizeToTray", d.MinimizeToTray);
+            s.MinimizeToTray = string.Equals(a.GetString("MinimizeBehavior", "taskbar"), "tray", StringComparison.OrdinalIgnoreCase);
+            s.Backdrop = a.GetString("Backdrop", d.Backdrop).Trim().ToLowerInvariant();
+            if (s.Backdrop != "mica" && s.Backdrop != "acrylic") s.Backdrop = "none";
+            s.HiddenTemplates = a.GetString("HiddenTemplates").Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
             s.HideToTrayWhileRecording = a.GetBool("HideToTrayWhileRecording", d.HideToTrayWhileRecording);
             s.HotkeysEnabled = a.GetBool("HotkeysEnabled", d.HotkeysEnabled);
             s.HotkeyStartStop = a.GetString("HotkeyStartStop", d.HotkeyStartStop);
@@ -150,7 +158,9 @@ public static class SettingsStore
         a.Set("PreventSleep", s.PreventSleep, "録音中にPCがスリープしないようにする");
         a.Set("MonitorInput", s.MonitorInput, "録音していないときも入力のメーターと波形を表示する(入力確認)");
         a.Set("ConfirmCloseWhileRecording", s.ConfirmCloseWhileRecording);
-        a.Set("MinimizeToTray", s.MinimizeToTray, "最小化したときタスクトレイに格納する");
+        a.Set("MinimizeBehavior", s.MinimizeToTray ? "tray" : "taskbar", "最小化したとき: taskbar=タスクバーに残す / tray=タスクトレイにしまう");
+        a.Set("Backdrop", s.Backdrop, "背景の効果(Windows 11): none / mica / acrylic");
+        a.Set("HiddenTemplates", string.Join("|", s.HiddenTemplates), "削除した最初のテンプレート名(「初期に戻す」で復活)");
         a.Set("HideToTrayWhileRecording", s.HideToTrayWhileRecording);
         a.Set("HotkeysEnabled", s.HotkeysEnabled, "グローバルホットキー(他のアプリ使用中でも操作可)");
         a.Set("HotkeyStartStop", s.HotkeyStartStop);

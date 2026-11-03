@@ -56,6 +56,7 @@ public partial class MainWindow : Window
         FileList.ItemsSource = files;
         BuildFileContextMenu();
         InitPlayer();
+        ApplyBackdrop();
 
         PopulateDeviceCombos();
         RefreshPresetCombo(ctl.Settings.LastPresetName);
@@ -142,7 +143,7 @@ public partial class MainWindow : Window
 
     private void OnUserPreferenceChanged(object? sender, Microsoft.Win32.UserPreferenceChangedEventArgs e)
     {
-        Dispatcher.InvokeAsync(ApplyCustomColors);
+        Dispatcher.InvokeAsync(() => { ApplyCustomColors(); ApplyBackdrop(); });
     }
 
     private void ApplyCustomColors()
@@ -260,7 +261,9 @@ public partial class MainWindow : Window
         var st = ctl.EngineState;
         BtnRecord.Content = rec ? "■  録音停止" : "●  録音開始";
         BtnRecord.IsEnabled = st != EngineState.Stopping;
-        BtnSplit.IsEnabled = rec && st == EngineState.Recording;
+        BtnSplit.IsEnabled = rec && st == EngineState.Recording && !ctl.IsUserPaused;
+        BtnPauseRec.IsEnabled = rec && st == EngineState.Recording;
+        BtnPauseRec.Content = ctl.IsUserPaused ? "▶  再開" : "❚❚  一時停止";
         LockPanel.IsEnabled = !rec;
         PresetCombo.IsEnabled = !rec;
         BtnPresetSave.IsEnabled = BtnPresetSaveAs.IsEnabled = BtnPresetDelete.IsEnabled = !rec;

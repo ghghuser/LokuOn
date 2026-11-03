@@ -13,7 +13,10 @@
         </Grid.RowDefinitions>
 
         <!-- ===== プリセット ===== -->
-        <WrapPanel Grid.Row="0" Margin="8,6,8,2" VerticalAlignment="Center">
+        <Button x:Name="BtnSettings" Grid.Row="0" Content="⚙" FontSize="16" Width="34" Height="30" Padding="0"
+                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,8,0" Panel.ZIndex="5"
+                ToolTip="設定と情報(テーマ・最小化の動作・バージョン・GitHub)"/>
+        <WrapPanel Grid.Row="0" Margin="8,6,50,2" VerticalAlignment="Center">
             <TextBlock Text="プリセット" VerticalAlignment="Center" Margin="0,0,6,0"/>
             <ComboBox x:Name="PresetCombo" Width="240" Margin="0,0,6,0"/>
             <Button x:Name="BtnPresetSave" Content="上書き保存" Padding="10,2" Margin="0,0,4,0"/>
@@ -133,9 +136,11 @@
                             <TextBlock x:Name="TemplateHint" TextWrapping="Wrap" Opacity="0.7" Margin="0,0,0,2"
                                        Text="{}変数: {Date} {Time} {yyyy} {yy} {MM} {dd} {HH} {mm} {ss}(そのファイルを始めた時刻) {No} {Track:000} {Start} {End} {Length} {Device} {Preset} {ext}   {End:m}=125：30 形式 / {End:s}=秒数"/>
                             <TextBlock x:Name="TemplatePreview" TextWrapping="Wrap" Margin="0,0,0,4" FontWeight="SemiBold"/>
+                            <WrapPanel Margin="0,0,0,3">
+                                <TextBlock Text="時間表記" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <ComboBox x:Name="TimeStyleCombo" MinWidth="250"/>
+                            </WrapPanel>
                             <WrapPanel>
-                                <TextBlock Text="時間表記" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                <ComboBox x:Name="TimeStyleCombo" Width="150" Margin="0,0,12,0"/>
                                 <TextBlock Text="次のNo." VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 <TextBox x:Name="NoBox" Width="56" VerticalContentAlignment="Center" Margin="0,0,12,0"
                                          ToolTip="録音が終わるたびに+1されます。アプリを閉じても保持されます。"/>
@@ -150,12 +155,15 @@
                         <StackPanel>
                             <WrapPanel Margin="0,0,0,3">
                                 <TextBlock Text="自動分割" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                <TextBox x:Name="AutoSplitBox" Width="50" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="AutoSplitBox" Width="56" VerticalContentAlignment="Center"
+                                         ToolTip="この分数ごとに、自動でファイルを分割します(0=自動分割しない)。1440分=24時間まで指定できます。"/>
                                 <TextBlock Text="分ごと(0=しない)" VerticalAlignment="Center" Margin="4,0,14,0"/>
-                                <TextBlock Text="最長" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                <TextBox x:Name="MaxHoursBox" Width="40" VerticalContentAlignment="Center"/>
-                                <TextBlock Text="時間で強制分割" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                <TextBlock Text="安全上限" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBox x:Name="MaxHoursBox" Width="40" VerticalContentAlignment="Center"
+                                         ToolTip="1つのファイルがこの時間を超えないように、必ず分割します(安全のための上限。初期値24時間)。"/>
+                                <TextBlock Text="時間" VerticalAlignment="Center" Margin="4,0,0,0"/>
                             </WrapPanel>
+                            <TextBlock x:Name="SplitHint" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,4"/>
                             <WrapPanel Margin="0,0,0,3">
                                 <CheckBox x:Name="SilenceSplitCheck" Content="無音で分割" VerticalContentAlignment="Center" Margin="0,0,8,0"/>
                                 <TextBox x:Name="SilenceDbBox" Width="46" VerticalContentAlignment="Center"/>
@@ -387,12 +395,8 @@
                     <TabItem Header="アプリ設定">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel Margin="10">
-                                <WrapPanel Margin="0,0,0,6">
-                                    <TextBlock Text="テーマ" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                    <ComboBox x:Name="ThemeCombo" Width="160"/>
-                                </WrapPanel>
                                 <CheckBox x:Name="PreventSleepCheck" Content="録音中はPCをスリープさせない" Margin="0,0,0,4"/>
-                                <CheckBox x:Name="MinimizeToTrayCheck" Content="最小化したらタスクトレイに格納する" Margin="0,0,0,4"/>
+                                <TextBlock Text="テーマ・最小化の動作・バージョン情報などは、右上の ⚙ ボタンから変更できます。" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,6"/>
                                 <CheckBox x:Name="ConfirmCloseCheck" Content="録音中にアプリを閉じようとしたら警告する" Margin="0,0,0,8"/>
                                 <WrapPanel Margin="0,0,0,4">
                                     <CheckBox x:Name="HotkeysCheck" Content="グローバルホットキーを使う" Margin="0,0,12,0" VerticalContentAlignment="Center"/>

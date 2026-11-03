@@ -99,6 +99,25 @@ Section("テンプレート保存・初期値");
     Check(Preset.DefaultSaveFolder.EndsWith(Path.Combine("LokuOn", "Rec")), "保存先の初期値");
 }
 
+Section("名前の重複判定・設定の追加項目");
+{
+    string ud = Path.Combine(tmp, "uniq"); Directory.CreateDirectory(ud);
+    string f1 = Path.Combine(ud, "a (No.1).mp3"); File.WriteAllText(f1, "x");
+    Check(NameTemplate.UniquePath(ud, "a (No.1)", "mp3").EndsWith("a (No.1) (2).mp3"), "他のファイルと重複したら(2)");
+    Check(NameTemplate.UniquePath(ud, "a (No.1)", "mp3", f1) == f1, "自分自身とは重複とみなさない");
+    Check(NameTemplate.UniquePath(ud, "A (NO.1)", ".MP3", f1) == Path.Combine(ud, "A (NO.1).MP3"), "大文字小文字だけ違う自分の名前も重複としない");
+    var a0 = new AppSettings { MinimizeToTray = true, Backdrop = "acrylic" };
+    a0.HiddenTemplates.Add("日時形式");
+    string ap = Path.Combine(tmp, "app2.ini");
+    SettingsStore.Save(ap, a0);
+    var a1 = SettingsStore.Load(ap);
+    Check(a1.MinimizeToTray && a1.Backdrop == "acrylic" && a1.HiddenTemplates.SequenceEqual(new[] { "日時形式" }), "最小化の動作・背景効果・非表示テンプレートの保存");
+    Check(!new AppSettings().MinimizeToTray && new AppSettings().Backdrop == "none", "最小化はタスクバーに残す・背景効果なしが初期値");
+    string old = Path.Combine(tmp, "old.ini");
+    File.WriteAllText(old, "[App]\nMinimizeToTray=true\n");
+    Check(!SettingsStore.Load(old).MinimizeToTray, "古い設定の MinimizeToTray は引き継がず、新しい初期値(タスクバー)になる");
+}
+
 Section("リサンプラ");
 foreach (var (inR, outR) in new[] { (44100, 48000), (48000, 44100), (96000, 48000), (48000, 48000), (22050, 48000) })
 {

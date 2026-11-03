@@ -96,8 +96,8 @@ public static class Recovery
                 string name = NameTemplate.RenderFileBase(e.Template, ctx);
                 if (e.DeviceSuffix) name += "_" + NameTemplate.Sanitize(e.Device);
                 name += suffix;
-                string final = NameTemplate.UniquePath(dir, name, ext);
-                File.Move(e.Path, final);
+                string final = NameTemplate.UniquePath(dir, name, ext, e.Path);
+                if (!string.Equals(final, e.Path, StringComparison.Ordinal)) File.Move(e.Path, final);
                 if (ext.Equals(".m4a", StringComparison.OrdinalIgnoreCase)) FfmpegTools.Remux(ffmpeg, final, true, null);
                 result.Add(new RecordedFile { Path = final, Seconds = dur.Value, No = e.No, Track = e.Track, Device = e.Device, Recovered = true });
                 log?.Invoke($"復旧しました: {final}");

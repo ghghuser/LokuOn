@@ -214,15 +214,21 @@ public static class NameTemplate
     public static string SanitizeFolderName(string name) => Sanitize(name, 100);
 
     /// <summary>同名ファイルがあれば「名前 (2).拡張子」のように連番を付けたパスを返す。ext は「.flac」でも「flac」でもよい。</summary>
-    public static string UniquePath(string dir, string baseName, string ext)
+    /// <param name="selfPath">名前を付け直そうとしているファイル自身のパス。これと同じ名前は「重複」とみなさない。</param>
+    public static string UniquePath(string dir, string baseName, string ext, string? selfPath = null)
     {
         if (ext.Length > 0 && ext[0] != '.') ext = "." + ext;
+        bool Taken(string cand)
+        {
+            if (selfPath != null && string.Equals(Path.GetFullPath(cand), Path.GetFullPath(selfPath), StringComparison.OrdinalIgnoreCase)) return false;
+            return File.Exists(cand) || Directory.Exists(cand);
+        }
         string path = Path.Combine(dir, baseName + ext);
-        if (!File.Exists(path) && !Directory.Exists(path)) return path;
+        if (!Taken(path)) return path;
         for (int n = 2; n < 10000; n++)
         {
             string candidate = Path.Combine(dir, baseName + " (" + n + ")" + ext);
-            if (!File.Exists(candidate) && !Directory.Exists(candidate)) return candidate;
+            if (!Taken(candidate)) return candidate;
         }
         return Path.Combine(dir, baseName + "_" + Guid.NewGuid().ToString("N").Substring(0, 8) + ext);
     }

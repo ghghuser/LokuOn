@@ -46,10 +46,6 @@ public partial class MainWindow
             new("戻るまで待機(一時停止)", DeviceLostPolicy.Wait),
             new("戻ったら別ファイルに分割", DeviceLostPolicy.SplitOnReturn),
         };
-        ThemeCombo.ItemsSource = new List<Choice<string>>
-        {
-            new("システムに合わせる", "system"), new("ダーク", "dark"), new("ライト", "light"),
-        };
         SpeedCombo.ItemsSource = new[] { 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0 }
             .Select(v => new Choice<double>(v.ToString("0.##", CultureInfo.InvariantCulture) + "x", v)).ToList();
         SpeedCombo.SelectedIndex = 2;
@@ -115,7 +111,10 @@ public partial class MainWindow
         TemplateBox.TextChanged += (s, e) => SyncTemplateCombo();
         BtnTemplateSave.Click += (s, e) => OnTemplateSave();
         BtnTemplateDelete.Click += (s, e) => OnTemplateDelete();
-        BtnTemplateReset.Click += (s, e) => { TemplateBox.Text = Preset.DefaultTemplate; };
+        BtnTemplateReset.Click += (s, e) => OnTemplateReset();
+        AutoSplitBox.TextChanged += (s, e) => UpdateSplitHint();
+        MaxHoursBox.TextChanged += (s, e) => UpdateSplitHint();
+        BtnSettings.Click += (s, e) => OnOpenAppInfo();
         BtnPauseRec.Click += (s, e) => { ctl.TogglePauseRecording(); UpdateButtons(); };
 
         foreach (var cb in DevCombos) cb.SelectionChanged += (s, e) => { if (loading) return; OnSettingChanged(); UpdateMeterSlots(); RestartMonitor(); };
@@ -205,15 +204,7 @@ public partial class MainWindow
         BtnPresetImport.Click += (s, e) => OnPresetImport();
 
         // アプリ設定
-        ThemeCombo.SelectionChanged += (s, e) =>
-        {
-            if (loading) return;
-            ctl.Settings.Theme = ValueOf(ThemeCombo, "system");
-            ThemeHelper.Apply(ctl.Settings.Theme);
-            ApplyCustomColors();
-            MarkDirty();
-        };
-        foreach (var ck in new[] { PreventSleepCheck, MinimizeToTrayCheck, ConfirmCloseCheck })
+        foreach (var ck in new[] { PreventSleepCheck, ConfirmCloseCheck })
             ck.Click += (s, e) => { SyncAppFlagsFromUi(); MarkDirty(); };
         HotkeysCheck.Click += (s, e) => { SyncAppFlagsFromUi(); RegisterHotkeys(); MarkDirty(); };
         HotkeyStartBox.LostFocus += (s, e) => { SyncAppFlagsFromUi(); RegisterHotkeys(); MarkDirty(); };
@@ -494,11 +485,8 @@ public partial class MainWindow
         {
             NoBox.Text = s.No.ToString(CultureInfo.InvariantCulture);
             TrackBox.Text = s.TrackStart.ToString(CultureInfo.InvariantCulture);
-            SelectValue(ThemeCombo, string.IsNullOrWhiteSpace(s.Theme) ? "system" : s.Theme.ToLowerInvariant());
-            if (ThemeCombo.SelectedItem == null) ThemeCombo.SelectedIndex = 0;
             PreventSleepCheck.IsChecked = s.PreventSleep;
             MonitorCheck.IsChecked = s.MonitorInput;
-            MinimizeToTrayCheck.IsChecked = s.MinimizeToTray;
             ConfirmCloseCheck.IsChecked = s.ConfirmCloseWhileRecording;
             HotkeysCheck.IsChecked = s.HotkeysEnabled;
             HotkeyStartBox.Text = s.HotkeyStartStop;
@@ -518,14 +506,12 @@ public partial class MainWindow
         var s = ctl.Settings;
         s.PreventSleep = PreventSleepCheck.IsChecked == true;
         s.MonitorInput = MonitorCheck.IsChecked == true;
-        s.MinimizeToTray = MinimizeToTrayCheck.IsChecked == true;
         s.ConfirmCloseWhileRecording = ConfirmCloseCheck.IsChecked == true;
         s.HotkeysEnabled = HotkeysCheck.IsChecked == true;
         s.HotkeyStartStop = HotkeyStartBox.Text.Trim();
         s.HotkeySplit = HotkeySplitBox.Text.Trim();
         s.DiskWarnGB = ParseDouble(DiskWarnBox.Text, s.DiskWarnGB, 0, 100000);
         s.DiskStopGB = ParseDouble(DiskStopBox.Text, s.DiskStopGB, 0, 100000);
-        s.Theme = ValueOf(ThemeCombo, string.IsNullOrWhiteSpace(s.Theme) ? "system" : s.Theme);
     }
 
     /// <summary>画面の内容を、保存用の設定(ctl.Settings)へ写す。</summary>
@@ -647,13 +633,50 @@ public partial class MainWindow
         StorePreset(name);
     }
 
+    /// <summary>「○分ごと」と「安全上限」が重なるとき、実際にどうなるかを文章で見せる。</summary>
+    private void UpdateSplitHint()
+    {
+        int min = ParseInt(AutoSplitBox.Text, 0, 0, 1440);
+        int hours = ParseInt(MaxHoursBox.Text, 24, 1, 168);
+        int cap = hours * 60;
+        string t;
+        if (min <= 0) t = $"→ 自動分割はしません。ただし1つのファイルが {hours} 時間になる前に必ず分割します。";
+        else if (min >= cap) t = $"→ {hours} 時間ごとに分割されます(安全上限のほうが先に働くため、{min} 分の指定は使われません)。";
+        else t = $"→ {min} 分ごとに分割されます(安全上限 {hours} 時間は、その前に分割されるため働きません)。";
+        SplitHint.Text = t + " 手動の分割ボタンはいつでも使えます。";
+    }
+
+    // ---------------------------------------------------------------- ⚙ 設定と情報
+
+    private void OnOpenAppInfo()
+    {
+        var w = new AppInfoWindow(ctl.Settings, AppContext.BaseDirectory, () =>
+        {
+            ThemeHelper.Apply(ctl.Settings.Theme);
+            ApplyCustomColors();
+            ApplyBackdrop();
+            SetTray(ctl.IsRecording ? "録音中" : null);
+            MarkDirty();
+        }) { Owner = this };
+        w.ShowDialog();
+        ApplyBackdrop();
+        ctl.SaveSettings();
+    }
+
+    /// <summary>背景の効果(Mica / アクリル)とタイトルバーの明暗を反映する。</summary>
+    private void ApplyBackdrop()
+    {
+        WindowEffects.Apply(this, ctl.Settings.Backdrop, ThemeHelper.IsDark(ctl.Settings.Theme));
+    }
+
     // ---------------------------------------------------------------- ファイル名テンプレートの保存
 
     private bool templateComboBusy;
 
     private List<(string Name, string Template, bool BuiltIn)> AllTemplates()
     {
-        var l = TemplateLibrary.BuiltIn.Select(b => (b.Name, b.Template, true)).ToList();
+        var hidden = ctl.Settings.HiddenTemplates;
+        var l = TemplateLibrary.BuiltIn.Where(b => !hidden.Contains(b.Name)).Select(b => (b.Name, b.Template, true)).ToList();
         l.AddRange(ctl.Settings.Templates.Select(t => (t.Name, t.Template, false)));
         return l;
     }
@@ -663,7 +686,7 @@ public partial class MainWindow
         templateComboBusy = true;
         try
         {
-            TemplateCombo.ItemsSource = AllTemplates().Select(t => t.BuiltIn ? t.Name : "★ " + t.Name).ToList();
+            TemplateCombo.ItemsSource = AllTemplates().Select(t => t.BuiltIn ? "*" + t.Name : t.Name).ToList();
         }
         finally { templateComboBusy = false; }
         SyncTemplateCombo();
@@ -679,7 +702,7 @@ public partial class MainWindow
             var all = AllTemplates();
             int idx = all.FindIndex(t => t.Template == TemplateBox.Text.Trim());
             TemplateCombo.SelectedIndex = idx;
-            BtnTemplateDelete.IsEnabled = idx >= 0 && !all[idx].BuiltIn;
+            BtnTemplateDelete.IsEnabled = idx >= 0;
         }
         finally { templateComboBusy = false; }
     }
@@ -718,15 +741,30 @@ public partial class MainWindow
         AddLog($"テンプレート「{name}」を保存しました");
     }
 
+    /// <summary>最初のテンプレートを全部復活させて、日時形式に戻す。</summary>
+    private void OnTemplateReset()
+    {
+        ctl.Settings.HiddenTemplates.Clear();
+        TemplateBox.Text = Preset.DefaultTemplate;
+        RefreshTemplateCombo();
+        ctl.SaveSettings();
+        AddLog("最初のテンプレートを復元しました(日時形式に戻しました)");
+    }
+
     private void OnTemplateDelete()
     {
         int idx = TemplateCombo.SelectedIndex;
         var all = AllTemplates();
-        if (idx < 0 || idx >= all.Count || all[idx].BuiltIn) return;
+        if (idx < 0 || idx >= all.Count) return;
         string name = all[idx].Name;
-        var r = MessageBox.Show(this, $"テンプレート「{name}」を削除しますか？", "LokuOn", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
+        bool builtIn = all[idx].BuiltIn;
+        var r = MessageBox.Show(this, builtIn
+                ? $"テンプレート「{name}」を一覧から削除しますか？\n(「初期に戻す」でいつでも復活できます)"
+                : $"テンプレート「{name}」を削除しますか？",
+            "LokuOn", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
         if (r != MessageBoxResult.Yes) return;
-        ctl.Settings.Templates.RemoveAll(x => x.Name == name);
+        if (builtIn) { if (!ctl.Settings.HiddenTemplates.Contains(name)) ctl.Settings.HiddenTemplates.Add(name); }
+        else ctl.Settings.Templates.RemoveAll(x => x.Name == name);
         RefreshTemplateCombo();
         ctl.SaveSettings();
         AddLog($"テンプレート「{name}」を削除しました");
