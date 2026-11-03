@@ -166,6 +166,19 @@ public partial class MainWindow : Window
             m.InvalidateVisual();
         }
         WaveView.InvalidateVisual();
+
+        // 各グループの枠線は、背景より少し見える程度の控えめな色にする(ダークで白く目立たないように)
+        var line = new SolidColorBrush(dark ? Color.FromArgb(0x30, 255, 255, 255) : Color.FromArgb(0x30, 0, 0, 0));
+        SoftenGroupBorders(this, line);
+    }
+
+    private static void SoftenGroupBorders(DependencyObject root, Brush line)
+    {
+        foreach (object child in LogicalTreeHelper.GetChildren(root))
+        {
+            if (child is GroupBox gb) gb.BorderBrush = line;
+            if (child is DependencyObject d) SoftenGroupBorders(d, line);
+        }
     }
 
     // ---------------------------------------------------------------- 定期処理

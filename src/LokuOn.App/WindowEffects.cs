@@ -43,10 +43,13 @@ public static class WindowEffects
             }
             else
             {
+                // 通常の背景: テーマに合わせた不透明な色をはっきり指定する
+                // (指定しないと、システムが明るい設定のとき、ダークテーマでも後ろが白くなって文字が読めなくなる)
                 var m = new Margins();
                 DwmExtendFrameIntoClientArea(hwnd, ref m);
-                if (src?.CompositionTarget != null) src.CompositionTarget.BackgroundColor = SystemColors.WindowColor;
-                w.ClearValue(Control.BackgroundProperty);
+                Color solid = dark ? Color.FromRgb(32, 32, 32) : Color.FromRgb(243, 243, 243);
+                if (src?.CompositionTarget != null) src.CompositionTarget.BackgroundColor = solid;
+                w.Background = new SolidColorBrush(solid);
             }
         }
         catch { /* 効果が使えない環境では、何もしない */ }
