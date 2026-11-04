@@ -51,7 +51,7 @@ public partial class MainWindow : Window
         SetupStaticCombos();
         WireEvents();
         MasterMeter.Configure(new[] { "L", "R" });
-        SourceMeter.Configure(new[] { "入力1", "入力2", "入力3" });
+        SourceMeter.Configure(new[] { "入力1", "入力2", "入力3", "入力4" });
         LogList.ItemsSource = logItems;
         FileList.ItemsSource = files;
         BuildFileContextMenu();
@@ -280,9 +280,9 @@ public partial class MainWindow : Window
         LockPanel.IsEnabled = !rec;
         PresetCombo.IsEnabled = !rec;
         BtnPresetSave.IsEnabled = BtnPresetSaveAs.IsEnabled = BtnPresetDelete.IsEnabled = !rec;
-        BtnPresetImport.IsEnabled = !rec;
+        BtnPresetFolder.IsEnabled = true;
         MonitorCheck.IsEnabled = !rec;
-        Gain1.IsEnabled = Gain2.IsEnabled = Gain3.IsEnabled = MasterGain.IsEnabled = true;
+        Gain1.IsEnabled = Gain2.IsEnabled = Gain3.IsEnabled = Gain4.IsEnabled = MasterGain.IsEnabled = true;
     }
 
     // ---------------------------------------------------------------- 録音の開始・停止
@@ -297,19 +297,20 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             App.WriteCrashLog("録音ボタン: " + ex);
-            MessageBox.Show(this, ex.Message, "LokuOn", MessageBoxButton.OK, MessageBoxImage.Warning);
+            SetInlineError(ErrorText, "録音の操作でエラーが起きました: " + ex.Message);
         }
     }
 
     private void StartRecordingUi()
     {
+        SetInlineError(ErrorText, null);
         var p = ReadPreset();
         SyncSettingsFromUi();
         string? err = ctl.StartRecording(p);
         if (err != null)
         {
             AddLog("録音を開始できません: " + err);
-            MessageBox.Show(this, err, "録音を開始できません", MessageBoxButton.OK, MessageBoxImage.Warning);
+            SetInlineError(ErrorText, "録音を開始できません: " + err);
             if (ctl.Settings.MonitorInput) StartMonitorSafe();
             return;
         }
@@ -344,7 +345,7 @@ public partial class MainWindow : Window
             Dispatcher.InvokeAsync(() =>
             {
                 ShowFromTray();
-                MessageBox.Show(this, reason, "録音が停止しました", MessageBoxButton.OK, MessageBoxImage.Warning);
+                SetInlineError(ErrorText, "録音が停止しました: " + reason);
             });
         }
         else AddLog("録音を終了しました");

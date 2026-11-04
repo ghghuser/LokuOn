@@ -62,10 +62,13 @@ st.Current.SampleRate = 44100;
 st.Current.SaveFolder = @"D:\録音\テスト";
 st.Current.Tags.Title = "日本語タイトル ♪ ＡＢＣ";
 st.Current.Sources[0] = new SourceSetting { DeviceId = "wasapi-loop:default", DeviceName = "スピーカー (Realtek)", GainDb = -3.5 };
-st.Presets.Add(st.Current.Clone());
-st.Presets[0].Name = "ライブ録音";
-st.Presets[0].MixMode = MixMode.Separate;
 string ini = Path.Combine(tmp, "settings.ini");
+{
+    var lp = st.Current.Clone();
+    lp.Name = "ライブ録音"; lp.MixMode = MixMode.Separate; lp.SaveFolder = @"E:\別の場所";
+    lp.CompressionLevel = 8; lp.AutoSplitSeconds = 5430;
+    PresetStore.Save(PresetStore.FolderFor(ini), lp);
+}
 SettingsStore.Save(ini, st);
 var back = SettingsStore.Load(ini);
 Check(back.No == 918 && back.TrackStart == 5 && back.Theme == "dark" && back.HotkeysEnabled, "全体設定の往復");
@@ -74,7 +77,36 @@ Check(back.Current.SaveFolder == @"D:\録音\テスト" && back.Current.Tags.Tit
 Check(back.Current.Sources[0].GainDb == -3.5 && back.Current.Sources[0].DeviceName == "スピーカー (Realtek)", "デバイス設定の往復");
 Check(back.Presets.Count == 1 && back.Presets[0].Name == "ライブ録音" && back.Presets[0].MixMode == MixMode.Separate, "プリセットの往復");
 string iniText = File.ReadAllText(ini);
-Check(iniText.Contains("[Preset:ライブ録音]") && iniText.Contains("FileNameTemplate="), "iniが読める形");
+Check(!iniText.Contains("[Preset:") && iniText.Contains("FileNameTemplate="), "プリセットはiniに入れない");
+Check(File.Exists(Path.Combine(tmp, "Presets", "ライブ録音.json")), "Presets\\名前.json に保存");
+string pj = File.ReadAllText(Path.Combine(tmp, "Presets", "ライブ録音.json"));
+Check(!pj.Contains("SaveFolder") && !pj.Contains("E:\\"), "プリセットに保存先を含めない");
+Check(back.Presets[0].CompressionLevel == 8 && back.Presets[0].AutoSplitSeconds == 5430, "プリセットの圧縮率・自動分割(秒)");
+// 旧形式([Preset:名前] in ini)からの移行
+{
+    string old = Path.Combine(tmp, "old", "settings.ini");
+    Directory.CreateDirectory(Path.GetDirectoryName(old)!);
+    File.WriteAllText(old, "[App]\nDiskWarnGB=5\nDiskStopGB=0.5\n[Preset:旧プリセット]\nFormat=Mp3\nAutoSplitMinutes=30\nSource1Device=wasapi-loop:default\n");
+    var mig = SettingsStore.Load(old);
+    Check(mig.Presets.Count == 1 && mig.Presets[0].Name == "旧プリセット" && mig.Presets[0].Format == AudioFormat.Mp3
+        && mig.Presets[0].AutoSplitSeconds == 1800, "旧iniのプリセットをPresetsへ移行(分→秒)");
+    Check(File.Exists(Path.Combine(tmp, "old", "Presets", "旧プリセット.json")), "移行したjsonが作られる");
+    Check(mig.DiskWarnGB == 1 && mig.DiskStopGB == 0.1, "旧い既定のディスク閾値は新既定(1GB/100MB)へ");
+    File.WriteAllText(Path.Combine(tmp, "old", "Presets", "壊れ.json"), "{ not json");
+    var mig2 = SettingsStore.Load(old);
+    Check(mig2.Presets.Count == 1 && mig2.PresetProblems.Count == 1, "壊れたプリセットは飛ばして報告");
+}
+Check(Preset.SourceSlots == 4 && Preset.GainMaxDb == 20 && Preset.GainMinDb == -30, "入力4つ・ゲイン-30〜+20");
+{
+    var gp = new Preset(); gp.Sources[3].GainDb = 99; gp.Sources[0].GainDb = -99; gp.Normalize();
+    Check(gp.Sources[3].GainDb == 20 && gp.Sources[0].GainDb == -30, "ゲインの範囲を丸める");
+    var e = new EncoderSpec { Format = AudioFormat.Ogg, BitrateKbps = 192 }.BuildArgs("x.ogg");
+    Check(e.Contains("libvorbis") && EncoderSpec.Extension(AudioFormat.Ogg) == ".ogg", "Oggの引数");
+    var f0 = new EncoderSpec { Format = AudioFormat.Flac, CompressionLevel = 12 }.BuildArgs("x.flac");
+    Check(f0[f0.IndexOf("-compression_level") + 1] == "12", "FLAC圧縮率の反映");
+    var f1 = new EncoderSpec { Format = AudioFormat.Flac }.BuildArgs("x.flac");
+    Check(f1[f1.IndexOf("-compression_level") + 1] == "5", "FLAC圧縮率の既定");
+}
 string json = Path.Combine(tmp, "presets.json");
 PresetJson.Export(back.Presets, json);
 Check(File.ReadAllText(json).Contains("ライブ録音") && PresetJson.Import(json)[0].MixMode == MixMode.Separate, "JSON書き出し/読み込み");

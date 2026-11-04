@@ -164,7 +164,7 @@ public partial class MainWindow
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, "フォルダを開けませんでした: " + ex.Message, "LokuOn", MessageBoxButton.OK, MessageBoxImage.Warning);
+            SetInlineError(FileError, "フォルダを開けませんでした: " + ex.Message);
         }
     }
 
@@ -188,6 +188,7 @@ public partial class MainWindow
         var sel = SelectedFiles();
         if (sel.Count != 1) { if (sel.Count > 1) AddLog("名前の変更は1件ずつ行ってください"); return; }
         var item = sel[0];
+        SetInlineError(FileError, null);
         try
         {
             string ext = System.IO.Path.GetExtension(item.Path);
@@ -201,7 +202,7 @@ public partial class MainWindow
             string newPath = System.IO.Path.Combine(dir, newStem + ext);
             if (File.Exists(newPath) || Directory.Exists(newPath))
             {
-                MessageBox.Show(this, "同じ名前のファイルがすでにあります。\n" + System.IO.Path.GetFileName(newPath), "LokuOn", MessageBoxButton.OK, MessageBoxImage.Warning);
+                SetInlineError(FileError, "同じ名前のファイルがすでにあります: " + System.IO.Path.GetFileName(newPath));
                 return;
             }
             ReleasePlayerIfUsing(sel);
@@ -211,7 +212,7 @@ public partial class MainWindow
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, "名前を変更できませんでした: " + ex.Message, "LokuOn", MessageBoxButton.OK, MessageBoxImage.Warning);
+            SetInlineError(FileError, "名前を変更できませんでした: " + ex.Message);
         }
     }
 
@@ -240,7 +241,7 @@ public partial class MainWindow
         UpdateFileCount();
         AddLog($"{ok} 件をごみ箱へ移動しました");
         if (failed.Count > 0)
-            MessageBox.Show(this, "次のファイルは移動できませんでした:\n" + string.Join("\n", failed.Take(8)), "LokuOn", MessageBoxButton.OK, MessageBoxImage.Warning);
+            SetInlineError(FileError, "次のファイルは移動できませんでした: " + string.Join(" / ", failed.Take(4)));
     }
 
     // ---------------------------------------------------------------- プレイヤー

@@ -12,6 +12,7 @@ public enum AudioFormat
     Aac = 3,
     Wav = 4,
     Opus = 5,
+    Ogg = 6,
 }
 
 public enum MixMode
@@ -65,7 +66,9 @@ public sealed class TagSettings
 public sealed class Preset
 {
     /// <summary>入力デバイスの枠の数。</summary>
-    public const int SourceSlots = 3;
+    public const int SourceSlots = 4;
+    /// <summary>入力ゲインの範囲(dB)。</summary>
+    public const double GainMinDb = -30, GainMaxDb = 20;
 
     public string Name { get; set; } = "";
 
@@ -79,7 +82,11 @@ public sealed class Preset
     public int Channels { get; set; } = 2;
     public int BitrateKbps { get; set; } = 320;
     public int BitDepth { get; set; } = 16;
+    /// <summary>圧縮率(FLAC 0-12 / MP3 0-9 / Opus 0-10)。-1=形式ごとの標準。Vorbisには設定がない。</summary>
+    public int CompressionLevel { get; set; } = -1;
 
+    /// <summary>保存先。プリセットには含めない(画面の現在の設定と settings.ini にだけ保存)。</summary>
+    [JsonIgnore]
     public string SaveFolder { get; set; } = "";
     public bool UseDateFolder { get; set; } = true;
     public string DateFolderFormat { get; set; } = "{yyyy}-{MM}-{dd}";
@@ -89,7 +96,8 @@ public sealed class Preset
     public static string DefaultSaveFolder => System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "LokuOn", "Rec");
     public TimeStyle TimeStyle { get; set; } = TimeStyle.Auto;
 
-    public int AutoSplitMinutes { get; set; } = 0;
+    /// <summary>自動分割の間隔(秒)。0=しない。</summary>
+    public int AutoSplitSeconds { get; set; } = 0;
     public int MaxFileHours { get; set; } = 24;
 
     public bool SplitOnSilence { get; set; } = false;
@@ -137,7 +145,7 @@ public sealed class Preset
             var s = i < src.Length && src[i] != null ? src[i] : new SourceSetting();
             s.DeviceId ??= "";
             s.DeviceName ??= "";
-            s.GainDb = ClampD(s.GainDb, -30, 30, 0);
+            s.GainDb = ClampD(s.GainDb, GainMinDb, GainMaxDb, 0);
             fixedSources[i] = s;
         }
         Sources = fixedSources;
@@ -156,7 +164,8 @@ public sealed class Preset
         if (!depthOk) BitDepth = 16;
 
         MasterGainDb = ClampD(MasterGainDb, -30, 30, 0);
-        AutoSplitMinutes = Math.Clamp(AutoSplitMinutes, 0, 1440);
+        AutoSplitSeconds = Math.Clamp(AutoSplitSeconds, 0, 86400);
+        CompressionLevel = Math.Clamp(CompressionLevel, -1, MaxCompression(Format));
         MaxFileHours = Math.Clamp(MaxFileHours, 1, 168);
         SilenceDb = ClampD(SilenceDb, -100, 0, -50);
         SilenceSeconds = ClampD(SilenceSeconds, 0.1, 3600, 2);
@@ -169,6 +178,15 @@ public sealed class Preset
         if (string.IsNullOrWhiteSpace(DateFolderFormat)) DateFolderFormat = "{yyyy}-{MM}-{dd}";
         if (string.IsNullOrWhiteSpace(FileNameTemplate)) FileNameTemplate = new Preset().FileNameTemplate;
     }
+
+    /// <summary>圧縮率の最大値(0=設定なし)。</summary>
+    public static int MaxCompression(AudioFormat f) => f switch
+    {
+        AudioFormat.Flac => 12,
+        AudioFormat.Mp3 => 9,
+        AudioFormat.Opus => 10,
+        _ => 0,
+    };
 
     private static double ClampD(double v, double min, double max, double fallback)
         => double.IsNaN(v) || double.IsInfinity(v) ? fallback : Math.Clamp(v, min, max);
@@ -186,7 +204,7 @@ public sealed class Preset
 
     // ------------------------------------------------------------ ini
 
-    public void WriteTo(IniSection s, bool comments)
+    public void WriteTo(IniSection s, bool comments, bool includeSaveFolder = false)
     {
         string? C(string text) => comments ? text : null;
 
@@ -194,27 +212,28 @@ public sealed class Preset
         {
             var src = Sources != null && i < Sources.Length && Sources[i] != null ? Sources[i] : new SourceSetting();
             int n = i + 1;
-            s.Set($"Source{n}Device", src.DeviceId, i == 0 ? C("入力デバイス1～3。Device=デバイスID(空=未使用) / Name=表示名 / GainDb=入力ごとのゲイン") : null);
+            s.Set($"Source{n}Device", src.DeviceId, i == 0 ? C("入力デバイス1～4。Device=デバイスID(空=未使用) / Name=表示名 / GainDb=入力ごとのゲイン") : null);
             s.Set($"Source{n}Name", src.DeviceName);
             s.Set($"Source{n}GainDb", src.GainDb);
         }
         s.Set("MixMode", MixMode, C("Mix=ミックスして1ファイル / Separate=入力ごとに別ファイル"));
         s.Set("MasterGainDb", MasterGainDb, C("録音ゲイン(dB)"));
 
-        s.Set("Format", Format, C("Flac / Mp3 / M4a(AAC) / Aac(ADTS) / Wav / Opus"));
+        s.Set("Format", Format, C("Flac / Mp3 / M4a(AAC) / Aac(ADTS) / Wav / Ogg(Vorbis) / Opus"));
         s.Set("SampleRate", SampleRate, C("サンプリング周波数(Hz)"));
         s.Set("Channels", Channels, C("1=モノラル 2=ステレオ"));
         s.Set("BitrateKbps", BitrateKbps, C("ビットレート(kbps)。Mp3/M4a/Aac/Opusで有効"));
+        s.Set("CompressionLevel", CompressionLevel, C("圧縮率。-1=標準。Flac 0-12 / Mp3 0-9 / Opus 0-10(大きいほどよく圧縮、音質は変わらないものが多い)"));
         s.Set("BitDepth", BitDepth, C("ビット深度。Flac/Wavで有効(Wavのみ32=float)"));
 
-        s.Set("SaveFolder", SaveFolder, C("保存先フォルダ"));
+        if (includeSaveFolder) s.Set("SaveFolder", SaveFolder, C("保存先フォルダ(プリセットには含まれません)"));
         s.Set("UseDateFolder", UseDateFolder, C("保存先の中に日付フォルダを作る"));
         s.Set("DateFolderFormat", DateFolderFormat, C("日付フォルダ名({yyyy}-{MM}-{dd} など。録音を始めた日で固定)"));
         s.Set("FileNameTemplate", FileNameTemplate,
             C("ファイル名。{ext}を書かなくても拡張子は自動で付く。変数: {No} {Track:000} {Start} {End} {Length} {Date} {Time} {yyyy} {yy} {MM} {dd} {HH} {mm} {ss} {DateTime:書式} {Device} {Preset} {ext}。時間は {End:m}=125：30 形式 / {End:h}=時：分：秒 / {End:s}=秒数"));
         s.Set("TimeStyle", TimeStyle, C("{Start}{End}{Length}の既定の表記。Auto=36：25 / 1：05：30、TotalMinutes=125：30"));
 
-        s.Set("AutoSplitMinutes", AutoSplitMinutes, C("この分数ごとに自動分割(0=しない)"));
+        s.Set("AutoSplitSeconds", AutoSplitSeconds, C("この秒数ごとに自動分割(0=しない。画面では 時:分:秒 で指定)"));
         s.Set("MaxFileHours", MaxFileHours, C("1ファイルの最大時間(時間)。超えると強制的に分割"));
         s.Set("SplitOnSilence", SplitOnSilence, C("無音を検出して自動分割する"));
         s.Set("SilenceDb", SilenceDb);
@@ -259,6 +278,7 @@ public sealed class Preset
         p.Channels = s.GetInt("Channels", d.Channels);
         p.BitrateKbps = s.GetInt("BitrateKbps", d.BitrateKbps);
         p.BitDepth = s.GetInt("BitDepth", d.BitDepth);
+        p.CompressionLevel = s.GetInt("CompressionLevel", d.CompressionLevel);
 
         p.SaveFolder = s.GetString("SaveFolder", d.SaveFolder);
         p.UseDateFolder = s.GetBool("UseDateFolder", d.UseDateFolder);
@@ -266,7 +286,7 @@ public sealed class Preset
         p.FileNameTemplate = s.GetString("FileNameTemplate", d.FileNameTemplate);
         p.TimeStyle = s.GetEnum("TimeStyle", d.TimeStyle);
 
-        p.AutoSplitMinutes = s.GetInt("AutoSplitMinutes", d.AutoSplitMinutes);
+        p.AutoSplitSeconds = s.GetInt("AutoSplitSeconds", s.GetInt("AutoSplitMinutes", 0) * 60);
         p.MaxFileHours = s.GetInt("MaxFileHours", d.MaxFileHours);
         p.SplitOnSilence = s.GetBool("SplitOnSilence", d.SplitOnSilence);
         p.SilenceDb = s.GetDouble("SilenceDb", d.SilenceDb);

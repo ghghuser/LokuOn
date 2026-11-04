@@ -89,15 +89,18 @@ public sealed class AppSettings
     public string HotkeyStartStop { get; set; } = "Ctrl+Alt+F9";
     public string HotkeySplit { get; set; } = "Ctrl+Alt+F10";
 
-    public double DiskWarnGB { get; set; } = 5;
-    public double DiskStopGB { get; set; } = 0.5;
+    public double DiskWarnGB { get; set; } = 1;
+    public double DiskStopGB { get; set; } = 0.1;
     public string FfmpegPath { get; set; } = "";
 
     public ScheduleSettings Schedule { get; set; } = new();
 
     /// <summary>画面に出ている現在の設定(終了時に保存され、次回そのまま復元される)。</summary>
     public Preset Current { get; set; } = new();
+    /// <summary>Presets フォルダから読んだ保存済みプリセット(保存・削除は PresetStore で行う)。</summary>
     public List<Preset> Presets { get; set; } = new();
+    /// <summary>読めなかったプリセットファイルの説明。</summary>
+    public List<string> PresetProblems { get; set; } = new();
 
     /// <summary>保存したファイル名テンプレート(最初から入っているものは含まない)。</summary>
     public List<SavedTemplate> Templates { get; set; } = new();
@@ -107,19 +110,19 @@ public static class SettingsStore
 {
     private const string Header =
         "LokuOn 設定ファイル (UTF-8)。テキストエディタで編集できます。アプリを終了した状態で編集してください。\n" +
-        "[App]=全体設定 / [Current]=現在の画面の設定 / [Preset:名前]=保存済みプリセット。バックアップはこのファイルをコピーするだけです。";
+        "[App]=全体設定 / [Current]=現在の画面の設定 / 保存済みプリセットは Presets フォルダの「名前.json」です。バックアップはこのファイルと Presets フォルダをコピーするだけです。";
 
     public static AppSettings Load(string path)
     {
         var s = new AppSettings();
-        if (!File.Exists(path)) { s.Current.Normalize(); return s; }
+        if (!File.Exists(path)) { s.Current.Normalize(); LoadPresets(s, path); return s; }
         IniDocument doc;
         try { doc = IniDocument.Load(path); }
         catch
         {
             // 壊れていたらバックアップを試す
-            if (File.Exists(path + ".bak")) { try { doc = IniDocument.Load(path + ".bak"); } catch { return s; } }
-            else return s;
+            if (File.Exists(path + ".bak")) { try { doc = IniDocument.Load(path + ".bak"); } catch { LoadPresets(s, path); return s; } }
+            else { LoadPresets(s, path); return s; }
         }
         var a = doc.Find("App");
         if (a != null)
@@ -143,6 +146,8 @@ public static class SettingsStore
             s.HotkeySplit = a.GetString("HotkeySplit", d.HotkeySplit);
             s.DiskWarnGB = a.GetDouble("DiskWarnGB", d.DiskWarnGB);
             s.DiskStopGB = a.GetDouble("DiskStopGB", d.DiskStopGB);
+            // 旧版の既定値(5GB/0.5GB)のままなら新しい既定値(1GB/100MB)にする
+            if (s.DiskWarnGB == 5 && s.DiskStopGB == 0.5) { s.DiskWarnGB = d.DiskWarnGB; s.DiskStopGB = d.DiskStopGB; }
             s.FfmpegPath = a.GetString("FfmpegPath");
         }
         var sc = doc.Find("Schedule");
@@ -156,13 +161,20 @@ public static class SettingsStore
         }
         var cur = doc.Find("Current");
         if (cur != null) s.Current = Preset.ReadFrom(cur, "");
+        // 旧版は settings.ini の [Preset:名前] に保存していた。Presets フォルダに同名のファイルがなければ移す。
+        string presetDir = PresetStore.FolderFor(path);
         foreach (var sec in doc.Sections)
         {
             if (!sec.Name.StartsWith("Preset:", StringComparison.OrdinalIgnoreCase)) continue;
             string name = sec.Name.Substring(7).Trim();
             if (name.Length == 0) continue;
-            s.Presets.Add(Preset.ReadFrom(sec, name));
+            try
+            {
+                if (!File.Exists(PresetStore.FileFor(presetDir, name))) PresetStore.Save(presetDir, Preset.ReadFrom(sec, name));
+            }
+            catch { /* 移行に失敗しても起動は続ける */ }
         }
+        LoadPresets(s, path);
         foreach (var sec in doc.Sections)
         {
             if (!sec.Name.StartsWith("Template:", StringComparison.OrdinalIgnoreCase)) continue;
@@ -172,6 +184,13 @@ public static class SettingsStore
             s.Templates.Add(new SavedTemplate { Name = name, Template = t });
         }
         return s;
+    }
+
+    /// <summary>Presets フォルダの内容を読む(ファイルがない場合や settings.ini がない場合も呼ぶ)。</summary>
+    public static void LoadPresets(AppSettings s, string settingsPath)
+    {
+        s.Presets = PresetStore.LoadAll(PresetStore.FolderFor(settingsPath), out var problems);
+        s.PresetProblems = problems;
     }
 
     public static void Save(string path, AppSettings s)
@@ -203,9 +222,7 @@ public static class SettingsStore
         sc.Set("DurationMinutes", s.Schedule.DurationMinutes);
         sc.Set("Daily", s.Schedule.Daily);
 
-        s.Current.WriteTo(doc.Section("Current"), true);
-        foreach (var p in s.Presets)
-            p.WriteTo(doc.Section("Preset:" + p.Name), false);
+        s.Current.WriteTo(doc.Section("Current"), true, includeSaveFolder: true);
         foreach (var t in s.Templates)
             doc.Section("Template:" + t.Name).Set("Template", t.Template);
         doc.Save(path);

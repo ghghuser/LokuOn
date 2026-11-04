@@ -385,7 +385,7 @@ public sealed class RecorderEngine : IDisposable
             }
             // 時間による分割
             long maxFrames = p.MaxFileHours * 3600L * rate;
-            if ((p.AutoSplitMinutes > 0 && o.FileFrames >= p.AutoSplitMinutes * 60L * rate) || o.FileFrames >= maxFrames)
+            if ((p.AutoSplitSeconds > 0 && o.FileFrames >= p.AutoSplitSeconds * (long)rate) || o.FileFrames >= maxFrames)
                 SplitOutput(o);
         }
 
@@ -467,7 +467,7 @@ public sealed class RecorderEngine : IDisposable
         };
         var spec = new EncoderSpec
         {
-            Format = p.Format, SampleRate = rate, Channels = ch, BitrateKbps = p.BitrateKbps, BitDepth = p.BitDepth,
+            Format = p.Format, SampleRate = rate, Channels = ch, BitrateKbps = p.BitrateKbps, BitDepth = p.BitDepth, CompressionLevel = p.CompressionLevel,
             Tags = tags, FfmpegPath = opt.FfmpegPath,
             TrackTag = p.WriteTrackTag && o.FilesOpened > 0 ? o.Track : null,
         };

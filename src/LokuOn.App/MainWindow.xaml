@@ -15,16 +15,17 @@
         <!-- ===== プリセット ===== -->
         <Button x:Name="BtnSettings" Grid.Row="0" Content="⚙" FontSize="16" Width="34" Height="30" Padding="0"
                 HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,8,0" Panel.ZIndex="5"
-                ToolTip="設定と情報(テーマ・最小化の動作・バージョン・GitHub)"/>
+                ToolTip="歯車: 画面の色・スリープ防止・最小化の動作・ヘルプ・バージョン情報・GitHub"/>
         <WrapPanel Grid.Row="0" Margin="8,6,50,2" VerticalAlignment="Center">
             <TextBlock Text="プリセット" VerticalAlignment="Center" Margin="0,0,6,0"/>
             <ComboBox x:Name="PresetCombo" Width="240" Margin="0,0,6,0"/>
             <Button x:Name="BtnPresetSave" Content="上書き保存" Padding="10,2" Margin="0,0,4,0"/>
             <Button x:Name="BtnPresetSaveAs" Content="名前を付けて保存" Padding="10,2" Margin="0,0,4,0"/>
             <Button x:Name="BtnPresetDelete" Content="削除" Padding="10,2" Margin="0,0,16,0"/>
-            <Button x:Name="BtnPresetExport" Content="JSON書き出し" Padding="10,2" Margin="0,0,4,0"/>
-            <Button x:Name="BtnPresetImport" Content="JSON読み込み" Padding="10,2" Margin="0,0,16,0"/>
+            <Button x:Name="BtnPresetFolder" Content="Presetsフォルダを開く" Padding="10,2" Margin="0,0,16,0"
+                    ToolTip="プリセットは「名前.json」として自動保存されます。ファイルをコピーして共有したり、削除したりできます。"/>
             <TextBlock x:Name="PresetHint" VerticalAlignment="Center" Opacity="0.7"/>
+            <TextBlock x:Name="PresetError" VerticalAlignment="Center" Foreground="#E5484D" FontWeight="SemiBold" Visibility="Collapsed" Margin="8,0,0,0"/>
         </WrapPanel>
 
         <Grid Grid.Row="1" Margin="8,4,8,4">
@@ -38,7 +39,7 @@
             <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
                 <StackPanel x:Name="LockPanel">
 
-                    <GroupBox Header="入力デバイス(PC内部音 / マイク / ASIO)" Margin="0,0,0,6" Padding="6,4">
+                    <GroupBox Header="入力デバイス(最大4台。PC内部音 / マイク / ASIO)" Margin="0,0,0,6" Padding="6,4">
                         <StackPanel>
                             <Grid Margin="0,0,0,3">
                                 <Grid.ColumnDefinitions>
@@ -64,6 +65,14 @@
                                 <TextBlock Text="入力3" VerticalAlignment="Center"/>
                                 <ComboBox x:Name="DevCombo3" Grid.Column="1"/>
                             </Grid>
+                            <Grid Margin="0,0,0,3">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="44"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="入力4" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="DevCombo4" Grid.Column="1"/>
+                            </Grid>
                             <WrapPanel Margin="0,2,0,0">
                                 <TextBlock Text="複数のとき:" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                 <RadioButton x:Name="MixModeMix" Content="ミックスして1ファイル" GroupName="Mix" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
@@ -88,6 +97,9 @@
                                 <ComboBox x:Name="BitrateCombo" Width="110" Margin="0,0,12,3"/>
                                 <TextBlock x:Name="BitDepthLabel" Text="ビット深度" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 <ComboBox x:Name="BitDepthCombo" Width="110" Margin="0,0,12,3"/>
+                                <TextBlock x:Name="CompressionLabel" Text="圧縮率" VerticalAlignment="Center" Margin="0,0,4,0"
+                                           ToolTip="大きいほどファイルが小さくなりますが、処理が重くなります(音質は変わりません)。Ogg(Vorbis)には設定がありません。"/>
+                                <ComboBox x:Name="CompressionCombo" Width="110" Margin="0,0,12,3"/>
                             </WrapPanel>
                             <TextBlock x:Name="QualitySummary" Opacity="0.75" TextWrapping="Wrap"/>
                         </StackPanel>
@@ -133,9 +145,11 @@
                                 <TextBlock Text="ファイル名" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                 <TextBox x:Name="TemplateBox" Grid.Column="1" VerticalContentAlignment="Center"/>
                             </Grid>
+                            <TextBlock x:Name="TemplatePreview" TextWrapping="Wrap" Margin="0,0,0,4" FontWeight="SemiBold"/>
+                            <Expander Header="ファイル名の詳細(変数・時間表記・番号)" Margin="0,2,0,0">
+                                <StackPanel Margin="0,4,0,0">
                             <TextBlock x:Name="TemplateHint" TextWrapping="Wrap" Opacity="0.7" Margin="0,0,0,2"
                                        Text="{}変数: {Date} {Time} {yyyy} {yy} {MM} {dd} {HH} {mm} {ss}(そのファイルを始めた時刻) {No} {Track:000} {Start} {End} {Length} {Device} {Preset} {ext}   {End:m}=125：30 形式 / {End:s}=秒数"/>
-                            <TextBlock x:Name="TemplatePreview" TextWrapping="Wrap" Margin="0,0,0,4" FontWeight="SemiBold"/>
                             <WrapPanel Margin="0,0,0,3">
                                 <TextBlock Text="時間表記" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                 <ComboBox x:Name="TimeStyleCombo" MinWidth="250"/>
@@ -148,6 +162,8 @@
                                 <TextBox x:Name="TrackBox" Width="56" VerticalContentAlignment="Center"
                                          ToolTip="録音を始めるときのトラック番号。分割するたびに+1されます。"/>
                             </WrapPanel>
+                                </StackPanel>
+                            </Expander>
                         </StackPanel>
                     </GroupBox>
 
@@ -155,15 +171,18 @@
                         <StackPanel>
                             <WrapPanel Margin="0,0,0,3">
                                 <TextBlock Text="自動分割" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                <TextBox x:Name="AutoSplitBox" Width="56" VerticalContentAlignment="Center"
-                                         ToolTip="この分数ごとに、自動でファイルを分割します(0=自動分割しない)。1440分=24時間まで指定できます。"/>
-                                <TextBlock Text="分ごと(0=しない)" VerticalAlignment="Center" Margin="4,0,14,0"/>
+                                <TextBox x:Name="AutoSplitBox" Width="76" VerticalContentAlignment="Center" TextAlignment="Center"
+                                         ToolTip="この間隔ごとに、自動でファイルを分割します。時:分:秒 で指定(00:00:00 = 自動分割しない)。24:00:00 まで。"/>
+                                <TextBlock Text="ごと(時:分:秒、00:00:00=しない)" VerticalAlignment="Center" Margin="4,0,14,0"/>
                                 <TextBlock Text="安全上限" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 <TextBox x:Name="MaxHoursBox" Width="40" VerticalContentAlignment="Center"
                                          ToolTip="1つのファイルがこの時間を超えないように、必ず分割します(安全のための上限。初期値24時間)。"/>
                                 <TextBlock Text="時間" VerticalAlignment="Center" Margin="4,0,0,0"/>
                             </WrapPanel>
                             <TextBlock x:Name="SplitHint" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="SplitError" Foreground="#E5484D" FontWeight="SemiBold" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,0,0,4"/>
+                            <Expander Header="オプション(無音で分割・音で録音開始・デバイス切断時の動作)" Margin="0,2,0,0">
+                                <StackPanel Margin="0,4,0,0">
                             <WrapPanel Margin="0,0,0,3">
                                 <CheckBox x:Name="SilenceSplitCheck" Content="無音で分割" VerticalContentAlignment="Center" Margin="0,0,8,0"/>
                                 <TextBox x:Name="SilenceDbBox" Width="46" VerticalContentAlignment="Center"/>
@@ -185,6 +204,8 @@
                                 <CheckBox x:Name="AutoResumeCheck" Content="デバイス切断時に自動再開" VerticalContentAlignment="Center" Margin="0,0,8,0"/>
                                 <ComboBox x:Name="LostPolicyCombo" Width="230"/>
                             </WrapPanel>
+                                </StackPanel>
+                            </Expander>
                         </StackPanel>
                     </GroupBox>
 
@@ -205,6 +226,7 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
@@ -269,7 +291,7 @@
                                         <ColumnDefinition Width="62"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="入力1" VerticalAlignment="Center"/>
-                                    <Slider x:Name="Gain1" Grid.Column="1" Minimum="-30" Maximum="30" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
+                                    <Slider x:Name="Gain1" Grid.Column="1" Minimum="-30" Maximum="20" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="Gain1Text" Grid.Column="2" Text="+0.0 dB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </Grid>
                                 <Grid Margin="0,0,0,2">
@@ -279,8 +301,18 @@
                                         <ColumnDefinition Width="62"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="入力2" VerticalAlignment="Center"/>
-                                    <Slider x:Name="Gain2" Grid.Column="1" Minimum="-30" Maximum="30" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
+                                    <Slider x:Name="Gain2" Grid.Column="1" Minimum="-30" Maximum="20" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="Gain2Text" Grid.Column="2" Text="+0.0 dB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </Grid>
+                                <Grid Margin="0,0,0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="44"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="62"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="入力3" VerticalAlignment="Center"/>
+                                    <Slider x:Name="Gain3" Grid.Column="1" Minimum="-30" Maximum="20" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="Gain3Text" Grid.Column="2" Text="+0.0 dB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </Grid>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -288,15 +320,18 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="62"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="入力3" VerticalAlignment="Center"/>
-                                    <Slider x:Name="Gain3" Grid.Column="1" Minimum="-30" Maximum="30" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="Gain3Text" Grid.Column="2" Text="+0.0 dB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    <TextBlock Text="入力4" VerticalAlignment="Center"/>
+                                    <Slider x:Name="Gain4" Grid.Column="1" Minimum="-30" Maximum="20" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="Gain4Text" Grid.Column="2" Text="+0.0 dB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </Grid>
                             </StackPanel>
                         </Grid>
 
+                        <!-- エラー(音の鳴るポップアップではなく、ここに赤文字で出す) -->
+                        <TextBlock x:Name="ErrorText" Grid.Row="3" Grid.ColumnSpan="2" Foreground="#E5484D" FontWeight="SemiBold"
+                                   TextWrapping="Wrap" Visibility="Collapsed" Margin="0,6,0,0" VerticalAlignment="Top"/>
                         <!-- メッセージ -->
-                        <ListBox x:Name="LogList" Grid.Row="3" Grid.ColumnSpan="2" Height="64" Margin="0,6,0,0" FontSize="11"/>
+                        <ListBox x:Name="LogList" Grid.Row="4" Grid.ColumnSpan="2" Height="64" Margin="0,6,0,0" FontSize="11"/>
                     </Grid>
                 </Border>
 
@@ -377,6 +412,7 @@
                                 <Button x:Name="BtnTrash" Content="ごみ箱へ" Padding="10,2" Margin="0,0,6,0"/>
                                 <Button x:Name="BtnRescan" Content="保存先から読み込み" Padding="10,2" Margin="0,0,12,0"/>
                                 <TextBlock x:Name="FileCountText" VerticalAlignment="Center" Opacity="0.7"/>
+                                <TextBlock x:Name="FileError" VerticalAlignment="Center" Foreground="#E5484D" FontWeight="SemiBold" Visibility="Collapsed" Margin="12,0,0,0"/>
                             </WrapPanel>
                         </Grid>
                     </TabItem>
@@ -422,8 +458,7 @@
                     <TabItem Header="アプリ設定">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel Margin="10">
-                                <CheckBox x:Name="PreventSleepCheck" Content="録音中はPCをスリープさせない" Margin="0,0,0,4"/>
-                                <TextBlock Text="テーマ・最小化の動作・バージョン情報などは、右上の ⚙ ボタンから変更できます。" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                <TextBlock Text="画面の色・スリープ防止・最小化の動作・ヘルプ・バージョン情報は、右上の ⚙ ボタンから変更できます。" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,6"/>
                                 <CheckBox x:Name="ConfirmCloseCheck" Content="録音中にアプリを閉じようとしたら警告する" Margin="0,0,0,8"/>
                                 <WrapPanel Margin="0,0,0,4">
                                     <CheckBox x:Name="HotkeysCheck" Content="グローバルホットキーを使う" Margin="0,0,12,0" VerticalContentAlignment="Center"/>
@@ -437,7 +472,7 @@
                                 <WrapPanel Margin="0,0,0,8">
                                     <TextBlock Text="ディスク空き容量: 警告" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                     <TextBox x:Name="DiskWarnBox" Width="46" VerticalContentAlignment="Center"/>
-                                    <TextBlock Text="GB未満 / 安全に停止" VerticalAlignment="Center" Margin="4,0,4,0"/>
+                                    <TextBlock Text="GB未満 / 自動停止して保存" VerticalAlignment="Center" Margin="4,0,4,0"/>
                                     <TextBox x:Name="DiskStopBox" Width="46" VerticalContentAlignment="Center"/>
                                     <TextBlock Text="GB未満" VerticalAlignment="Center" Margin="4,0,0,0"/>
                                 </WrapPanel>

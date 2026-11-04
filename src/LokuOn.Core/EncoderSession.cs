@@ -11,6 +11,7 @@ public sealed class EncoderSpec
     public int Channels { get; set; } = 2;
     public int BitrateKbps { get; set; } = 320;
     public int BitDepth { get; set; } = 16;
+    public int CompressionLevel { get; set; } = -1;
     public TagSettings Tags { get; set; } = new();
     public int? TrackTag { get; set; }
     public string FfmpegPath { get; set; } = "ffmpeg";
@@ -23,8 +24,11 @@ public sealed class EncoderSpec
         AudioFormat.Aac => ".aac",
         AudioFormat.Wav => ".wav",
         AudioFormat.Opus => ".opus",
+        AudioFormat.Ogg => ".ogg",
         _ => ".bin",
     };
+
+    private int Level(int dflt, int max) => CompressionLevel < 0 ? dflt : Math.Min(CompressionLevel, max);
 
     /// <summary>標準入力からfloat32の生PCMを受け取り、指定形式でファイルへ書くffmpegの引数。</summary>
     public List<string> BuildArgs(string outPath)
@@ -40,12 +44,12 @@ public sealed class EncoderSpec
         switch (Format)
         {
             case AudioFormat.Flac:
-                a.AddRange(new[] { "-c:a", "flac", "-compression_level", "5" });
+                a.AddRange(new[] { "-c:a", "flac", "-compression_level", Level(5, 12).ToString() });
                 if (BitDepth >= 24) a.AddRange(new[] { "-sample_fmt", "s32", "-bits_per_raw_sample", "24" });
                 else a.AddRange(new[] { "-sample_fmt", "s16" });
                 break;
             case AudioFormat.Mp3:
-                a.AddRange(new[] { "-c:a", "libmp3lame", "-b:a", BitrateKbps + "k", "-id3v2_version", "3", "-write_id3v1", "0" });
+                a.AddRange(new[] { "-c:a", "libmp3lame", "-b:a", BitrateKbps + "k", "-compression_level", Level(2, 9).ToString(), "-id3v2_version", "3", "-write_id3v1", "0" });
                 break;
             case AudioFormat.M4a:
                 // 録音中は断片化MP4で書く(途中で電源が落ちても再生できる)。終了時に通常形式へ整える。
@@ -58,7 +62,10 @@ public sealed class EncoderSpec
                 a.AddRange(new[] { "-c:a", BitDepth >= 32 ? "pcm_f32le" : BitDepth >= 24 ? "pcm_s24le" : "pcm_s16le", "-rf64", "auto" });
                 break;
             case AudioFormat.Opus:
-                a.AddRange(new[] { "-c:a", "libopus", "-b:a", BitrateKbps + "k", "-vbr", "on" });
+                a.AddRange(new[] { "-c:a", "libopus", "-b:a", BitrateKbps + "k", "-vbr", "on", "-compression_level", Level(10, 10).ToString() });
+                break;
+            case AudioFormat.Ogg:
+                a.AddRange(new[] { "-c:a", "libvorbis", "-b:a", BitrateKbps + "k" });
                 break;
         }
         void Meta(string k, string v) { if (!string.IsNullOrWhiteSpace(v)) { a.Add("-metadata"); a.Add(k + "=" + v.Trim()); } }

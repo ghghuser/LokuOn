@@ -31,6 +31,7 @@ public sealed class AppInfoWindow : Window
     };
     private readonly RadioButton taskbarRadio = new() { Content = "タスクバーに残す(初期値)", GroupName = "min", Margin = new Thickness(0, 2, 0, 2) };
     private readonly RadioButton trayRadio = new() { Content = "タスクトレイにしまう", GroupName = "min", Margin = new Thickness(0, 2, 0, 2) };
+    private readonly CheckBox sleepCheck = new() { Content = "録音中はPCをスリープさせない(初期値: オン)", Margin = new Thickness(0, 2, 0, 2) };
     private bool loading = true;
 
     public AppInfoWindow(AppSettings settings, string appDir, Action changed)
@@ -55,7 +56,7 @@ public sealed class AppInfoWindow : Window
         panel.Children.Add(Header("表示"));
         themeBox.ItemsSource = new List<Choice<string>>
         {
-            new("システムに合わせる", "system"), new("ダーク", "dark"), new("ライト", "light"),
+            new("自動(システムに合わせる)", "system"), new("ダーク", "dark"), new("ライト", "light"),
         };
         panel.Children.Add(Row("テーマ", themeBox));
         backdropBox.ItemsSource = new List<Choice<string>>
@@ -73,6 +74,9 @@ public sealed class AppInfoWindow : Window
         panel.Children.Add(Row("背景の濃さ", strengthRow));
         panel.Children.Add(backdropNote);
 
+        panel.Children.Add(Header("録音中"));
+        panel.Children.Add(sleepCheck);
+
         panel.Children.Add(Header("ウィンドウを最小化したとき"));
         panel.Children.Add(taskbarRadio);
         panel.Children.Add(trayRadio);
@@ -86,7 +90,7 @@ public sealed class AppInfoWindow : Window
         links.Children.Add(MakeButton("設定ファイルのフォルダを開く", () => OpenFolder(appDir)));
         panel.Children.Add(links);
 
-        panel.Children.Add(Header("かんたんな使い方"));
+        panel.Children.Add(Header("ヘルプ(かんたんな使い方)"));
         panel.Children.Add(new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
@@ -94,7 +98,7 @@ public sealed class AppInfoWindow : Window
                 "・入力デバイス: 🎤=マイク、🔊=スピーカーの音(PC内部音)。＊は Windows の既定のデバイスです。\n" +
                 "・録音: ●録音開始 → ■停止で保存。❚❚一時停止・✂分割も使えます。\n" +
                 "・ファイル名: テンプレートの変数 {Date} {Time} {No} {Track} {Start} {End} {Length} などで決まります。\n" +
-                "・設定は LokuOn.exe と同じフォルダの settings.ini に保存されます(メモ帳で編集できます)。\n" +
+                "・設定は LokuOn.exe と同じフォルダの settings.ini、プリセットは Presets フォルダの「名前.json」に保存されます。\n" +
                 "・困ったとき: 同じフォルダの lokuon-crash.log と lokuon.log を確認してください。",
         });
 
@@ -107,6 +111,7 @@ public sealed class AppInfoWindow : Window
 
         // 現在の値を反映してから、変更を受け付ける
         Select(themeBox, string.IsNullOrWhiteSpace(settings.Theme) ? "system" : settings.Theme.ToLowerInvariant());
+        sleepCheck.IsChecked = settings.PreventSleep;
         taskbarRadio.IsChecked = !settings.MinimizeToTray;
         trayRadio.IsChecked = settings.MinimizeToTray;
         UpdateBackdropUi();
@@ -134,6 +139,7 @@ public sealed class AppInfoWindow : Window
             strengthText.Text = settings.BackdropStrength + "%";
             changed();
         };
+        sleepCheck.Click += (s, e) => { settings.PreventSleep = sleepCheck.IsChecked == true; changed(); };
         taskbarRadio.Click += (s, e) => { settings.MinimizeToTray = false; changed(); };
         trayRadio.Click += (s, e) => { settings.MinimizeToTray = true; changed(); };
     }

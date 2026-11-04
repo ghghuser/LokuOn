@@ -12,9 +12,9 @@ namespace LokuOn.App;
 public partial class MainWindow
 {
     private readonly Dictionary<string, string> missingDeviceNames = new();
-    private ComboBox[] DevCombos => new[] { DevCombo1, DevCombo2, DevCombo3 };
-    private Slider[] Gains => new[] { Gain1, Gain2, Gain3 };
-    private TextBlock[] GainTexts => new[] { Gain1Text, Gain2Text, Gain3Text };
+    private ComboBox[] DevCombos => new[] { DevCombo1, DevCombo2, DevCombo3, DevCombo4 };
+    private Slider[] Gains => new[] { Gain1, Gain2, Gain3, Gain4 };
+    private TextBlock[] GainTexts => new[] { Gain1Text, Gain2Text, Gain3Text, Gain4Text };
 
     private static readonly int[] AllRates = { 44100, 48000, 88200, 96000 };
     private static readonly int[] Mp3Rates = { 32000, 44100, 48000 };
@@ -31,6 +31,7 @@ public partial class MainWindow
             new("AAC (.m4a)", AudioFormat.M4a),
             new("AAC (.aac)  ADTS", AudioFormat.Aac),
             new("WAV (.wav)  無圧縮", AudioFormat.Wav),
+            new("Ogg Vorbis (.ogg)", AudioFormat.Ogg),
             new("Opus (.opus)", AudioFormat.Opus),
         };
         ChannelsCombo.ItemsSource = new List<Choice<int>> { new("ステレオ", 2), new("モノラル", 1) };
@@ -169,11 +170,11 @@ public partial class MainWindow
                 Directory.CreateDirectory(dir);
                 FileOps.OpenFolder(dir);
             }
-            catch (Exception ex) { MessageBox.Show(this, "フォルダを開けません: " + ex.Message, "LokuOn", MessageBoxButton.OK, MessageBoxImage.Warning); }
+            catch (Exception ex) { SetInlineError(ErrorText, "フォルダを開けません: " + ex.Message); }
         };
 
         // ゲイン
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < Preset.SourceSlots; i++)
         {
             int slot = i;
             Gains[i].ValueChanged += (s, e) =>
@@ -200,11 +201,11 @@ public partial class MainWindow
         BtnPresetSave.Click += (s, e) => OnPresetSave();
         BtnPresetSaveAs.Click += (s, e) => OnPresetSaveAs();
         BtnPresetDelete.Click += (s, e) => OnPresetDelete();
-        BtnPresetExport.Click += (s, e) => OnPresetExport();
-        BtnPresetImport.Click += (s, e) => OnPresetImport();
+        BtnPresetFolder.Click += (s, e) => OnPresetFolder();
+        PresetCombo.DropDownOpened += (s, e) => ReloadPresetsFromFolder();
 
         // アプリ設定
-        foreach (var ck in new[] { PreventSleepCheck, ConfirmCloseCheck })
+        foreach (var ck in new[] { ConfirmCloseCheck })
             ck.Click += (s, e) => { SyncAppFlagsFromUi(); MarkDirty(); };
         HotkeysCheck.Click += (s, e) => { SyncAppFlagsFromUi(); RegisterHotkeys(); MarkDirty(); };
         HotkeyStartBox.LostFocus += (s, e) => { SyncAppFlagsFromUi(); RegisterHotkeys(); MarkDirty(); };
@@ -238,7 +239,7 @@ public partial class MainWindow
     // ---------------------------------------------------------------- 形式に応じた表示の切り替え
 
     /// <summary>形式に合わせて、サンプリング・ビットレート・ビット深度の選択肢を整える。</summary>
-    private void UpdateFormatDependentUi(int? wantRate = null, int? wantDepth = null)
+    private void UpdateFormatDependentUi(int? wantRate = null, int? wantDepth = null, int? wantLevel = null)
     {
         bool prev = loading; loading = true;
         try
@@ -246,6 +247,7 @@ public partial class MainWindow
             var fmt = ValueOf(FormatCombo, AudioFormat.Flac);
             int curRate = wantRate ?? ValueOf(RateCombo, 48000);
             int curDepth = wantDepth ?? ValueOf(BitDepthCombo, 16);
+            int curLevel = wantLevel ?? ValueOf(CompressionCombo, -1);
 
             int[] rates = fmt switch
             {
@@ -262,8 +264,16 @@ public partial class MainWindow
             RateCombo.ItemsSource = rateList.Select(RateChoice).ToList();
             SelectValue(RateCombo, curRate);
 
-            bool lossy = fmt == AudioFormat.Mp3 || fmt == AudioFormat.M4a || fmt == AudioFormat.Aac || fmt == AudioFormat.Opus;
+            bool lossy = fmt == AudioFormat.Mp3 || fmt == AudioFormat.M4a || fmt == AudioFormat.Aac || fmt == AudioFormat.Opus || fmt == AudioFormat.Ogg;
             BitrateCombo.IsEnabled = BitrateLabel.IsEnabled = lossy;
+
+            int maxLevel = Preset.MaxCompression(fmt);
+            var levels = new List<Choice<int>> { new(maxLevel == 0 ? "なし(Vorbisは設定不可)" : "標準", -1) };
+            for (int l = 0; l <= maxLevel; l++) levels.Add(new Choice<int>(l.ToString(CultureInfo.InvariantCulture), l));
+            CompressionCombo.ItemsSource = levels;
+            if (!levels.Any(c => c.Value == curLevel)) curLevel = -1;
+            SelectValue(CompressionCombo, curLevel);
+            CompressionCombo.IsEnabled = CompressionLabel.IsEnabled = maxLevel > 0;
 
             bool hasDepth = fmt == AudioFormat.Flac || fmt == AudioFormat.Wav;
             BitDepthCombo.IsEnabled = BitDepthLabel.IsEnabled = hasDepth;
@@ -282,7 +292,7 @@ public partial class MainWindow
         var p = ReadPreset();
         string rate = (p.SampleRate / 1000.0).ToString("0.0", CultureInfo.InvariantCulture) + "kHz";
         string ch = p.Channels == 1 ? "mono" : "stereo";
-        bool lossy = p.Format is AudioFormat.Mp3 or AudioFormat.M4a or AudioFormat.Aac or AudioFormat.Opus;
+        bool lossy = p.Format is AudioFormat.Mp3 or AudioFormat.M4a or AudioFormat.Aac or AudioFormat.Opus or AudioFormat.Ogg;
         string text;
         if (lossy)
         {
@@ -330,7 +340,7 @@ public partial class MainWindow
 
     private void UpdateGainTexts()
     {
-        for (int i = 0; i < 3; i++) GainTexts[i].Text = FormatDb(Gains[i].Value);
+        for (int i = 0; i < Preset.SourceSlots; i++) GainTexts[i].Text = FormatDb(Gains[i].Value);
         MasterGainText.Text = FormatDb(MasterGain.Value);
     }
 
@@ -356,7 +366,7 @@ public partial class MainWindow
         bool prev = loading; loading = true;
         try
         {
-            AutoSplitBox.Text = p.AutoSplitMinutes.ToString(CultureInfo.InvariantCulture);
+            AutoSplitBox.Text = FormatHms(p.AutoSplitSeconds);
             MaxHoursBox.Text = p.MaxFileHours.ToString(CultureInfo.InvariantCulture);
             SilenceDbBox.Text = Num(p.SilenceDb);
             SilenceSecBox.Text = Num(p.SilenceSeconds);
@@ -393,12 +403,13 @@ public partial class MainWindow
         p.Channels = ValueOf(ChannelsCombo, d.Channels);
         p.BitrateKbps = ValueOf(BitrateCombo, d.BitrateKbps);
         p.BitDepth = ValueOf(BitDepthCombo, d.BitDepth);
+        p.CompressionLevel = ValueOf(CompressionCombo, d.CompressionLevel);
         p.SaveFolder = FolderBox.Text.Trim();
         p.UseDateFolder = UseDateFolderCheck.IsChecked == true;
         p.DateFolderFormat = string.IsNullOrWhiteSpace(DateFormatBox.Text) ? d.DateFolderFormat : DateFormatBox.Text.Trim();
         p.FileNameTemplate = string.IsNullOrWhiteSpace(TemplateBox.Text) ? d.FileNameTemplate : TemplateBox.Text.Trim();
         p.TimeStyle = ValueOf(TimeStyleCombo, d.TimeStyle);
-        p.AutoSplitMinutes = ParseInt(AutoSplitBox.Text, d.AutoSplitMinutes, 0, 1440);
+        p.AutoSplitSeconds = ReadAutoSplitSeconds();
         p.MaxFileHours = ParseInt(MaxHoursBox.Text, d.MaxFileHours, 1, 168);
         p.SplitOnSilence = SilenceSplitCheck.IsChecked == true;
         p.SilenceDb = ParseDouble(SilenceDbBox.Text, d.SilenceDb, -100, 0);
@@ -423,7 +434,7 @@ public partial class MainWindow
 
     // ---------------------------------------------------------------- Preset → 画面
 
-    private void LoadPresetToUi(Preset p)
+    private void LoadPresetToUi(Preset p, bool applyFolder = true)
     {
         bool prev = loading; loading = true;
         try
@@ -441,14 +452,14 @@ public partial class MainWindow
             SelectValue(ChannelsCombo, p.Channels);
             SelectValue(BitrateCombo, p.BitrateKbps);
             if (BitrateCombo.SelectedItem == null) BitrateCombo.SelectedIndex = Bitrates.Length - 1;
-            UpdateFormatDependentUi(p.SampleRate, p.BitDepth);
-            FolderBox.Text = p.SaveFolder;
+            UpdateFormatDependentUi(p.SampleRate, p.BitDepth, p.CompressionLevel);
+            if (applyFolder) FolderBox.Text = p.SaveFolder;
             UseDateFolderCheck.IsChecked = p.UseDateFolder;
             DateFormatBox.Text = p.DateFolderFormat;
             TemplateBox.Text = p.FileNameTemplate;
             RefreshTemplateCombo();
             SelectValue(TimeStyleCombo, p.TimeStyle);
-            AutoSplitBox.Text = p.AutoSplitMinutes.ToString(CultureInfo.InvariantCulture);
+            AutoSplitBox.Text = FormatHms(p.AutoSplitSeconds);
             MaxHoursBox.Text = p.MaxFileHours.ToString(CultureInfo.InvariantCulture);
             SilenceSplitCheck.IsChecked = p.SplitOnSilence;
             SilenceDbBox.Text = Num(p.SilenceDb);
@@ -484,7 +495,6 @@ public partial class MainWindow
         {
             NoBox.Text = s.No.ToString(CultureInfo.InvariantCulture);
             TrackBox.Text = s.TrackStart.ToString(CultureInfo.InvariantCulture);
-            PreventSleepCheck.IsChecked = s.PreventSleep;
             MonitorCheck.IsChecked = s.MonitorInput;
             ConfirmCloseCheck.IsChecked = s.ConfirmCloseWhileRecording;
             HotkeysCheck.IsChecked = s.HotkeysEnabled;
@@ -503,7 +513,6 @@ public partial class MainWindow
     private void SyncAppFlagsFromUi()
     {
         var s = ctl.Settings;
-        s.PreventSleep = PreventSleepCheck.IsChecked == true;
         s.MonitorInput = MonitorCheck.IsChecked == true;
         s.ConfirmCloseWhileRecording = ConfirmCloseCheck.IsChecked == true;
         s.HotkeysEnabled = HotkeysCheck.IsChecked == true;
@@ -618,7 +627,7 @@ public partial class MainWindow
         if (PresetCombo.SelectedItem is not string name) return;
         var p = ctl.Settings.Presets.FirstOrDefault(x => x.Name == name);
         if (p == null) return;
-        LoadPresetToUi(p.Clone());
+        LoadPresetToUi(p.Clone(), applyFolder: false);
         ctl.Settings.LastPresetName = name;
         UpdateMeterSlots();
         RestartMonitor();
@@ -633,16 +642,56 @@ public partial class MainWindow
     }
 
     /// <summary>「○分ごと」と「安全上限」が重なるとき、実際にどうなるかを文章で見せる。</summary>
+    private int lastAutoSplitSec;
+
+    /// <summary>「時:分:秒」を秒にする。1:30:00 / 90:00(=分:秒) / 全角も可。読めなければ null。</summary>
+    private static int? ParseHms(string? text)
+    {
+        string t = Norm(text).Replace('：', ':');
+        if (t.Length == 0) return 0;
+        var parts = t.Split(':');
+        if (parts.Length > 3) return null;
+        long total = 0;
+        foreach (var part in parts)
+        {
+            if (!int.TryParse(part, NumberStyles.None, CultureInfo.InvariantCulture, out int n)) return null;
+            total = total * 60 + n;
+        }
+        if (parts.Length == 1) return null;   // 数字だけでは単位が分からないので受け付けない
+        if (total > 86400) return null;
+        return (int)total;
+    }
+
+    private static string FormatHms(int sec)
+        => $"{sec / 3600:00}:{sec / 60 % 60:00}:{sec % 60:00}";
+
+    private int ReadAutoSplitSeconds()
+    {
+        var v = ParseHms(AutoSplitBox.Text);
+        if (v.HasValue) { lastAutoSplitSec = v.Value; return v.Value; }
+        return lastAutoSplitSec;
+    }
+
+    /// <summary>自動分割の間隔と安全上限が重なるとき、実際にどうなるかを文章で見せる。入力が読めないときは赤文字で知らせる。</summary>
     private void UpdateSplitHint()
     {
-        int min = ParseInt(AutoSplitBox.Text, 0, 0, 1440);
+        var parsed = ParseHms(AutoSplitBox.Text);
+        SetInlineError(SplitError, parsed.HasValue ? null : "自動分割は 時:分:秒 で入力してください(例 00:30:00、24:00:00まで)。いまは直前の値のままです。");
+        int sec = ReadAutoSplitSeconds();
         int hours = ParseInt(MaxHoursBox.Text, 24, 1, 168);
-        int cap = hours * 60;
+        long cap = hours * 3600L;
         string t;
-        if (min <= 0) t = $"→ 自動分割はしません。ただし1つのファイルが {hours} 時間になる前に必ず分割します。";
-        else if (min >= cap) t = $"→ {hours} 時間ごとに分割されます(安全上限のほうが先に働くため、{min} 分の指定は使われません)。";
-        else t = $"→ {min} 分ごとに分割されます(安全上限 {hours} 時間は、その前に分割されるため働きません)。";
+        if (sec <= 0) t = $"→ 自動分割はしません。ただし1つのファイルが {hours} 時間になる前に必ず分割します。";
+        else if (sec >= cap) t = $"→ {hours} 時間ごとに分割されます(安全上限のほうが先に働くため、{FormatHms(sec)} の指定は使われません)。";
+        else t = $"→ {FormatHms(sec)} ごとに分割されます(安全上限 {hours} 時間は、その前に分割されるため働きません)。";
         SplitHint.Text = t + " 手動の分割ボタンはいつでも使えます。";
+    }
+
+    /// <summary>エラーを音の鳴るポップアップではなく、原因の近くに赤文字で出す。null で消す。</summary>
+    private static void SetInlineError(TextBlock tb, string? message)
+    {
+        tb.Text = message ?? "";
+        tb.Visibility = string.IsNullOrEmpty(message) ? Visibility.Collapsed : Visibility.Visible;
     }
 
     // ---------------------------------------------------------------- ⚙ 設定と情報
@@ -725,7 +774,7 @@ public partial class MainWindow
         if (input == null) return;
         string name = input.Trim();
         string? err = TemplateLibrary.ValidateName(name);
-        if (err != null) { MessageBox.Show(this, err, "LokuOn", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+        if (err != null) { SetInlineError(PresetError, err); return; }
         var list = ctl.Settings.Templates;
         int i = list.FindIndex(x => x.Name == name);
         if (i >= 0)
@@ -769,19 +818,18 @@ public partial class MainWindow
         AddLog($"テンプレート「{name}」を削除しました");
     }
 
+    private string PresetFolderPath => PresetStore.FolderFor(ctl.SettingsPath);
+
     private void OnPresetSaveAs()
     {
+        SetInlineError(PresetError, null);
         string initial = PresetCombo.SelectedItem as string ?? "";
-        string? input = PromptWindow.Show(this, "プリセットを保存", "プリセット名を入力してください。", initial);
+        string? input = PromptWindow.Show(this, "プリセットを保存", "プリセット名を入力してください(Presets フォルダに「名前.json」で保存されます)。", initial);
         if (input == null) return;
-        string name = input.Trim();
-        if (name.Length == 0) return;
-        if (name.IndexOfAny(new[] { '[', ']', '\r', '\n', '\t' }) >= 0)
-        {
-            MessageBox.Show(this, "プリセット名に [ ] や改行は使えません。", "LokuOn", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-        if (name != initial && ctl.Settings.Presets.Any(x => x.Name == name))
+        // ファイル名になるので、使えない文字は全角に置き換えた名前で保存する
+        string name = NameTemplate.Sanitize(input.Trim());
+        if (input.Trim().Length == 0) { SetInlineError(PresetError, "プリセット名を入力してください。"); return; }
+        if (name != initial && ctl.Settings.Presets.Any(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)))
         {
             var r = MessageBox.Show(this, $"「{name}」はすでにあります。上書きしますか？", "LokuOn", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (r != MessageBoxResult.Yes) return;
@@ -793,6 +841,16 @@ public partial class MainWindow
     {
         var p = ReadPreset();
         p.Name = name;
+        try
+        {
+            PresetStore.Save(PresetFolderPath, p);
+            SetInlineError(PresetError, null);
+        }
+        catch (Exception ex)
+        {
+            SetInlineError(PresetError, "プリセットを保存できませんでした: " + ex.Message);
+            return;
+        }
         var list = ctl.Settings.Presets;
         int idx = list.FindIndex(x => x.Name == name);
         if (idx >= 0) list[idx] = p; else list.Add(p);
@@ -808,6 +866,8 @@ public partial class MainWindow
         if (PresetCombo.SelectedItem is not string name) return;
         var r = MessageBox.Show(this, $"プリセット「{name}」を削除しますか？", "LokuOn", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
         if (r != MessageBoxResult.Yes) return;
+        try { PresetStore.Delete(PresetFolderPath, name); SetInlineError(PresetError, null); }
+        catch (Exception ex) { SetInlineError(PresetError, "プリセットを削除できませんでした: " + ex.Message); return; }
         ctl.Settings.Presets.RemoveAll(x => x.Name == name);
         ctl.Settings.LastPresetName = "";
         RefreshPresetCombo(null);
@@ -815,45 +875,25 @@ public partial class MainWindow
         AddLog($"プリセット「{name}」を削除しました");
     }
 
-    private void OnPresetExport()
+    private void OnPresetFolder()
     {
-        var dlg = new Microsoft.Win32.SaveFileDialog
-        {
-            Title = "プリセットの書き出し", Filter = "JSON (*.json)|*.json", FileName = "lokuon-presets.json", DefaultExt = ".json",
-        };
-        if (dlg.ShowDialog(this) != true) return;
         try
         {
-            var list = ctl.Settings.Presets.Select(x => x.Clone()).ToList();
-            if (list.Count == 0) { var cur = ReadPreset(); cur.Name = "現在の設定"; list.Add(cur); }
-            PresetJson.Export(list, dlg.FileName);
-            AddLog($"プリセット {list.Count} 件を書き出しました: {dlg.FileName}");
+            Directory.CreateDirectory(PresetFolderPath);
+            FileOps.OpenFolder(PresetFolderPath);
+            SetInlineError(PresetError, null);
         }
-        catch (Exception ex) { MessageBox.Show(this, "書き出せませんでした: " + ex.Message, "LokuOn", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch (Exception ex) { SetInlineError(PresetError, "Presets フォルダを開けません: " + ex.Message); }
     }
 
-    private void OnPresetImport()
+    /// <summary>Presets フォルダに手でコピー/削除されたファイルを一覧へ反映する。</summary>
+    private void ReloadPresetsFromFolder()
     {
-        var dlg = new Microsoft.Win32.OpenFileDialog { Title = "プリセットの読み込み", Filter = "JSON (*.json)|*.json|すべてのファイル|*.*" };
-        if (dlg.ShowDialog(this) != true) return;
-        try
-        {
-            var list = PresetJson.Import(dlg.FileName);
-            int added = 0;
-            foreach (var p in list)
-            {
-                string baseName = string.IsNullOrWhiteSpace(p.Name) ? "読み込み" : p.Name.Trim();
-                baseName = baseName.Replace("[", "(").Replace("]", ")");
-                string name = baseName;
-                for (int i = 2; ctl.Settings.Presets.Any(x => x.Name == name); i++) name = $"{baseName} ({i})";
-                p.Name = name;
-                ctl.Settings.Presets.Add(p);
-                added++;
-            }
-            RefreshPresetCombo(PresetCombo.SelectedItem as string);
-            ctl.SaveSettings();
-            AddLog($"プリセットを {added} 件読み込みました");
-        }
-        catch (Exception ex) { MessageBox.Show(this, "読み込めませんでした: " + ex.Message, "LokuOn", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        string? sel = PresetCombo.SelectedItem as string;
+        var before = ctl.Settings.Presets.Select(x => x.Name).ToList();
+        SettingsStore.LoadPresets(ctl.Settings, ctl.SettingsPath);
+        if (!before.SequenceEqual(ctl.Settings.Presets.Select(x => x.Name))) RefreshPresetCombo(sel);
+        SetInlineError(PresetError, ctl.Settings.PresetProblems.Count > 0
+            ? "読み込めないプリセットがあります: " + string.Join(" / ", ctl.Settings.PresetProblems.Take(2)) : null);
     }
 }

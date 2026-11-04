@@ -92,7 +92,7 @@ static class EngineTests
         }
 
         // ---- 2) mp3 / m4a / aac / wav / opus が作れて再生可能
-        foreach (var fmt in new[] { AudioFormat.Mp3, AudioFormat.M4a, AudioFormat.Aac, AudioFormat.Wav, AudioFormat.Opus })
+        foreach (var fmt in new[] { AudioFormat.Mp3, AudioFormat.M4a, AudioFormat.Aac, AudioFormat.Wav, AudioFormat.Opus, AudioFormat.Ogg })
         {
             section("エンジン: " + fmt);
             string dir = Path.Combine(tmp, "f_" + fmt);
@@ -137,7 +137,7 @@ static class EngineTests
             string dir = Path.Combine(tmp, "e3");
             var p = BasePreset(dir, AudioFormat.Flac);
             p.Sources[1] = new SourceSetting { DeviceId = "y", DeviceName = "マイク" };
-            p.MixMode = MixMode.Mix; p.AutoSplitMinutes = 0;
+            p.MixMode = MixMode.Mix; p.AutoSplitSeconds = 0;
             var a = new SourceBuffer(48000, 2) { Label = "PC音" };
             var b = new SourceBuffer(48000, 2) { Label = "マイク" };
             var eng = new RecorderEngine(new EngineOptions { Preset = p, FfmpegPath = ffmpeg }, new[] { a, b });
