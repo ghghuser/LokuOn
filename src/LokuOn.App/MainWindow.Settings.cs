@@ -150,7 +150,8 @@ public partial class MainWindow
         foreach (var tb in new[] { AutoSplitBox, MaxHoursBox, SilenceDbBox, SilenceSecBox, MinTrackBox, AutoStartDbBox, AutoStopBox,
                      NoBox, TrackBox, DiskWarnBox, DiskStopBox })
             tb.LostFocus += (s, e) => NormalizeNumbers();
-        FolderBox.LostFocus += (s, e) => RescanFiles();
+        // 保存先を書き換えたときだけ一覧を読み直す(そのままなら無駄な読み込みと選択の解除を避ける。手動は「保存先から読み込み」ボタン)
+        FolderBox.LostFocus += (s, e) => { if (FolderBox.Text.Trim() != lastScanRoot) RescanFiles(); };
 
         foreach (var ck in new[] { UseDateFolderCheck, SilenceSplitCheck, AutoStartCheck, AutoResumeCheck, WriteTrackTagCheck })
             ck.Click += (s, e) => OnSettingChanged();

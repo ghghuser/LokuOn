@@ -22,6 +22,7 @@ public partial class MainWindow
     private bool updatingSeek;
     private DateTime lastPlayerUpdate = DateTime.MinValue;
     private int rescanVersion;
+    private string lastScanRoot = "";    // 最後に一覧を読み込んだフォルダ(変わっていなければ入力欄を離れても読み直さない)
 
     // ---------------------------------------------------------------- 一覧
 
@@ -46,6 +47,7 @@ public partial class MainWindow
         try
         {
             string root = FolderBox.Text.Trim();
+            lastScanRoot = root;
             int version = ++rescanVersion;
             var known = new Dictionary<string, double?>(StringComparer.OrdinalIgnoreCase);
             foreach (var it in files) known[it.Path] = it.Seconds;
@@ -57,7 +59,7 @@ public partial class MainWindow
             foreach (var fi in found)
             {
                 known.TryGetValue(fi.FullName, out double? sec);
-                files.Add(FileItem.FromPath(fi.FullName, sec));
+                files.Add(FileItem.FromInfo(fi, sec));
             }
             UpdateFileCount();
         }

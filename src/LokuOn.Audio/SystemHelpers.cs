@@ -117,7 +117,7 @@ public static class FileOps
         Process.Start(new ProcessStartInfo("explorer.exe", "\"" + dir + "\"") { UseShellExecute = true });
     }
 
-    public static readonly string[] AudioExtensions = { ".flac", ".mp3", ".m4a", ".aac", ".wav", ".opus" };
+    public static readonly string[] AudioExtensions = { ".flac", ".mp3", ".m4a", ".aac", ".wav", ".opus", ".ogg" };
 
     public static bool IsAudio(string path)
         => AudioExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
@@ -137,6 +137,7 @@ public static class FileOps
             }
         }
         catch { }
-        return list.OrderByDescending(f => f.LastWriteTime).Take(max).ToList();
+        // UTC で並べる(ローカル時刻への変換を毎回しないぶん速く、夏時間の切り替わりでも順序がずれない)
+        return list.OrderByDescending(f => f.LastWriteTimeUtc).Take(max).ToList();
     }
 }

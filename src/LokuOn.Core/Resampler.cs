@@ -14,6 +14,7 @@ public sealed class StreamResampler
     private readonly int halfWidth;         // 片側のタップ数(入力サンプル単位)
     private readonly float[] table;         // カーネルの表(0..halfWidth)
     private readonly double tableScale;
+    private readonly float[] weights;       // 出力1フレーム分のタップの重み(全チャンネルで共通なので1回だけ計算する)
 
     private float[] buf = new float[0];     // 入力フレームのバッファ(インターリーブ)
     private int bufFrames;
@@ -39,6 +40,7 @@ public sealed class StreamResampler
             double w = t >= halfWidth ? 0 : 0.42 + 0.5 * Math.Cos(Math.PI * t / halfWidth) + 0.08 * Math.Cos(2 * Math.PI * t / halfWidth);
             table[i] = (float)(2 * cutoff * sinc * w);
         }
+        weights = new float[halfWidth * 2];
         // 最初の入力の前は無音として扱う
         baseIndex = -halfWidth;
         buf = new float[(halfWidth + 4096) * channels];
@@ -64,17 +66,26 @@ public sealed class StreamResampler
             long i0 = (long)Math.Floor(pos);
             if (i0 + halfWidth >= endIndex) break;
             double frac = pos - i0;
+
+            // 重みは位置(frac)だけで決まりチャンネルに依存しないので、フレームごとに1回だけ求める。
+            // (k は -halfWidth+1 〜 halfWidth。通常は表の範囲外にならないが、念のため従来どおり範囲外は重み0にする)
+            for (int t = 0; t < weights.Length; t++)
+            {
+                int k = t - halfWidth + 1;
+                double ti = Math.Abs(k - frac) * tableScale;
+                int ii = (int)ti;
+                weights[t] = ii >= table.Length - 1 ? 0f : table[ii] + (table[ii + 1] - table[ii]) * (float)(ti - ii);
+            }
+
+            int first = (int)(i0 - halfWidth + 1 - baseIndex) * channels;
             for (int ch = 0; ch < channels; ch++)
             {
                 double sum = 0;
-                for (int k = -halfWidth + 1; k <= halfWidth; k++)
+                int idx = first + ch;
+                for (int t = 0; t < weights.Length; t++)
                 {
-                    double t = Math.Abs(k - frac);
-                    double ti = t * tableScale;
-                    int ii = (int)ti;
-                    if (ii >= table.Length - 1) continue;
-                    float h = table[ii] + (table[ii + 1] - table[ii]) * (float)(ti - ii);
-                    sum += buf[(int)(i0 + k - baseIndex) * channels + ch] * h;
+                    sum += buf[idx] * weights[t];
+                    idx += channels;
                 }
                 output.Add((float)sum);
             }

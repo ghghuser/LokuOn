@@ -71,5 +71,14 @@ public sealed class FileItem : INotifyPropertyChanged
         return it;
     }
 
+    /// <summary>一覧の読み込みで得た FileInfo から作る(もう一度ファイルを調べに行かない)。</summary>
+    public static FileItem FromInfo(FileInfo fi, double? sec = null)
+    {
+        var it = new FileItem { path = fi.FullName, seconds = sec };
+        try { it.size = fi.Length; it.Time = fi.LastWriteTime; }
+        catch { }
+        return it;
+    }
+
     private void Raise(string n) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
 }

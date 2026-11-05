@@ -22,6 +22,15 @@ public sealed class LevelMeter : FrameworkElement
     private readonly Stopwatch clock = Stopwatch.StartNew();
     private double lastUpdate;
 
+    // 文字(ラベルと目盛り)は毎回作り直すと重いので、作ったものを使い回す。
+    // 文字の色(TextBrush)・画面の拡大率・ラベルが変わったときだけ作り直す。
+    private static readonly Typeface Face = new("Yu Gothic UI, Meiryo UI, Segoe UI");
+    private static readonly int[] TickDbs = { -60, -48, -36, -24, -12, -6, 0 };
+    private FormattedText[] labelText = Array.Empty<FormattedText>();
+    private FormattedText[] tickText = Array.Empty<FormattedText>();
+    private double textDpi = -1;
+    private Brush? textBrushUsed;
+
     public Brush BackBrush { get; set; } = Brushes.Black;
     public Brush TextBrush { get; set; } = Brushes.Gray;
     public Brush GoodBrush { get; set; } = new SolidColorBrush(Color.FromRgb(60, 200, 90));
@@ -40,6 +49,7 @@ public sealed class LevelMeter : FrameworkElement
     public void Configure(string[] barLabels)
     {
         labels = barLabels;
+        textDpi = -1;       // ラベルが変わるので文字を作り直す
         int n = labels.Length;
         shown = new double[n]; peak = new double[n]; peakAt = new double[n]; clipUntil = new double[n];
         enabled = new bool[n];
@@ -84,6 +94,20 @@ public sealed class LevelMeter : FrameworkElement
 
     private static double X(double db, double w) => (Math.Max(MinDb, Math.Min(0, db)) - MinDb) / -MinDb * w;
 
+    private void EnsureText(double dpi)
+    {
+        if (textDpi == dpi && ReferenceEquals(textBrushUsed, TextBrush) && labelText.Length == labels.Length) return;
+        var brush = TextBrush;
+        labelText = new FormattedText[labels.Length];
+        for (int i = 0; i < labels.Length; i++)
+            labelText[i] = new FormattedText(labels[i], CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, Face, 11, brush, dpi);
+        tickText = new FormattedText[TickDbs.Length];
+        for (int i = 0; i < TickDbs.Length; i++)
+            tickText[i] = new FormattedText(TickDbs[i].ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Face, 9, brush, dpi);
+        textDpi = dpi;
+        textBrushUsed = brush;
+    }
+
     protected override void OnRender(DrawingContext dc)
     {
         double w = ActualWidth, h = ActualHeight;
@@ -92,13 +116,13 @@ public sealed class LevelMeter : FrameworkElement
         double barX = labelW, barW = w - labelW - clipW - 4;
         if (barW < 10) return;
         double now = clock.Elapsed.TotalSeconds;
-        var tf = new Typeface("Yu Gothic UI, Meiryo UI, Segoe UI");
         double dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+        EnsureText(dpi);
 
         for (int i = 0; i < shown.Length; i++)
         {
             double y = i * (RowHeight + 2);
-            var label = new FormattedText(labels[i], CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, tf, 11, TextBrush, dpi);
+            var label = labelText[i];
             dc.DrawText(label, new Point(0, y + (RowHeight - label.Height) / 2));
             dc.DrawRectangle(BackBrush, null, new Rect(barX, y, barW, RowHeight));
             if (!enabled[i])
@@ -119,9 +143,10 @@ public sealed class LevelMeter : FrameworkElement
 
         // 目盛り
         double ty = shown.Length * (RowHeight + 2);
-        foreach (int db in new[] { -60, -48, -36, -24, -12, -6, 0 })
+        for (int ti = 0; ti < TickDbs.Length; ti++)
         {
-            var t = new FormattedText(db.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture, FlowDirection.LeftToRight, tf, 9, TextBrush, dpi);
+            int db = TickDbs[ti];
+            var t = tickText[ti];
             double x = barX + X(db, barW);
             double tx = Math.Min(Math.Max(barX, x - t.Width / 2), barX + barW - t.Width);
             dc.DrawText(t, new Point(tx, ty));

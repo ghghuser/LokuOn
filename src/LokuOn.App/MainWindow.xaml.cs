@@ -190,10 +190,14 @@ public partial class MainWindow : Window
             ctl.Tick();
             tickCount++;
 
-            var lv = ctl.ReadLevels();
-            MasterMeter.Update(new[] { lv.MasterL, lv.MasterR }, lv.Clipped);
-            SourceMeter.Update(lv.Sources, false);
-            if ((tickCount & 1) == 0) WaveView.Refresh(ctl.Waveform);
+            var lv = ctl.ReadLevels();      // 読み出しは常に行う(ピークをためこまないため)
+            // 最小化中・トレイに隠れている間は、メーターと波形の描画を省いて負荷を減らす(録音には影響しない)
+            if (IsVisible && WindowState != WindowState.Minimized)
+            {
+                MasterMeter.Update(new[] { lv.MasterL, lv.MasterR }, lv.Clipped);
+                SourceMeter.Update(lv.Sources, false);
+                if ((tickCount & 1) == 0) WaveView.Refresh(ctl.Waveform);
+            }
 
             if ((DateTime.Now - lastStatusUpdate).TotalMilliseconds >= 200)
             {

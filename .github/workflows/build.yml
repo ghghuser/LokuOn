@@ -77,7 +77,9 @@ jobs:
           Write-Host '--- 配布フォルダの中身 ---'
           Get-ChildItem publish -Recurse -File | ForEach-Object { '{0}  {1:N1} MB' -f $_.FullName.Substring((Get-Location).Path.Length + 1), ($_.Length / 1MB) }
 
+      # ZIP は Releases に公開するときだけ使うので、タグ(v*)のときだけ作る(通常のビルドは時間を節約)
       - name: ZIP を作成(ZIPの中は LokuOn\LokuOn.exe)
+        if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         run: |
           Compress-Archive -Path publish/LokuOn -DestinationPath LokuOn-win-x64.zip -Force
@@ -90,6 +92,9 @@ jobs:
         with:
           name: LokuOn-win-x64
           path: publish
+          # 古い成果物がたまって保存容量の上限に達しないよう、7日で自動的に消す(既定は90日)
+          retention-days: 7
+          if-no-files-found: error
 
       - name: Releases に公開(タグ v* のとき)
         if: startsWith(github.ref, 'refs/tags/v')
