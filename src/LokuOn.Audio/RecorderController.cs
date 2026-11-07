@@ -281,6 +281,8 @@ public sealed class RecorderController : IDisposable
         var r = outDev?.Renderer; if (r != null) r.Bus.MasterGain = DbToLin(db);
     }
 
+    public string OutputDiagnostics => outDev?.Renderer?.Describe() ?? "";
+
     public (float L, float R, bool Clipped) ReadOutputPeaks() => outDev?.Renderer?.ReadPeaks() ?? (0f, 0f, false);
 
     /// <summary>1秒ごと: 出力デバイスが外れたら静かに止めて、つながり直したら再開する(録音には影響しない)。</summary>

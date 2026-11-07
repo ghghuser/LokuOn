@@ -19,8 +19,7 @@ public sealed class OutputDevice : IDisposable
         public WaveFormat WaveFormat { get; }
         public int Read(float[] buffer, int offset, int count)
         {
-            try { r.Render(buffer, offset, count / ch); }
-            catch { Array.Clear(buffer, offset, count); }
+            r.Render(buffer, offset, count / ch);
             return count;
         }
     }

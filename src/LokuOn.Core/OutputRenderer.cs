@@ -40,6 +40,8 @@ public sealed class OutputRenderer
 
     /// <summary>無音から再開するために待った回数など、足りなくなった回数(試験・表示用)。</summary>
     public long Underruns;
+    public long RenderCalls;
+    public volatile string LastError = "";
     public long Overflows;
     private volatile float peakL, peakR;
     private volatile bool clipped;
@@ -65,6 +67,33 @@ public sealed class OutputRenderer
     /// <summary>デバイスのコールバックから呼ぶ。dest の先頭から frames フレーム(デバイスのチャンネル数)を書く。</summary>
     public void Render(float[] dest, int destOffset, int frames)
     {
+        try { RenderCore(dest, destOffset, frames); }
+        catch (Exception ex)
+        {
+            LastError = ex.GetType().Name + ": " + ex.Message;
+            Array.Clear(dest, destOffset, frames * devCh);
+        }
+    }
+
+    /// <summary>診断用の短い説明(画面に出す)。</summary>
+    public string Describe()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append($"デバイス {devRate}Hz/{devCh}ch 呼出{Interlocked.Read(ref RenderCalls)}回 途切れ{Interlocked.Read(ref Underruns)} 捨て{Interlocked.Read(ref Overflows)}");
+        for (int i = 0; i < chans.Length; i++)
+        {
+            var t = sources[i].Tap;
+            sb.Append($" | 入力{i + 1}: ");
+            if (t == null) { sb.Append("タップなし"); continue; }
+            sb.Append($"送り{(Bus.IsSendOn(i) ? "オン" : "オフ")} 受信{t.PushedFrames / Math.Max(1, t.SampleRate)}秒分 たまり{t.AvailableFrames * 1000 / Math.Max(1, t.SampleRate)}ms {(chans[i].Primed ? "再生中" : "待機")}");
+        }
+        if (LastError.Length > 0) sb.Append(" | エラー: " + LastError);
+        return sb.ToString();
+    }
+
+    private void RenderCore(float[] dest, int destOffset, int frames)
+    {
+        Interlocked.Increment(ref RenderCalls);
         int n = frames * devCh;
         if (mix.Length < n) mix = new float[n];
         if (inputs.Length != chans.Length) inputs = new float[chans.Length][];

@@ -84,6 +84,6 @@ public partial class MainWindow
         var (l, r, clip) = ctl.ReadOutputPeaks();
         float pk = Math.Max(l, r);
         string level = pk > 0.0001f ? $"  音量ピーク {20 * Math.Log10(pk):0} dB{(clip ? "  ※クリップ" : "")}" : "  (無音)";
-        OutStatusText.Text = (st.Length > 0 ? st : "出力中") + (ctl.IsOutputRunning ? level : "");
+        OutStatusText.Text = (st.Length > 0 ? st : "出力中") + (ctl.IsOutputRunning ? level : "") + "\n[診断] " + ctl.OutputDiagnostics;
     }
 }

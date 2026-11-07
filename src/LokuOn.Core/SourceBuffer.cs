@@ -21,6 +21,8 @@ public sealed class SourceBuffer
     public volatile float GainDb;
 
     public long DroppedFrames;
+    /// <summary>これまでに Push された総フレーム数(診断用)。</summary>
+    public long PushedFrames;
 
     /// <summary>
     /// 出力デバイス用の複製先。設定されている間、Push された音をここにも入れる(null なら何も増えない)。
@@ -47,6 +49,7 @@ public sealed class SourceBuffer
         if (tap != null && tap.Channels == Channels) tap.Push(data, offset, frames);
         lock (gate)
         {
+            PushedFrames += frames;
             if (n >= ring.Length)
             {
                 // 大きすぎる入力は末尾だけ残す
