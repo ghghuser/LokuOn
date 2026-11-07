@@ -90,6 +90,7 @@ public partial class MainWindow : Window
 
         RescanFiles();
         _ = RecoverPendingAsync();
+        InitOutputUi();
         if (ctl.Settings.MonitorInput) StartMonitorSafe();
         timer.Start();
     }
@@ -315,7 +316,7 @@ public partial class MainWindow : Window
         {
             AddLog("録音を開始できません: " + err);
             SetInlineError(ErrorText, "録音を開始できません: " + err);
-            if (ctl.Settings.MonitorInput) StartMonitorSafe();
+            if (ctl.Settings.MonitorInput || ctl.OutputWanted) StartMonitorSafe();
             return;
         }
         UpdateButtons();
@@ -353,7 +354,7 @@ public partial class MainWindow : Window
             });
         }
         else AddLog("録音を終了しました");
-        if (ctl.Settings.MonitorInput) StartMonitorSafe();
+        if (ctl.Settings.MonitorInput || ctl.OutputWanted) StartMonitorSafe();
         else WaveView.Refresh(null);
     }
 
@@ -377,7 +378,7 @@ public partial class MainWindow : Window
     private void RestartMonitor()
     {
         if (loading || ctl.IsRecording) return;
-        if (ctl.Settings.MonitorInput) StartMonitorSafe();
+        if (ctl.Settings.MonitorInput || ctl.OutputWanted) StartMonitorSafe();
         else ctl.StopMonitor();
         UpdateMeterSlots();
     }

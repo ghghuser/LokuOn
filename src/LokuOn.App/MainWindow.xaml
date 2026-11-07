@@ -206,6 +206,23 @@
                             </WrapPanel>
                                 </StackPanel>
                             </Expander>
+                            <Expander Header="出力(試験機能・段階2): ミックスを再生デバイスへ流す" Margin="0,2,0,0">
+                                <StackPanel Margin="0,4,0,0">
+                                    <TextBlock Text="入力1〜4の音を、選んだ再生デバイス(スピーカー・ヘッドホン・VB-CABLEのCABLE Inputなど)へ流します。録音とは独立していて、録音しなくても使えます。入力として取り込み中のデバイスは選べません。" TextWrapping="Wrap" Opacity="0.7" Margin="0,0,0,4"/>
+                                    <WrapPanel Margin="0,0,0,3">
+                                        <TextBlock Text="出力先" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <ComboBox x:Name="OutDeviceCombo" Width="300"/>
+                                        <CheckBox x:Name="OutEnableCheck" Content="出力する" VerticalContentAlignment="Center" Margin="10,0,0,0"/>
+                                    </WrapPanel>
+                                    <WrapPanel Margin="0,0,0,3">
+                                        <TextBlock Text="音量" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <Slider x:Name="OutVolSlider" Width="180" Minimum="-30" Maximum="20" SmallChange="1" LargeChange="3" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="OutVolText" Width="60" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                    </WrapPanel>
+                                    <TextBlock x:Name="OutStatusText" TextWrapping="Wrap" Opacity="0.8"/>
+                                    <TextBlock x:Name="OutErrorText" Foreground="#E5484D" FontWeight="SemiBold" TextWrapping="Wrap" Visibility="Collapsed"/>
+                                </StackPanel>
+                            </Expander>
                         </StackPanel>
                     </GroupBox>
 

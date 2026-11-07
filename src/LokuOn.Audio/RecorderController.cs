@@ -17,6 +17,7 @@ public sealed class RecorderController : IDisposable
     private sealed class ActiveSource
     {
         public int Slot;
+        public string DeviceId = "";
         public SourceBuffer Buffer = null!;
         public CaptureSource Capture = null!;
     }
@@ -170,15 +171,17 @@ public sealed class RecorderController : IDisposable
             var buf = new SourceBuffer(p.SampleRate, p.Channels) { GainDb = (float)s.GainDb };
             string name = ShortLabel(s.DeviceId, s.DeviceName);
             var cap = new CaptureSource(s.DeviceId, name, buf);
-            active.Add(new ActiveSource { Slot = i, Buffer = buf, Capture = cap });
+            active.Add(new ActiveSource { Slot = i, DeviceId = s.DeviceId, Buffer = buf, Capture = cap });
         }
         if (active.Count == 0) { error = "入力デバイスが選ばれていません"; return false; }
         foreach (var a in active) a.Capture.Start();
+        AttachOutput();
         return true;
     }
 
     private void CloseSources()
     {
+        DetachOutput();
         foreach (var a in active) { try { a.Capture.Dispose(); } catch { } }
         active.Clear();
     }
@@ -191,6 +194,112 @@ public sealed class RecorderController : IDisposable
             if (!a.Buffer.Connected)
                 parts.Add($"入力{a.Slot + 1}「{a.Capture.DisplayName}」: {(string.IsNullOrEmpty(a.Capture.LastError) ? "接続できません" : a.Capture.LastError)}");
         return string.Join(" / ", parts);
+    }
+
+    // ---------------------------------------------------------------- 出力デバイス(段階2: 1台)
+
+    private OutputDevice? outDev;
+    private float outVolDb;
+    private DateTime outRetryAt = DateTime.MinValue;
+    private bool outReported;
+
+    /// <summary>出力を使う設定か(入力の取り込みが開いている間、出力デバイスへ流す)。</summary>
+    public bool OutputWanted { get; private set; }
+    public string OutputDeviceId { get; private set; } = "";
+    /// <summary>出力デバイスが実際に鳴らしている最中か。</summary>
+    public bool IsOutputRunning => outDev != null && !outDev.Failed;
+    public string OutputDeviceName => outDev?.DeviceName ?? "";
+    /// <summary>出力側のエラーや状況(画面表示用)。</summary>
+    public string OutputStatus { get; private set; } = "";
+
+    /// <summary>
+    /// 出力の開始/停止。録音の有無にかかわらず動く(録音していなければ入力の取り込みだけ開く)。
+    /// 失敗したら理由を返す(成功なら null)。出力側の失敗で録音は止まらない。
+    /// </summary>
+    public string? SetOutput(string deviceId, bool enabled, Preset p)
+    {
+        if (!enabled)
+        {
+            OutputWanted = false; OutputStatus = "";
+            DetachOutput();
+            if (!Settings.MonitorInput && engine == null) StopMonitor();
+            return null;
+        }
+        if (string.IsNullOrWhiteSpace(deviceId)) return "出力先のデバイスを選んでください";
+        foreach (var s in p.Sources)
+            if (!string.IsNullOrWhiteSpace(s.DeviceId) && DeviceCatalog.IsLoopCombination(s.DeviceId, deviceId))
+                return "このデバイスは入力として取り込み中のため、出力先にできません(音がループします)";
+        DetachOutput(); OutputStatus = "";
+        OutputDeviceId = deviceId; OutputWanted = true; outReported = false; outRetryAt = DateTime.MinValue;
+        if (engine == null && !monitoring) StartMonitor(p);
+        else AttachOutput();
+        if (outDev == null || outDev.Failed)
+        {
+            string err = OutputStatus.Length > 0 ? OutputStatus : "出力を開始できませんでした";
+            OutputWanted = false; DetachOutput();
+            if (!Settings.MonitorInput && engine == null) StopMonitor();
+            return err;
+        }
+        return null;
+    }
+
+    private void AttachOutput()
+    {
+        if (!OutputWanted || outDev != null || active.Count == 0) return;
+        try
+        {
+            foreach (var a in active)
+                if (DeviceCatalog.IsLoopCombination(a.DeviceId, OutputDeviceId))
+                { OutputStatus = "入力と同じデバイスのため出力できません(ループ防止)"; return; }
+            foreach (var a in active) a.Buffer.Tap = new SourceBuffer(a.Buffer.SampleRate, a.Buffer.Channels, 1.0) { };
+            var dev = new OutputDevice(OutputDeviceId);
+            string? err = dev.Start(active.Select(a => a.Buffer).ToList());
+            if (err != null)
+            {
+                foreach (var a in active) a.Buffer.Tap = null;
+                OutputStatus = err; Log(err);
+                return;
+            }
+            outDev = dev;
+            if (dev.Renderer != null) dev.Renderer.Bus.MasterGain = DbToLin(outVolDb);
+            OutputStatus = "出力中: " + dev.DeviceName;
+            outReported = false;
+        }
+        catch (Exception ex) { OutputStatus = "出力エラー: " + ex.Message; Log(OutputStatus); }
+    }
+
+    private void DetachOutput()
+    {
+        foreach (var a in active) a.Buffer.Tap = null;
+        var d = outDev; outDev = null;
+        if (d != null) { try { d.Dispose(); } catch { } }
+    }
+
+    public void SetOutputVolume(double db)
+    {
+        outVolDb = (float)db;
+        var r = outDev?.Renderer; if (r != null) r.Bus.MasterGain = DbToLin(db);
+    }
+
+    public (float L, float R, bool Clipped) ReadOutputPeaks() => outDev?.Renderer?.ReadPeaks() ?? (0f, 0f, false);
+
+    /// <summary>1秒ごと: 出力デバイスが外れたら静かに止めて、つながり直したら再開する(録音には影響しない)。</summary>
+    private void PollOutput()
+    {
+        if (!OutputWanted) return;
+        if (outDev != null && outDev.Failed)
+        {
+            string e = outDev.LastError;
+            DetachOutput();
+            OutputStatus = "出力が止まりました(再試行します): " + e;
+            if (!outReported) { outReported = true; Message?.Invoke(OutputStatus); }
+            outRetryAt = DateTime.Now.AddSeconds(5);
+        }
+        else if (outDev == null && active.Count > 0 && DateTime.Now >= outRetryAt)
+        {
+            AttachOutput();
+            outRetryAt = DateTime.Now.AddSeconds(5);
+        }
     }
 
     // ---------------------------------------------------------------- 入力確認(モニター)
@@ -432,6 +541,7 @@ public sealed class RecorderController : IDisposable
         {
             lastPoll = DateTime.Now;
             foreach (var a in active) { try { a.Capture.Poll(); } catch { } }
+            PollOutput();
             CheckSchedule();
         }
     }

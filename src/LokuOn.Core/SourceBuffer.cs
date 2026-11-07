@@ -22,6 +22,12 @@ public sealed class SourceBuffer
 
     public long DroppedFrames;
 
+    /// <summary>
+    /// 出力デバイス用の複製先。設定されている間、Push された音をここにも入れる(null なら何も増えない)。
+    /// 録音エンジンの読み出しとは独立していて、出力側が詰まっても録音には影響しない。
+    /// </summary>
+    public volatile SourceBuffer? Tap;
+
     public SourceBuffer(int sampleRate, int channels, double seconds = 4.0)
     {
         SampleRate = sampleRate;
@@ -37,6 +43,8 @@ public sealed class SourceBuffer
     {
         int n = frames * Channels;
         if (n <= 0) return;
+        var tap = Tap;
+        if (tap != null && tap.Channels == Channels) tap.Push(data, offset, frames);
         lock (gate)
         {
             if (n >= ring.Length)

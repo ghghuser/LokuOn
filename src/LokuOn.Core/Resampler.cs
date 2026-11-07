@@ -23,10 +23,14 @@ public sealed class StreamResampler
 
     public bool IsPassThrough { get; }
 
-    public StreamResampler(int inRate, int outRate, int channels)
+    /// <summary>変換比の微調整(0=そのまま、+0.001=入力を0.1%速く消費する)。デバイスどうしのクロックのずれの補正に使う。</summary>
+    public double Trim { get; set; }
+
+    /// <param name="allowTrim">true のとき、同じレートでも素通しにせず Trim が効くようにする。</param>
+    public StreamResampler(int inRate, int outRate, int channels, bool allowTrim = false)
     {
         this.channels = channels;
-        IsPassThrough = inRate == outRate;
+        IsPassThrough = inRate == outRate && !allowTrim;
         step = (double)inRate / outRate;
         double cutoff = 0.5 * Math.Min(1.0, (double)outRate / inRate) * 0.97;   // 入力サンプル間隔あたりのカットオフ
         halfWidth = (int)Math.Ceiling(ZeroCrossings / (2 * cutoff));
@@ -61,6 +65,7 @@ public sealed class StreamResampler
         bufFrames += inputFrames;
 
         long endIndex = baseIndex + bufFrames;   // 絶対位置で endIndex 未満のフレームが使える
+        double curStep = step * (1.0 + Trim);
         while (true)
         {
             long i0 = (long)Math.Floor(pos);
@@ -89,7 +94,7 @@ public sealed class StreamResampler
                 }
                 output.Add((float)sum);
             }
-            pos += step;
+            pos += curStep;
         }
 
         // 不要になった過去分を捨てる

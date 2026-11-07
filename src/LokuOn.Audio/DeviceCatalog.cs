@@ -3,7 +3,7 @@ using NAudio.Wave;
 
 namespace LokuOn.Audio;
 
-public enum DeviceKind { WasapiLoopback, WasapiCapture, Asio }
+public enum DeviceKind { WasapiLoopback, WasapiCapture, Asio, WasapiOutput }
 
 /// <summary>画面のプルダウンに出す入力デバイス1件。</summary>
 public sealed class DeviceInfo
@@ -63,6 +63,46 @@ public static class DeviceCatalog
         }
         catch { /* ASIOドライバが無い環境 */ }
         return list;
+    }
+
+    public const string OutDefaultId = "wasapi-out:default";
+
+    /// <summary>出力先に選べる再生デバイスの一覧(先頭は「既定の再生デバイス(追従)」)。</summary>
+    public static List<DeviceInfo> EnumerateOutputs()
+    {
+        var list = new List<DeviceInfo>();
+        try
+        {
+            using var en = new MMDeviceEnumerator();
+            string defRen = DefaultId(en, DataFlow.Render);
+            list.Add(new DeviceInfo { Id = OutDefaultId, Kind = DeviceKind.WasapiOutput, Display = "既定の再生デバイス(Windowsの既定に追従)" });
+            foreach (var (id, name) in Endpoints(en, DataFlow.Render))
+                list.Add(new DeviceInfo { Id = "wasapi-out:" + id, Kind = DeviceKind.WasapiOutput, Display = name + (id == defRen ? DefaultMark : "") });
+        }
+        catch { }
+        return list;
+    }
+
+    /// <summary>
+    /// 入力の ID(wasapi-loop:...)と出力の ID(wasapi-out:...)が同じ再生デバイスを指すか。
+    /// 同じなら、出力した音を自分で拾い直す(ループ)ので組み合わせられない。「既定」は現在の既定デバイスとして比べる。
+    /// </summary>
+    public static bool IsLoopCombination(string inputId, string outputId)
+    {
+        if (!inputId.StartsWith("wasapi-loop:", StringComparison.OrdinalIgnoreCase)) return false;
+        if (!outputId.StartsWith("wasapi-out:", StringComparison.OrdinalIgnoreCase)) return false;
+        string a = inputId.Substring("wasapi-loop:".Length), b = outputId.Substring("wasapi-out:".Length);
+        if (string.Equals(a, b, StringComparison.OrdinalIgnoreCase)) return true;
+        if (a != "default" && b != "default") return false;
+        try
+        {
+            using var en = new MMDeviceEnumerator();
+            string def = DefaultId(en, DataFlow.Render);
+            if (a == "default") a = def;
+            if (b == "default") b = def;
+            return a.Length > 0 && string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+        }
+        catch { return false; }
     }
 
     private static string DefaultId(MMDeviceEnumerator en, DataFlow flow)

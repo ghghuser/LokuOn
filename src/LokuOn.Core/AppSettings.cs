@@ -93,6 +93,10 @@ public sealed class AppSettings
     public double DiskStopGB { get; set; } = 0.1;
     public string FfmpegPath { get; set; } = "";
 
+    /// <summary>出力先デバイスのID(wasapi-out:...)。空=未選択。出力のオン/オフは保存しない(起動時は停止)。</summary>
+    public string OutputDeviceId { get; set; } = "";
+    public double OutputVolumeDb { get; set; } = 0;
+
     public ScheduleSettings Schedule { get; set; } = new();
 
     /// <summary>画面に出ている現在の設定(終了時に保存され、次回そのまま復元される)。</summary>
@@ -149,6 +153,8 @@ public static class SettingsStore
             // 旧版の既定値(5GB/0.5GB)のままなら新しい既定値(1GB/100MB)にする
             if (s.DiskWarnGB == 5 && s.DiskStopGB == 0.5) { s.DiskWarnGB = d.DiskWarnGB; s.DiskStopGB = d.DiskStopGB; }
             s.FfmpegPath = a.GetString("FfmpegPath");
+            s.OutputDeviceId = a.GetString("OutputDeviceId");
+            s.OutputVolumeDb = Math.Clamp(a.GetDouble("OutputVolumeDb", 0), -30, 20);
         }
         var sc = doc.Find("Schedule");
         if (sc != null)
@@ -215,6 +221,8 @@ public static class SettingsStore
         a.Set("DiskWarnGB", s.DiskWarnGB, "空き容量がこれ未満になったら警告(GB)");
         a.Set("DiskStopGB", s.DiskStopGB, "空き容量がこれ未満になったら安全に録音を停止(GB)");
         a.Set("FfmpegPath", s.FfmpegPath, "空欄=ffmpegフォルダ内のffmpeg.exeを自動検出");
+        a.Set("OutputDeviceId", s.OutputDeviceId, "出力先の再生デバイス(試験機能)");
+        a.Set("OutputVolumeDb", s.OutputVolumeDb, "出力の全体音量(dB)");
 
         var sc = doc.Section("Schedule");
         sc.Set("Enabled", s.Schedule.Enabled);
