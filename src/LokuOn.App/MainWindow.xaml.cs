@@ -52,6 +52,7 @@ public partial class MainWindow : Window
         WireEvents();
         MasterMeter.Configure(new[] { "L", "R" });
         SourceMeter.Configure(new[] { "入力1", "入力2", "入力3", "入力4" });
+        InitOutputUi();
         LogList.ItemsSource = logItems;
         FileList.ItemsSource = files;
         BuildFileContextMenu();
@@ -90,7 +91,6 @@ public partial class MainWindow : Window
 
         RescanFiles();
         _ = RecoverPendingAsync();
-        InitOutputUi();
         if (ctl.Settings.MonitorInput) StartMonitorSafe();
         timer.Start();
     }
@@ -421,7 +421,7 @@ public partial class MainWindow : Window
 
     private void Cleanup()
     {
-        try { timer.Stop(); } catch { }
+        try { timer.Stop(); outTimer?.Stop(); outWindow?.Close(); } catch { }
         try { SyncSettingsFromUi(); ctl.SaveSettings(); } catch { }
         try { Microsoft.Win32.SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged; } catch { }
         try { UnregisterHotkeys(); } catch { }

@@ -429,6 +429,8 @@ public partial class MainWindow
         p.Tags.Year = TagYear.Text.Trim();
         p.Tags.Comment = TagComment.Text.Trim();
         p.WriteTrackTag = WriteTrackTagCheck.IsChecked == true;
+        p.Outputs = outCards.Select(o => o.Clone()).ToList();
+        p.InputNames = (string[])inputNames.Clone();
         p.Normalize();
         return p;
     }
@@ -480,6 +482,7 @@ public partial class MainWindow
             TagComment.Text = p.Tags.Comment;
             WriteTrackTagCheck.IsChecked = p.WriteTrackTag;
             UpdateGainTexts();
+            ApplyOutputsFromPreset(p);
         }
         finally { loading = prev; }
         UpdatePreview();

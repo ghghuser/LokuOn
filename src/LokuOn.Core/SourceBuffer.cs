@@ -28,7 +28,29 @@ public sealed class SourceBuffer
     /// 出力デバイス用の複製先。設定されている間、Push された音をここにも入れる(null なら何も増えない)。
     /// 録音エンジンの読み出しとは独立していて、出力側が詰まっても録音には影響しない。
     /// </summary>
-    public volatile SourceBuffer? Tap;
+    private volatile SourceBuffer[] taps = Array.Empty<SourceBuffer>();
+
+    /// <summary>複製先を追加する(出力デバイスごとに1つ)。</summary>
+    public void AddTap(SourceBuffer tap)
+    {
+        lock (tapGate) { var l = taps.ToList(); if (!l.Contains(tap)) l.Add(tap); taps = l.ToArray(); }
+    }
+
+    public void RemoveTap(SourceBuffer tap)
+    {
+        lock (tapGate) { var l = taps.ToList(); l.Remove(tap); taps = l.ToArray(); }
+    }
+
+    public void ClearTaps() { lock (tapGate) taps = Array.Empty<SourceBuffer>(); }
+
+    /// <summary>最初の複製先(1つだけ使う場合・テスト用)。代入すると他は外して1つだけにする。</summary>
+    public SourceBuffer? Tap
+    {
+        get { var t = taps; return t.Length > 0 ? t[0] : null; }
+        set { lock (tapGate) taps = value == null ? Array.Empty<SourceBuffer>() : new[] { value }; }
+    }
+
+    private readonly object tapGate = new();
 
     public SourceBuffer(int sampleRate, int channels, double seconds = 4.0)
     {
@@ -45,8 +67,8 @@ public sealed class SourceBuffer
     {
         int n = frames * Channels;
         if (n <= 0) return;
-        var tap = Tap;
-        if (tap != null && tap.Channels == Channels) tap.Push(data, offset, frames);
+        var ts = taps;
+        for (int i = 0; i < ts.Length; i++) if (ts[i].Channels == Channels) ts[i].Push(data, offset, frames);
         lock (gate)
         {
             PushedFrames += frames;

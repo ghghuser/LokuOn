@@ -43,6 +43,51 @@ public sealed class SourceSetting
     public SourceSetting Clone() => (SourceSetting)MemberwiseClone();
 }
 
+/// <summary>出力デバイス1つ(画面では「カード」1枚)の設定。</summary>
+public sealed class OutputSetting
+{
+    public const int NameMax = 12;
+    public string Name { get; set; } = "";
+    /// <summary>出力先の再生デバイスID(wasapi-out:...)。空=未選択。</summary>
+    public string DeviceId { get; set; } = "";
+    public string DeviceName { get; set; } = "";
+    /// <summary>この出力の全体音量(dB)。</summary>
+    public double MasterGainDb { get; set; } = 0;
+    /// <summary>入力ごと(画面の入力1〜4)に、この出力へ送るか。</summary>
+    public bool[] SendOn { get; set; } = { true, true, true, true };
+    /// <summary>入力ごとの、この出力への送りの音量(dB)。</summary>
+    public double[] SendGainDb { get; set; } = new double[Preset.SourceSlots];
+    /// <summary>入力の一覧を畳んでいるか(手動のみ)。</summary>
+    public bool Collapsed { get; set; } = false;
+
+    public static string DefaultName(int index) => "ミックス" + (index + 1);
+
+    public OutputSetting Clone()
+    {
+        var c = (OutputSetting)MemberwiseClone();
+        c.SendOn = (bool[])(SendOn ?? new[] { true, true, true, true }).Clone();
+        c.SendGainDb = (double[])(SendGainDb ?? new double[Preset.SourceSlots]).Clone();
+        return c;
+    }
+
+    public void Normalize(int index)
+    {
+        DeviceId ??= ""; DeviceName ??= "";
+        Name = (Name ?? "").Trim();
+        if (Name.Length == 0) Name = DefaultName(index);
+        if (Name.Length > NameMax) Name = Name.Substring(0, NameMax);
+        MasterGainDb = double.IsFinite(MasterGainDb) ? Math.Clamp(MasterGainDb, Preset.GainMinDb, Preset.GainMaxDb) : 0;
+        var on = new bool[Preset.SourceSlots]; var g = new double[Preset.SourceSlots];
+        for (int i = 0; i < Preset.SourceSlots; i++)
+        {
+            on[i] = SendOn != null && i < SendOn.Length ? SendOn[i] : true;
+            double v = SendGainDb != null && i < SendGainDb.Length ? SendGainDb[i] : 0;
+            g[i] = double.IsFinite(v) ? Math.Clamp(v, Preset.GainMinDb, Preset.GainMaxDb) : 0;
+        }
+        SendOn = on; SendGainDb = g;
+    }
+}
+
 public sealed class TagSettings
 {
     public string Title { get; set; } = "";
@@ -73,6 +118,16 @@ public sealed class Preset
     public string Name { get; set; } = "";
 
     public SourceSetting[] Sources { get; set; } = NewSources();
+
+    /// <summary>出力デバイスの最大数。</summary>
+    public const int MaxOutputs = 4;
+    /// <summary>出力(カード)。最初は1枚。旧プリセットにはない項目なので、無ければ1枚になる。</summary>
+    public List<OutputSetting> Outputs { get; set; } = new() { new OutputSetting { Name = OutputSetting.DefaultName(0) } };
+    /// <summary>入力1〜4の表示名(空=既定の「入力1〜4」)。画面・出力ウィンドウで共通に使う。</summary>
+    public string[] InputNames { get; set; } = new string[SourceSlots] { "", "", "", "" };
+
+    public string InputName(int slot)
+        => InputNames != null && (uint)slot < (uint)InputNames.Length && !string.IsNullOrWhiteSpace(InputNames[slot]) ? InputNames[slot] : "入力" + (slot + 1);
 
     public MixMode MixMode { get; set; } = MixMode.Mix;
     public double MasterGainDb { get; set; } = 0;
@@ -132,6 +187,8 @@ public sealed class Preset
         for (int i = 0; i < SourceSlots; i++)
             c.Sources[i] = (Sources != null && i < Sources.Length && Sources[i] != null) ? Sources[i].Clone() : new SourceSetting();
         c.Tags = (Tags ?? new TagSettings()).Clone();
+        c.Outputs = (Outputs ?? new List<OutputSetting>()).Select(o => (o ?? new OutputSetting()).Clone()).ToList();
+        c.InputNames = (string[])(InputNames ?? new string[SourceSlots]).Clone();
         return c;
     }
 
@@ -151,6 +208,15 @@ public sealed class Preset
         Sources = fixedSources;
         Tags ??= new TagSettings();
         Name = (Name ?? "").Trim();
+        Outputs = (Outputs ?? new List<OutputSetting>()).Where(o => o != null).Take(MaxOutputs).ToList();
+        for (int i = 0; i < Outputs.Count; i++) Outputs[i].Normalize(i);
+        var names = new string[SourceSlots];
+        for (int i = 0; i < SourceSlots; i++)
+        {
+            string n = InputNames != null && i < InputNames.Length ? (InputNames[i] ?? "").Trim() : "";
+            names[i] = n.Length > OutputSetting.NameMax ? n.Substring(0, OutputSetting.NameMax) : n;
+        }
+        InputNames = names;
 
         if (!Enum.IsDefined(Format)) Format = AudioFormat.Flac;
         if (!Enum.IsDefined(MixMode)) MixMode = MixMode.Mix;
@@ -216,6 +282,20 @@ public sealed class Preset
             s.Set($"Source{n}Name", src.DeviceName);
             s.Set($"Source{n}GainDb", src.GainDb);
         }
+        s.Set("OutputCount", Outputs.Count, C("出力デバイス(カード)の数 0〜4。出力は画面の「出力」ウィンドウで設定"));
+        for (int i = 0; i < Outputs.Count; i++)
+        {
+            var o = Outputs[i]; int n = i + 1;
+            s.Set($"Output{n}Name", o.Name);
+            s.Set($"Output{n}Device", o.DeviceId);
+            s.Set($"Output{n}DeviceName", o.DeviceName);
+            s.Set($"Output{n}MasterDb", o.MasterGainDb);
+            s.Set($"Output{n}SendOn", string.Join(",", o.SendOn.Select(b => b ? "1" : "0")), i == 0 ? C("入力1〜4を送るか(1/0)") : null);
+            s.Set($"Output{n}SendDb", string.Join(",", o.SendGainDb.Select(v => v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))), i == 0 ? C("入力1〜4の送りの音量(dB)") : null);
+            s.Set($"Output{n}Collapsed", o.Collapsed);
+        }
+        for (int i = 0; i < SourceSlots; i++)
+            s.Set($"Input{i + 1}Label", InputNames != null && i < InputNames.Length ? InputNames[i] : "", i == 0 ? C("入力1〜4の表示名(空=既定の「入力1〜4」)") : null);
         s.Set("MixMode", MixMode, C("Mix=ミックスして1ファイル / Separate=入力ごとに別ファイル"));
         s.Set("MasterGainDb", MasterGainDb, C("録音ゲイン(dB)"));
 
@@ -270,6 +350,27 @@ public sealed class Preset
                 GainDb = s.GetDouble($"Source{n}GainDb", 0),
             };
         }
+        int outCount = Math.Clamp(s.GetInt("OutputCount", 1), 0, MaxOutputs);
+        p.Outputs = new List<OutputSetting>();
+        for (int i = 0; i < outCount; i++)
+        {
+            int n = i + 1;
+            var o = new OutputSetting
+            {
+                Name = s.GetString($"Output{n}Name"),
+                DeviceId = s.GetString($"Output{n}Device"),
+                DeviceName = s.GetString($"Output{n}DeviceName"),
+                MasterGainDb = s.GetDouble($"Output{n}MasterDb", 0),
+                Collapsed = s.GetBool($"Output{n}Collapsed", false),
+            };
+            var on = s.GetString($"Output{n}SendOn").Split(',', StringSplitOptions.TrimEntries);
+            for (int k = 0; k < SourceSlots; k++) o.SendOn[k] = k < on.Length && on[0].Length > 0 ? on[k] != "0" : true;
+            var gs = s.GetString($"Output{n}SendDb").Split(',', StringSplitOptions.TrimEntries);
+            for (int k = 0; k < SourceSlots; k++)
+                o.SendGainDb[k] = k < gs.Length && double.TryParse(gs[k], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var gv) ? gv : 0;
+            p.Outputs.Add(o);
+        }
+        for (int i = 0; i < SourceSlots; i++) p.InputNames[i] = s.GetString($"Input{i + 1}Label");
         p.MixMode = s.GetEnum("MixMode", d.MixMode);
         p.MasterGainDb = s.GetDouble("MasterGainDb", d.MasterGainDb);
 

@@ -40,7 +40,7 @@ public sealed class OutputDevice : IDisposable
     public OutputDevice(string deviceId) { DeviceId = deviceId; }
 
     /// <summary>デバイスを開いて再生を始める。失敗したら理由を返す(成功なら null)。</summary>
-    public string? Start(IReadOnlyList<SourceBuffer> sources)
+    public string? Start(IReadOnlyList<SourceBuffer> sources, IReadOnlyList<SourceBuffer?> taps)
     {
         try
         {
@@ -50,7 +50,7 @@ public sealed class OutputDevice : IDisposable
             DeviceName = dev.FriendlyName;
             var mix = dev.AudioClient.MixFormat;
             var fmt = WaveFormat.CreateIeeeFloatWaveFormat(mix.SampleRate, mix.Channels);
-            Renderer = new OutputRenderer(sources, fmt.SampleRate, fmt.Channels);
+            Renderer = new OutputRenderer(sources, taps, fmt.SampleRate, fmt.Channels);
             wo = new WasapiOut(dev, AudioClientShareMode.Shared, true, 60);
             wo.PlaybackStopped += (s, e) =>
             {

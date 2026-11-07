@@ -175,13 +175,13 @@ public sealed class RecorderController : IDisposable
         }
         if (active.Count == 0) { error = "入力デバイスが選ばれていません"; return false; }
         foreach (var a in active) a.Capture.Start();
-        AttachOutput();
+        AttachAllOutputs();
         return true;
     }
 
     private void CloseSources()
     {
-        DetachOutput();
+        DetachAllOutputs();
         foreach (var a in active) { try { a.Capture.Dispose(); } catch { } }
         active.Clear();
     }
@@ -196,111 +196,181 @@ public sealed class RecorderController : IDisposable
         return string.Join(" / ", parts);
     }
 
-    // ---------------------------------------------------------------- 出力デバイス(段階2: 1台)
+    // ---------------------------------------------------------------- 出力デバイス(カードごと。最大4)
 
-    private OutputDevice? outDev;
-    private float outVolDb;
-    private DateTime outRetryAt = DateTime.MinValue;
-    private bool outReported;
+    private sealed class OutSlot
+    {
+        public OutputSetting Card = null!;
+        public OutputDevice? Dev;
+        public SourceBuffer?[] Taps = Array.Empty<SourceBuffer?>();
+        public bool Wanted;
+        public string Status = "";
+        public DateTime RetryAt = DateTime.MinValue;
+        public bool Reported;
+    }
 
-    /// <summary>出力を使う設定か(入力の取り込みが開いている間、出力デバイスへ流す)。</summary>
-    public bool OutputWanted { get; private set; }
-    public string OutputDeviceId { get; private set; } = "";
-    /// <summary>出力デバイスが実際に鳴らしている最中か。</summary>
-    public bool IsOutputRunning => outDev != null && !outDev.Failed;
-    public string OutputDeviceName => outDev?.DeviceName ?? "";
-    /// <summary>出力側のエラーや状況(画面表示用)。</summary>
-    public string OutputStatus { get; private set; } = "";
+    private readonly Dictionary<OutputSetting, OutSlot> outSlots = new(ReferenceEqualityComparer.Instance);
+
+    /// <summary>出力を使う設定のカードがあるか(あれば入力の取り込みを開いたままにする)。</summary>
+    public bool OutputWanted => outSlots.Values.Any(o => o.Wanted);
+    public bool IsOutputWanted(OutputSetting card) => outSlots.TryGetValue(card, out var o) && o.Wanted;
+    public bool IsOutputRunning(OutputSetting card) => outSlots.TryGetValue(card, out var o) && o.Dev != null && !o.Dev.Failed;
+    /// <summary>1枚でも実際に鳴らしているか(メイン画面・トレイの「出力中」表示用)。</summary>
+    public bool AnyOutputRunning => outSlots.Values.Any(o => o.Dev != null && !o.Dev.Failed);
+    public string OutputStatus(OutputSetting card) => outSlots.TryGetValue(card, out var o) ? o.Status : "";
+    public string OutputDeviceName(OutputSetting card) => outSlots.TryGetValue(card, out var o) ? o.Dev?.DeviceName ?? "" : "";
+    public string OutputDiagnostics(OutputSetting card) => outSlots.TryGetValue(card, out var o) ? o.Dev?.Renderer?.Describe() ?? "" : "";
+    public (float L, float R, bool Clipped) ReadOutputPeaks(OutputSetting card)
+        => outSlots.TryGetValue(card, out var o) ? o.Dev?.Renderer?.ReadPeaks() ?? (0f, 0f, false) : (0f, 0f, false);
+
+    /// <summary>入力として取り込むデバイスと出力先が同じ(ループになる)なら、その説明を返す。問題なければ null。</summary>
+    public static string? CheckLoop(Preset p, string outputDeviceId)
+    {
+        foreach (var s in p.Sources)
+            if (!string.IsNullOrWhiteSpace(s.DeviceId) && DeviceCatalog.IsLoopCombination(s.DeviceId, outputDeviceId))
+                return "このデバイスは入力として取り込み中のため、出力先にできません(音がループします)";
+        return null;
+    }
 
     /// <summary>
-    /// 出力の開始/停止。録音の有無にかかわらず動く(録音していなければ入力の取り込みだけ開く)。
+    /// カードの出力を始める。録音の有無にかかわらず動く(録音していなければ入力の取り込みだけ開く)。
     /// 失敗したら理由を返す(成功なら null)。出力側の失敗で録音は止まらない。
     /// </summary>
-    public string? SetOutput(string deviceId, bool enabled, Preset p)
+    public string? StartOutput(OutputSetting card, Preset p)
     {
-        if (!enabled)
-        {
-            OutputWanted = false; OutputStatus = "";
-            DetachOutput();
-            if (!Settings.MonitorInput && engine == null) StopMonitor();
-            return null;
-        }
-        if (string.IsNullOrWhiteSpace(deviceId)) return "出力先のデバイスを選んでください";
-        foreach (var s in p.Sources)
-            if (!string.IsNullOrWhiteSpace(s.DeviceId) && DeviceCatalog.IsLoopCombination(s.DeviceId, deviceId))
-                return "このデバイスは入力として取り込み中のため、出力先にできません(音がループします)";
-        DetachOutput(); OutputStatus = "";
-        OutputDeviceId = deviceId; OutputWanted = true; outReported = false; outRetryAt = DateTime.MinValue;
+        if (string.IsNullOrWhiteSpace(card.DeviceId)) return "出力先のデバイスを選んでください";
+        string? loop = CheckLoop(p, card.DeviceId);
+        if (loop != null) return loop;
+        if (!outSlots.TryGetValue(card, out var o)) outSlots[card] = o = new OutSlot { Card = card };
+        DetachSlot(o);
+        o.Status = ""; o.Wanted = true; o.Reported = false; o.RetryAt = DateTime.MinValue;
         if (engine == null && !monitoring) StartMonitor(p);
-        else AttachOutput();
-        if (outDev == null || outDev.Failed)
+        else AttachSlot(o);
+        if (o.Dev == null || o.Dev.Failed)
         {
-            string err = OutputStatus.Length > 0 ? OutputStatus : "出力を開始できませんでした";
-            OutputWanted = false; DetachOutput();
-            if (!Settings.MonitorInput && engine == null) StopMonitor();
+            string err = o.Status.Length > 0 ? o.Status : "出力を開始できませんでした";
+            o.Wanted = false; DetachSlot(o);
+            StopMonitorIfUnneeded();
             return err;
         }
         return null;
     }
 
-    private void AttachOutput()
+    public void StopOutput(OutputSetting card)
     {
-        if (!OutputWanted || outDev != null || active.Count == 0) return;
+        if (!outSlots.TryGetValue(card, out var o)) return;
+        o.Wanted = false; o.Status = "";
+        DetachSlot(o);
+        StopMonitorIfUnneeded();
+    }
+
+    /// <summary>カードを消すとき: 止めて、管理からも外す。</summary>
+    public void ForgetOutput(OutputSetting card)
+    {
+        StopOutput(card);
+        outSlots.Remove(card);
+    }
+
+    public void StopAllOutputs()
+    {
+        foreach (var o in outSlots.Values) { o.Wanted = false; o.Status = ""; DetachSlot(o); }
+        outSlots.Clear();
+        StopMonitorIfUnneeded();
+    }
+
+    private void StopMonitorIfUnneeded()
+    {
+        if (!Settings.MonitorInput && engine == null && !OutputWanted) StopMonitor();
+    }
+
+    /// <summary>音量・入力ごとの送りを、動作中の出力へすぐ反映する。</summary>
+    public void ApplyOutputLive(OutputSetting card)
+    {
+        if (outSlots.TryGetValue(card, out var o)) ApplySends(o);
+    }
+
+    private void ApplySends(OutSlot o)
+    {
+        var r = o.Dev?.Renderer; if (r == null) return;
+        var c = o.Card;
+        r.Bus.MasterGain = DbToLin(c.MasterGainDb);
+        for (int j = 0; j < active.Count; j++)
+        {
+            int slot = active[j].Slot;
+            bool on = c.SendOn != null && slot < c.SendOn.Length ? c.SendOn[slot] : true;
+            double db = c.SendGainDb != null && slot < c.SendGainDb.Length ? c.SendGainDb[slot] : 0;
+            r.Bus.SetSend(j, on, DbToLin(db));
+        }
+    }
+
+    private void AttachAllOutputs() { foreach (var o in outSlots.Values) AttachSlot(o); }
+    private void DetachAllOutputs() { foreach (var o in outSlots.Values) DetachSlot(o); }
+
+    private void AttachSlot(OutSlot o)
+    {
+        if (!o.Wanted || o.Dev != null || active.Count == 0) return;
         try
         {
             foreach (var a in active)
-                if (DeviceCatalog.IsLoopCombination(a.DeviceId, OutputDeviceId))
-                { OutputStatus = "入力と同じデバイスのため出力できません(ループ防止)"; return; }
-            foreach (var a in active) a.Buffer.Tap = new SourceBuffer(a.Buffer.SampleRate, a.Buffer.Channels, 1.0) { };
-            var dev = new OutputDevice(OutputDeviceId);
-            string? err = dev.Start(active.Select(a => a.Buffer).ToList());
+                if (DeviceCatalog.IsLoopCombination(a.DeviceId, o.Card.DeviceId))
+                { o.Status = "入力と同じデバイスのため出力できません(ループ防止)"; return; }
+            var taps = new SourceBuffer?[active.Count];
+            for (int j = 0; j < active.Count; j++)
+            {
+                var a = active[j];
+                var t = new SourceBuffer(a.Buffer.SampleRate, a.Buffer.Channels, 1.0);
+                taps[j] = t; a.Buffer.AddTap(t);
+            }
+            o.Taps = taps;
+            var dev = new OutputDevice(o.Card.DeviceId);
+            string? err = dev.Start(active.Select(a => a.Buffer).ToList(), taps);
             if (err != null)
             {
-                foreach (var a in active) a.Buffer.Tap = null;
-                OutputStatus = err; Log(err);
+                DetachTaps(o);
+                o.Status = err; Log($"出力「{o.Card.Name}」: {err}");
                 return;
             }
-            outDev = dev;
-            if (dev.Renderer != null) dev.Renderer.Bus.MasterGain = DbToLin(outVolDb);
-            OutputStatus = "出力中: " + dev.DeviceName;
-            outReported = false;
+            o.Dev = dev;
+            ApplySends(o);
+            o.Status = "出力中: " + dev.DeviceName;
+            o.Reported = false;
         }
-        catch (Exception ex) { OutputStatus = "出力エラー: " + ex.Message; Log(OutputStatus); }
+        catch (Exception ex) { o.Status = "出力エラー: " + ex.Message; Log(o.Status); DetachTaps(o); }
     }
 
-    private void DetachOutput()
+    private void DetachTaps(OutSlot o)
     {
-        foreach (var a in active) a.Buffer.Tap = null;
-        var d = outDev; outDev = null;
+        for (int j = 0; j < o.Taps.Length && j < active.Count; j++)
+            if (o.Taps[j] != null) active[j].Buffer.RemoveTap(o.Taps[j]!);
+        o.Taps = Array.Empty<SourceBuffer?>();
+    }
+
+    private void DetachSlot(OutSlot o)
+    {
+        DetachTaps(o);
+        var d = o.Dev; o.Dev = null;
         if (d != null) { try { d.Dispose(); } catch { } }
     }
-
-    public void SetOutputVolume(double db)
-    {
-        outVolDb = (float)db;
-        var r = outDev?.Renderer; if (r != null) r.Bus.MasterGain = DbToLin(db);
-    }
-
-    public string OutputDiagnostics => outDev?.Renderer?.Describe() ?? "";
-
-    public (float L, float R, bool Clipped) ReadOutputPeaks() => outDev?.Renderer?.ReadPeaks() ?? (0f, 0f, false);
 
     /// <summary>1秒ごと: 出力デバイスが外れたら静かに止めて、つながり直したら再開する(録音には影響しない)。</summary>
     private void PollOutput()
     {
-        if (!OutputWanted) return;
-        if (outDev != null && outDev.Failed)
+        foreach (var o in outSlots.Values.ToList())
         {
-            string e = outDev.LastError;
-            DetachOutput();
-            OutputStatus = "出力が止まりました(再試行します): " + e;
-            if (!outReported) { outReported = true; Message?.Invoke(OutputStatus); }
-            outRetryAt = DateTime.Now.AddSeconds(5);
-        }
-        else if (outDev == null && active.Count > 0 && DateTime.Now >= outRetryAt)
-        {
-            AttachOutput();
-            outRetryAt = DateTime.Now.AddSeconds(5);
+            if (!o.Wanted) continue;
+            if (o.Dev != null && o.Dev.Failed)
+            {
+                string e = o.Dev.LastError;
+                DetachSlot(o);
+                o.Status = "出力が止まりました(再試行します): " + e;
+                if (!o.Reported) { o.Reported = true; Message?.Invoke($"出力「{o.Card.Name}」: {o.Status}"); }
+                o.RetryAt = DateTime.Now.AddSeconds(5);
+            }
+            else if (o.Dev == null && active.Count > 0 && DateTime.Now >= o.RetryAt)
+            {
+                AttachSlot(o);
+                o.RetryAt = DateTime.Now.AddSeconds(5);
+            }
         }
     }
 

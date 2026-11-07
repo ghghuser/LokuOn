@@ -29,6 +29,7 @@ public sealed class OutputRenderer
     }
 
     private readonly IReadOnlyList<SourceBuffer> sources;
+    private readonly IReadOnlyList<SourceBuffer?> taps;
     private readonly int devRate, devCh;
     private readonly Chan[] chans;
     private float[][] inputs = new float[0][];
@@ -46,9 +47,16 @@ public sealed class OutputRenderer
     private volatile float peakL, peakR;
     private volatile bool clipped;
 
+    /// <summary>各入力の現在の複製先(1つ目)を使う。</summary>
     public OutputRenderer(IReadOnlyList<SourceBuffer> sources, int deviceRate, int deviceChannels)
+        : this(sources, sources.Select(s => s.Tap).ToList(), deviceRate, deviceChannels) { }
+
+    /// <param name="sources">入力(入力ゲインを読む)</param>
+    /// <param name="taps">この出力専用の複製先。sources と同じ順(null=その入力は鳴らさない)</param>
+    public OutputRenderer(IReadOnlyList<SourceBuffer> sources, IReadOnlyList<SourceBuffer?> taps, int deviceRate, int deviceChannels)
     {
         this.sources = sources;
+        this.taps = taps;
         devRate = deviceRate;
         devCh = Math.Max(1, deviceChannels);
         chans = new Chan[sources.Count];
@@ -82,7 +90,7 @@ public sealed class OutputRenderer
         sb.Append($"デバイス {devRate}Hz/{devCh}ch 呼出{Interlocked.Read(ref RenderCalls)}回 途切れ{Interlocked.Read(ref Underruns)} 捨て{Interlocked.Read(ref Overflows)}");
         for (int i = 0; i < chans.Length; i++)
         {
-            var t = sources[i].Tap;
+            var t = taps[i];
             sb.Append($" | 入力{i + 1}: ");
             if (t == null) { sb.Append("タップなし"); continue; }
             sb.Append($"送り{(Bus.IsSendOn(i) ? "オン" : "オフ")} 受信{t.PushedFrames / Math.Max(1, t.SampleRate)}秒分 たまり{t.AvailableFrames * 1000 / Math.Max(1, t.SampleRate)}ms {(chans[i].Primed ? "再生中" : "待機")}");
@@ -115,7 +123,7 @@ public sealed class OutputRenderer
         int n = frames * devCh;
         var src = sources[i];
         var c = chans[i];
-        var tap = src.Tap;
+        var tap = taps[i];
         if (tap == null || !Bus.IsSendOn(i))
         {
             Array.Clear(buf, 0, n);

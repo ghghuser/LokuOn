@@ -147,7 +147,7 @@ public partial class MainWindow
             if (tray == null) return;
             tray.Visible = true;
 
-            string text = "LokuOn  " + (recordingText ?? "待機中");
+            string text = "LokuOn  " + (recordingText ?? "待機中") + (ctl.AnyOutputRunning ? " / 出力中" : "");
             if (text.Length > 60) text = text.Substring(0, 60);
             if (text == lastTrayText) return;
             lastTrayText = text;

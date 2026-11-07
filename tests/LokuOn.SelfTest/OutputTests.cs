@@ -163,6 +163,28 @@ static class OutputTests
             check(Math.Abs(o6[300 * 6] - 0.2f) < 0.01f && Math.Abs(o6[300 * 6 + 1] - 0.4f) < 0.01f && o6[300 * 6 + 2] == 0f, "ステレオ→6ch: 余りは無音");
         }
 
+        // 5b) 複数の出力(それぞれ専用のタップ)と、送りの違い
+        {
+            var src = new SourceBuffer(48000, 2, 1.0);
+            var tA = new SourceBuffer(48000, 2, 1.0); var tB = new SourceBuffer(48000, 2, 1.0);
+            src.AddTap(tA); src.AddTap(tB);
+            var rA = new OutputRenderer(new[] { src }, new SourceBuffer?[] { tA }, 48000, 2);
+            var rB = new OutputRenderer(new[] { src }, new SourceBuffer?[] { tB }, 48000, 2);
+            rB.Bus.SetSend(0, true, 0.5f);          // 出力Bは半分の音量で送る
+            var d = new float[480 * 2]; for (int i = 0; i < d.Length; i++) d[i] = 0.4f;
+            var oa = new float[480 * 2]; var ob = new float[480 * 2];
+            for (int k = 0; k < 20; k++) src.Push(d, 0, 480);
+            for (int k = 0; k < 5; k++) { rA.Render(oa, 0, 480); rB.Render(ob, 0, 480); src.Push(d, 0, 480); }
+            check(src.AvailableFrames > 0 && tA.PushedFrames == tB.PushedFrames, "1つの入力が2つの出力に同じだけ複製される");
+            check(Math.Abs(oa[600] - 0.4f) < 0.01f && Math.Abs(ob[600] - 0.2f) < 0.01f, "出力ごとに送りの音量が違う", $"{oa[600]} {ob[600]}");
+            rA.Bus.SetSend(0, false);
+            rA.Render(oa, 0, 480); rB.Render(ob, 0, 480);
+            check(oa.All(x => x == 0f) && ob.Any(x => x != 0f), "片方の送りをオフにしても、もう片方は鳴る");
+            src.RemoveTap(tA);
+            long before = tA.PushedFrames; src.Push(d, 0, 480);
+            check(tA.PushedFrames == before && tB.PushedFrames > before, "タップを外すとそこへは複製されない");
+        }
+
         // 6) 録音への影響がないこと: 既存の Read 側は従来どおり
         {
             var s = new SourceBuffer(48000, 2, 1.0);

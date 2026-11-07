@@ -16,7 +16,10 @@
         <Button x:Name="BtnSettings" Grid.Row="0" Content="⚙" FontSize="16" Width="34" Height="30" Padding="0"
                 HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,8,0" Panel.ZIndex="5"
                 ToolTip="歯車: 画面の色・スリープ防止・最小化の動作・ヘルプ・バージョン情報・GitHub"/>
-        <WrapPanel Grid.Row="0" Margin="8,6,50,2" VerticalAlignment="Center">
+        <Button x:Name="BtnOutput" Grid.Row="0" Content="🔊" FontSize="14" Width="34" Height="30" Padding="0"
+                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,46,0" Panel.ZIndex="5"
+                ToolTip="出力: 入力の音をスピーカーやVB-CABLEなどの再生デバイスへ流します(録音とは独立)"/>
+        <WrapPanel Grid.Row="0" Margin="8,6,90,2" VerticalAlignment="Center">
             <TextBlock Text="プリセット" VerticalAlignment="Center" Margin="0,0,6,0"/>
             <ComboBox x:Name="PresetCombo" Width="240" Margin="0,0,6,0"/>
             <Button x:Name="BtnPresetSave" Content="上書き保存" Padding="10,2" Margin="0,0,4,0"/>
@@ -43,34 +46,34 @@
                         <StackPanel>
                             <Grid Margin="0,0,0,3">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="44"/>
+                                    <ColumnDefinition Width="Auto" MinWidth="44"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="入力1" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="InName1" Text="入力1" VerticalAlignment="Center" Margin="0,0,6,0" MaxWidth="100" TextTrimming="CharacterEllipsis" ToolTip="ダブルクリックで名前を変更"/>
                                 <ComboBox x:Name="DevCombo1" Grid.Column="1"/>
                             </Grid>
                             <Grid Margin="0,0,0,3">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="44"/>
+                                    <ColumnDefinition Width="Auto" MinWidth="44"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="入力2" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="InName2" Text="入力2" VerticalAlignment="Center" Margin="0,0,6,0" MaxWidth="100" TextTrimming="CharacterEllipsis" ToolTip="ダブルクリックで名前を変更"/>
                                 <ComboBox x:Name="DevCombo2" Grid.Column="1"/>
                             </Grid>
                             <Grid Margin="0,0,0,3">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="44"/>
+                                    <ColumnDefinition Width="Auto" MinWidth="44"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="入力3" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="InName3" Text="入力3" VerticalAlignment="Center" Margin="0,0,6,0" MaxWidth="100" TextTrimming="CharacterEllipsis" ToolTip="ダブルクリックで名前を変更"/>
                                 <ComboBox x:Name="DevCombo3" Grid.Column="1"/>
                             </Grid>
                             <Grid Margin="0,0,0,3">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="44"/>
+                                    <ColumnDefinition Width="Auto" MinWidth="44"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="入力4" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="InName4" Text="入力4" VerticalAlignment="Center" Margin="0,0,6,0" MaxWidth="100" TextTrimming="CharacterEllipsis" ToolTip="ダブルクリックで名前を変更"/>
                                 <ComboBox x:Name="DevCombo4" Grid.Column="1"/>
                             </Grid>
                             <WrapPanel Margin="0,2,0,0">
@@ -206,23 +209,6 @@
                             </WrapPanel>
                                 </StackPanel>
                             </Expander>
-                            <Expander Header="出力(試験機能・段階2): ミックスを再生デバイスへ流す" Margin="0,2,0,0">
-                                <StackPanel Margin="0,4,0,0">
-                                    <TextBlock Text="入力1〜4の音を、選んだ再生デバイス(スピーカー・ヘッドホン・VB-CABLEのCABLE Inputなど)へ流します。録音とは独立していて、録音しなくても使えます。入力として取り込み中のデバイスは選べません。" TextWrapping="Wrap" Opacity="0.7" Margin="0,0,0,4"/>
-                                    <WrapPanel Margin="0,0,0,3">
-                                        <TextBlock Text="出力先" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                        <ComboBox x:Name="OutDeviceCombo" Width="300"/>
-                                        <CheckBox x:Name="OutEnableCheck" Content="出力する" VerticalContentAlignment="Center" Margin="10,0,0,0"/>
-                                    </WrapPanel>
-                                    <WrapPanel Margin="0,0,0,3">
-                                        <TextBlock Text="音量" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                        <Slider x:Name="OutVolSlider" Width="180" Minimum="-30" Maximum="20" SmallChange="1" LargeChange="3" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="OutVolText" Width="60" Margin="6,0,0,0" VerticalAlignment="Center"/>
-                                    </WrapPanel>
-                                    <TextBlock x:Name="OutStatusText" TextWrapping="Wrap" Opacity="0.8"/>
-                                    <TextBlock x:Name="OutErrorText" Foreground="#E5484D" FontWeight="SemiBold" TextWrapping="Wrap" Visibility="Collapsed"/>
-                                </StackPanel>
-                            </Expander>
                         </StackPanel>
                     </GroupBox>
 
@@ -307,7 +293,7 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="62"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="入力1" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="GName1" Text="入力1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                     <Slider x:Name="Gain1" Grid.Column="1" Minimum="-30" Maximum="20" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="Gain1Text" Grid.Column="2" Text="+0.0 dB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </Grid>
@@ -317,7 +303,7 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="62"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="入力2" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="GName2" Text="入力2" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                     <Slider x:Name="Gain2" Grid.Column="1" Minimum="-30" Maximum="20" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="Gain2Text" Grid.Column="2" Text="+0.0 dB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </Grid>
@@ -327,7 +313,7 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="62"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="入力3" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="GName3" Text="入力3" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                     <Slider x:Name="Gain3" Grid.Column="1" Minimum="-30" Maximum="20" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="Gain3Text" Grid.Column="2" Text="+0.0 dB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </Grid>
@@ -337,7 +323,7 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="62"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="入力4" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="GName4" Text="入力4" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                     <Slider x:Name="Gain4" Grid.Column="1" Minimum="-30" Maximum="20" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="Gain4Text" Grid.Column="2" Text="+0.0 dB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </Grid>

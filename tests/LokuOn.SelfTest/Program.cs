@@ -107,6 +107,37 @@ Check(Preset.SourceSlots == 4 && Preset.GainMaxDb == 20 && Preset.GainMinDb == -
     var f1 = new EncoderSpec { Format = AudioFormat.Flac }.BuildArgs("x.flac");
     Check(f1[f1.IndexOf("-compression_level") + 1] == "5", "FLAC圧縮率の既定");
 }
+// 出力(カード)・入力名のプリセット保存と、旧プリセットの読み込み
+{
+    var op = new Preset();
+    Check(op.Outputs.Count == 1 && op.Outputs[0].Name == "ミックス1" && op.InputName(0) == "入力1" && op.InputName(3) == "入力4", "既定は出力1枚(ミックス1)・入力名は入力1〜4");
+    op.Outputs.Add(new OutputSetting { Name = "相手", DeviceId = "wasapi-out:abc", DeviceName = "CABLE Input", MasterGainDb = -3.5, Collapsed = true });
+    op.Outputs[1].SendOn[2] = false; op.Outputs[1].SendGainDb[1] = -6;
+    op.InputNames[0] = "アプリ1"; op.InputNames[2] = "あいうえおかきくけこさしすせそ";   // 15文字 → 12文字に切る
+    op.Normalize();
+    Check(op.InputNames[2].Length == 12, "名前は12文字まで");
+    var dir = Path.Combine(tmp, "outp"); Directory.CreateDirectory(dir);
+    string oini = Path.Combine(dir, "o.ini");
+    var ost = new AppSettings { Current = op };
+    SettingsStore.Save(oini, ost);
+    var rd = SettingsStore.Load(oini).Current;
+    Check(rd.Outputs.Count == 2 && rd.Outputs[1].Name == "相手" && rd.Outputs[1].DeviceId == "wasapi-out:abc" && rd.Outputs[1].DeviceName == "CABLE Input"
+        && rd.Outputs[1].MasterGainDb == -3.5 && rd.Outputs[1].Collapsed, "出力の設定がiniに保存・復元される");
+    Check(rd.Outputs[1].SendOn.SequenceEqual(new[] { true, true, false, true }) && rd.Outputs[1].SendGainDb[1] == -6 && rd.Outputs[0].SendOn.All(b => b), "入力ごとの送り(オンオフ・音量)が復元される");
+    Check(rd.InputName(0) == "アプリ1" && rd.InputName(1) == "入力2", "入力名が保存・復元される(空は既定)");
+    PresetStore.Save(dir, new Preset { Name = "出力あり", Outputs = op.Outputs, InputNames = op.InputNames });
+    var lp = PresetStore.LoadAll(dir, out _).First(x => x.Name == "出力あり");
+    Check(lp.Outputs.Count == 2 && lp.Outputs[1].Name == "相手" && lp.InputName(0) == "アプリ1", "出力・入力名がプリセットのJSONに入る");
+    var cl = lp.Clone(); cl.Outputs[1].SendOn[0] = false; cl.InputNames[0] = "x";
+    Check(lp.Outputs[1].SendOn[0] && lp.InputNames[0] == "アプリ1", "Cloneは出力・入力名も別物にコピーする");
+    File.WriteAllText(Path.Combine(dir, "旧.json"), "{ \"Format\": \"Mp3\" }");
+    var oldp = PresetStore.LoadAll(dir, out _).First(x => x.Name == "旧");
+    Check(oldp.Format == AudioFormat.Mp3 && oldp.Outputs.Count == 1 && oldp.Outputs[0].Name == "ミックス1" && oldp.InputName(1) == "入力2", "出力の項目がない旧プリセットは既定(1枚)で読める");
+    File.WriteAllText(Path.Combine(dir, "ゼロ.json"), "{ \"Outputs\": [] }");
+    Check(PresetStore.LoadAll(dir, out _).First(x => x.Name == "ゼロ").Outputs.Count == 0, "出力0枚も保存できる");
+    var many = new Preset(); for (int i = 0; i < 9; i++) many.Outputs.Add(new OutputSetting()); many.Normalize();
+    Check(many.Outputs.Count == 4, "出力は最大4枚");
+}
 string json = Path.Combine(tmp, "presets.json");
 PresetJson.Export(back.Presets, json);
 Check(File.ReadAllText(json).Contains("ライブ録音") && PresetJson.Import(json)[0].MixMode == MixMode.Separate, "JSON書き出し/読み込み");
