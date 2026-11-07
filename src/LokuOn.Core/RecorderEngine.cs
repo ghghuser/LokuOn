@@ -79,6 +79,10 @@ public sealed class RecorderEngine : IDisposable
     private bool clipAcc;
     private readonly bool[] lastConnected;
     private long freeDiskBytes = -1;
+    private readonly MixBus recBus;     // 録音のミックス(入力を足して、全体音量をかけ、±1に切り詰める)
+
+    /// <summary>録音のミックスのバス。入力ごとに、録音へ送るか(と音量)を切り替えられる(既定はすべて送る)。</summary>
+    public MixBus RecordingBus => recBus;
 
     public WaveformBuffer Waveform { get; }
     public volatile float MasterGainDb;
@@ -109,6 +113,7 @@ public sealed class RecorderEngine : IDisposable
         ch = sources[0].Channels;
         srcPeakAcc = new float[sources.Count];
         lastConnected = new bool[sources.Count];
+        recBus = new MixBus(sources.Count);
         Waveform = new WaveformBuffer(rate);
         MasterGainDb = (float)p.MasterGainDb;
         if (!string.IsNullOrEmpty(opt.JournalPath)) journal = new RecordingJournal(opt.JournalPath!);
@@ -253,7 +258,6 @@ public sealed class RecorderEngine : IDisposable
     private void ProcessChunk(int n, float[][] srcBuf, float[] all, float[] mono, ref long allSilent)
     {
         int samples = n * ch;
-        Array.Clear(all, 0, samples);
         for (int i = 0; i < sources.Count; i++)
         {
             var sb = sources[i];
@@ -273,7 +277,6 @@ public sealed class RecorderEngine : IDisposable
             {
                 float x = b[j] * g;
                 b[j] = x;
-                all[j] += x;
                 float a = x < 0 ? -x : x;
                 if (a > pk) pk = a;
             }
@@ -281,18 +284,10 @@ public sealed class RecorderEngine : IDisposable
         }
 
         float gm = DbToLin(MasterGainDb);
-        float pl = 0, pr = 0; bool clip = false;
-        for (int f = 0; f < n; f++)
-        {
-            float l = all[f * ch] * gm;
-            float r = ch > 1 ? all[f * ch + 1] * gm : l;
-            if (l > 1f || l < -1f) { clip = true; l = l > 0 ? 1f : -1f; }
-            if (r > 1f || r < -1f) { clip = true; r = r > 0 ? 1f : -1f; }
-            all[f * ch] = l; if (ch > 1) all[f * ch + 1] = r;
-            mono[f] = ch > 1 ? (l + r) * 0.5f : l;
-            float al = l < 0 ? -l : l, ar = r < 0 ? -r : r;
-            if (al > pl) pl = al; if (ar > pr) pr = ar;
-        }
+        // 録音のミックス: 入力を足し合わせ(送りの設定に従う)、全体音量をかけて、±1を超えた分は切り詰める
+        recBus.MasterGain = gm;
+        var ms = recBus.Process(srcBuf, n, ch, all, mono);
+        float pl = ms.PeakL, pr = ms.PeakR; bool clip = ms.Clipped;
         Waveform.Add(mono, n);
         lock (levelGate) { if (pl > mL) mL = pl; if (pr > mR) mR = pr; if (clip) clipAcc = true; }
 

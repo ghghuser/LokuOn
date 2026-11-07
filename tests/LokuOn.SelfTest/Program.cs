@@ -279,6 +279,9 @@ Section("入力バッファ");
     Check(sb.AvailableFrames <= 48000 && sb.DroppedFrames > 0, "あふれは古い方を捨てる");
 }
 
+// ---------------------------------------------------------------- ミキサー(ffmpeg不要)
+RoutingTests.Run(new CheckFn(Check), Section);
+
 // ---------------------------------------------------------------- 録音エンジン(実際にffmpegで書き出す)
 if (ffmpeg == null)
 {

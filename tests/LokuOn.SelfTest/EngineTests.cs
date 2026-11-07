@@ -47,6 +47,18 @@ static class EngineTests
 
     static double Dur(string ffmpeg, string f) => FfmpegTools.ProbeDuration(ffmpeg, f) ?? -1;
 
+    /// <summary>ファイルの最大音量(dB)。ffmpeg の volumedetect で測る。測れなければ 0。</summary>
+    static double MaxDb(string ffmpeg, string f)
+    {
+        var psi = new ProcessStartInfo(ffmpeg) { RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
+        foreach (var a in new[] { "-hide_banner", "-nostats", "-i", f, "-af", "volumedetect", "-f", "null", "-" }) psi.ArgumentList.Add(a);
+        using var pr = Process.Start(psi)!;
+        string err = pr.StandardError.ReadToEnd();
+        pr.WaitForExit();
+        var m = System.Text.RegularExpressions.Regex.Match(err, @"max_volume:\s*(-?[0-9.]+)\s*dB");
+        return m.Success ? double.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture) : 0;
+    }
+
     public static void Run(string ffmpeg, string tmp, CheckFn check, Action<string> section)
     {
         // ---- 1) 手動分割 + 日本語ファイル名 + No/Track + タグ (flac)
@@ -170,6 +182,35 @@ static class EngineTests
             var files = Files(dir);
             Console.WriteLine("    " + string.Join(" | ", files.Select(f => Path.GetFileName(f))));
             check(files.Count == 2 && files.Any(f => f.Contains("_PC音")) && files.Any(f => f.Contains("_マイク")), "デバイスごとに別ファイル(名前に_デバイス名)");
+        }
+        section("エンジン: 入力ごとに録音へ送る/送らない");
+        {
+            // 同じ2入力(440Hzと880Hz、振幅0.3)を、送りの設定だけ変えて2回録音して、最大音量を比べる
+            double Record(string name, bool sendSecond, out float meter2)
+            {
+                string dir = Path.Combine(tmp, name);
+                var p = BasePreset(dir, AudioFormat.Flac);
+                p.Sources[1] = new SourceSetting { DeviceId = "y", DeviceName = "マイク" };
+                p.MixMode = MixMode.Mix;
+                var a = new SourceBuffer(48000, 2) { Label = "PC音" };
+                var b = new SourceBuffer(48000, 2) { Label = "マイク" };
+                var eng = new RecorderEngine(new EngineOptions { Preset = p, FfmpegPath = ffmpeg }, new[] { a, b });
+                eng.RecordingBus.SetSend(1, sendSecond);
+                using var d1 = new FakeDevice(a, 48000, 440, 0.3);
+                using var d2 = new FakeDevice(b, 48000, 880, 0.3);
+                eng.Start(); Thread.Sleep(2000);
+                var lv = eng.ReadLevels();
+                eng.StopAsync().Wait();
+                meter2 = lv.Sources.Length > 1 ? lv.Sources[1] : 0;
+                var fs = Files(dir);
+                return fs.Count == 1 ? MaxDb(ffmpeg, fs[0]) : 0;
+            }
+            double both = Record("e3b", true, out _);
+            double firstOnly = Record("e3c", false, out float m2);
+            Console.WriteLine($"    最大音量: 2入力={both:0.0}dB / 1入力のみ={firstOnly:0.0}dB");
+            check(both > -7.0 && both < -1.0, "2入力を送ると足し合わさる", both.ToString("0.0"));
+            check(firstOnly > -12.0 && firstOnly < -9.0, "送りをオフにした入力は録音に入らない", firstOnly.ToString("0.0"));
+            check(m2 > 0.1f, "録音に送らなくても、その入力のメーターは動く", m2.ToString("0.000"));
         }
 
         // ---- 4) 切断時: 待機して戻ったら別ファイルに分割
