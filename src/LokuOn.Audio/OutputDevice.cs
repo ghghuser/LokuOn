@@ -1,6 +1,7 @@
 using LokuOn.Core;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
+using NAudio.Wave.SampleProviders;
 
 namespace LokuOn.Audio;
 
