@@ -7,6 +7,11 @@ name: Build LokuOn
 on:
   push:
     branches: [ main, master ]
+    # 文書だけの変更ではビルドしない(成果物の入れ替わりと実行時間の節約)。タグ(v*)の push には適用されない。
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '**.txt'
     tags: [ 'v*' ]
   workflow_dispatch:
 
