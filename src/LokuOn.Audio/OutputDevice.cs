@@ -15,11 +15,16 @@ public sealed class OutputDevice : IDisposable
     {
         private readonly OutputRenderer r;
         private readonly int ch;
+        private float[] scratch = new float[0];
         public RenderProvider(OutputRenderer r, WaveFormat fmt) { this.r = r; ch = fmt.Channels; WaveFormat = fmt; }
         public WaveFormat WaveFormat { get; }
         public int Read(float[] buffer, int offset, int count)
         {
-            r.Render(buffer, offset, count / ch);
+            // NAudio の SampleToWaveProvider は byte[] を float[] として渡してくるため、Array.Copy/Clear は使えない(型の不一致になる)。
+            // 自前の配列に作ってから、1サンプルずつ書き写す。
+            if (scratch.Length < count) scratch = new float[count];
+            r.Render(scratch, 0, count / ch);
+            for (int i = 0; i < count; i++) buffer[offset + i] = scratch[i];
             return count;
         }
     }
