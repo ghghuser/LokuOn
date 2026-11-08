@@ -55,6 +55,15 @@ public sealed class OutputRenderer
         }
         fxOn = on;
     }
+    private volatile OutputFxChain? masterFx;
+
+    /// <summary>この出力の最終ミックスのエフェクト(ローカット・EQ・リミッター)を渡す(動作中でも変更できる)。</summary>
+    public void SetMasterFx(OutputFxSetting s)
+    {
+        var c = masterFx ?? new OutputFxChain(devRate, devCh);
+        c.Update(s);
+        masterFx = c;
+    }
     public int DeviceRate => devRate;
     public int DeviceChannels => devCh;
 
@@ -129,7 +138,8 @@ public sealed class OutputRenderer
             if (inputs[i] == null || inputs[i].Length < n) inputs[i] = new float[n];
             FillInput(i, frames);
         }
-        var st = Bus.Process(inputs, frames, devCh, mix);
+        var mfx = masterFx;
+        var st = Bus.Process(inputs, frames, devCh, mix, null, mfx != null && mfx.IsActive ? mfx.Process : null);
         Array.Copy(mix, 0, dest, destOffset, n);
         if (st.PeakL > peakL) peakL = st.PeakL;
         if (st.PeakR > peakR) peakR = st.PeakR;

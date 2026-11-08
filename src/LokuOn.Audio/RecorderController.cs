@@ -317,6 +317,7 @@ public sealed class RecorderController : IDisposable
         var r = o.Dev?.Renderer; if (r == null) return;
         var c = o.Card;
         r.Bus.MasterGain = DbToLin(c.MasterGainDb);
+        r.SetMasterFx(c.Fx ?? new OutputFxSetting());
         r.SetEffects(MapFx());
         for (int j = 0; j < active.Count; j++)
         {

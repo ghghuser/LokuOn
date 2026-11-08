@@ -59,6 +59,8 @@ public sealed class OutputSetting
     public double[] SendGainDb { get; set; } = new double[Preset.SourceSlots];
     /// <summary>入力の一覧を畳んでいるか(手動のみ)。</summary>
     public bool Collapsed { get; set; } = false;
+    /// <summary>この出力の最終ミックスにかけるエフェクト(ローカット・EQ・リミッター)。</summary>
+    public OutputFxSetting Fx { get; set; } = new();
 
     public static string DefaultName(int index) => "ミックス" + (index + 1);
 
@@ -67,6 +69,7 @@ public sealed class OutputSetting
         var c = (OutputSetting)MemberwiseClone();
         c.SendOn = (bool[])(SendOn ?? new[] { true, true, true, true }).Clone();
         c.SendGainDb = (double[])(SendGainDb ?? new double[Preset.SourceSlots]).Clone();
+        c.Fx = (Fx ?? new OutputFxSetting()).Clone();
         return c;
     }
 
@@ -85,6 +88,7 @@ public sealed class OutputSetting
             g[i] = double.IsFinite(v) ? Math.Clamp(v, Preset.GainMinDb, Preset.GainMaxDb) : 0;
         }
         SendOn = on; SendGainDb = g;
+        Fx ??= new OutputFxSetting(); Fx.Normalize();
     }
 }
 
@@ -306,6 +310,7 @@ public sealed class Preset
             s.Set($"Output{n}SendOn", string.Join(",", o.SendOn.Select(b => b ? "1" : "0")), i == 0 ? C("入力1〜4を送るか(1/0)") : null);
             s.Set($"Output{n}SendDb", string.Join(",", o.SendGainDb.Select(v => v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))), i == 0 ? C("入力1〜4の送りの音量(dB)") : null);
             s.Set($"Output{n}Collapsed", o.Collapsed);
+            if (o.Fx != null && !o.Fx.IsDefault) o.Fx.WriteTo(s, $"Output{n}Fx", comments && i == 0);
         }
         for (int i = 0; i < SourceSlots; i++)
         {
@@ -386,6 +391,7 @@ public sealed class Preset
             var gs = s.GetString($"Output{n}SendDb").Split(',', StringSplitOptions.TrimEntries);
             for (int k = 0; k < SourceSlots; k++)
                 o.SendGainDb[k] = k < gs.Length && double.TryParse(gs[k], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var gv) ? gv : 0;
+            o.Fx = OutputFxSetting.ReadFrom(s, $"Output{n}Fx");
             p.Outputs.Add(o);
         }
         for (int i = 0; i < SourceSlots; i++) p.InputNames[i] = s.GetString($"Input{i + 1}Label");

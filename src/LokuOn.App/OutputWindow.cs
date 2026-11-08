@@ -34,6 +34,7 @@ public sealed class OutputWindow : Window
         public Button FoldBtn = null!;
         public StackPanel InputsPanel = null!;
         public readonly List<InputRow> Rows = new();
+        public Button FxBtn = null!;
         public double Level;
     }
 
@@ -47,6 +48,7 @@ public sealed class OutputWindow : Window
     private readonly Button addBtn = new() { Content = "＋ 出力を追加", Padding = new Thickness(12, 4, 12, 4), Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
     private readonly TextBlock emptyText = new() { Text = "出力はありません。「＋ 出力を追加」から始めます。", Opacity = 0.7, Margin = new Thickness(4, 6, 0, 6) };
     private readonly List<CardView> views = new();
+    private readonly Dictionary<OutputSetting, OutputFxWindow> fxWins = new(ReferenceEqualityComparer.Instance);
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private string usedKey = "";
     private int tickCount;
@@ -136,6 +138,8 @@ public sealed class OutputWindow : Window
 
     private void Build()
     {
+        // 削除された出力・入れ替わった出力のエフェクト画面は閉じる
+        foreach (var kv in fxWins.ToList()) if (!cards.Any(c => ReferenceEquals(c, kv.Key))) kv.Value.Close();
         var p = readPreset();
         usedKey = UsedKey(p);
         wrap.Children.Clear();
@@ -164,19 +168,23 @@ public sealed class OutputWindow : Window
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var nameBox = new TextBox { Text = card.Name, MaxLength = OutputSetting.NameMax, FontWeight = FontWeights.SemiBold, FontSize = 13, MinHeight = 24, ToolTip = "名前(自由に変えられます)" };
         nameBox.LostFocus += (s, e) =>
         {
             string t = nameBox.Text.Trim();
             if (t.Length == 0) t = OutputSetting.DefaultName(Math.Max(0, cards.IndexOf(card)));
             nameBox.Text = t;
-            if (card.Name != t) { card.Name = t; changed(); }
+            if (card.Name != t) { card.Name = t; if (fxWins.TryGetValue(card, out var fw)) fw.UpdateTitle(); changed(); }
         };
         v.StatusText = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 8, 0), Opacity = 0.85, MaxWidth = 130, TextTrimming = TextTrimming.CharacterEllipsis };
         var del = new Button { Content = "✕", Width = 26, Height = 24, Padding = new Thickness(0), ToolTip = "この出力を削除" };
         del.Click += (s, e) => DeleteCard(card);
-        Grid.SetColumn(v.StatusText, 1); Grid.SetColumn(del, 2);
-        head.Children.Add(nameBox); head.Children.Add(v.StatusText); head.Children.Add(del);
+        v.FxBtn = new Button { Content = "FX", Width = 40, Height = 24, Padding = new Thickness(0), Margin = new Thickness(0, 0, 4, 0), ToolTip = "この出力のエフェクト(ローカット・EQ・リミッター)" };
+        v.FxBtn.Click += (s, e) => OpenFx(v);
+        UpdateFxButton(v);
+        Grid.SetColumn(v.StatusText, 1); Grid.SetColumn(v.FxBtn, 2); Grid.SetColumn(del, 3);
+        head.Children.Add(nameBox); head.Children.Add(v.StatusText); head.Children.Add(v.FxBtn); head.Children.Add(del);
         panel.Children.Add(head);
 
         // 出力先
@@ -369,6 +377,33 @@ public sealed class OutputWindow : Window
         Build();
     }
 
+    private void UpdateFxButton(CardView v)
+    {
+        var fx = v.Card.Fx;
+        bool any = fx != null && fx.HasAny;
+        v.FxBtn.Content = any ? (fx!.Bypass ? "FX ○" : "FX ●") : "FX";
+        v.FxBtn.FontWeight = any && !fx!.Bypass ? FontWeights.Bold : FontWeights.Normal;
+        v.FxBtn.Width = any ? 52 : 40;
+    }
+
+    private void OpenFx(CardView v)
+    {
+        var card = v.Card;
+        try
+        {
+            if (fxWins.TryGetValue(card, out var open))
+            {
+                if (open.WindowState == WindowState.Minimized) open.WindowState = WindowState.Normal;
+                open.Activate(); return;
+            }
+            var w = new OutputFxWindow(card, () => { ctl.ApplyOutputLive(card); UpdateFxButton(v); changed(); }) { Owner = this };
+            w.Closed += (s, e) => { if (fxWins.TryGetValue(card, out var cur) && ReferenceEquals(cur, w)) fxWins.Remove(card); };
+            fxWins[card] = w;
+            w.Show();
+        }
+        catch (Exception ex) { App.WriteCrashLog("出力エフェクト: " + ex); fxWins.Remove(card); }
+    }
+
     private void DeleteCard(OutputSetting card)
     {
         string extra = ctl.IsOutputWanted(card) ? "\n(出力中です。止めてから削除します)" : "";
@@ -377,6 +412,7 @@ public sealed class OutputWindow : Window
         if (r != MessageBoxResult.Yes) return;
         ctl.ForgetOutput(card);
         cards.Remove(card);
+        if (fxWins.TryGetValue(card, out var fxw)) fxw.Close();
         changed();
         Build();
     }
