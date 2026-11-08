@@ -26,9 +26,10 @@ public sealed class GraphicEqControl : Control
         new FrameworkPropertyMetadata(new SolidColorBrush(Color.FromRgb(0x3B, 0x8E, 0xF0)), FrameworkPropertyMetadataOptions.AffectsRender));
     public Brush Accent { get => (Brush)GetValue(AccentProperty); set => SetValue(AccentProperty, value); }
 
-    /// <summary>EQ自体がオフのとき薄く表示する。</summary>
+    /// <summary>グラフィックEQがオフのとき true。曲線にはグラフィックの帯域を含めず(ローカット・パラメトリックだけ)、つまみは薄く描く。</summary>
     public bool Dimmed { get => dimmed; set { dimmed = value; InvalidateVisual(); } }
     private bool dimmed;
+    private static readonly double[] flat = new double[EqBands.Count];
 
     /// <summary>つまみが動いた(ドラッグ中も続けて起きる)。</summary>
     public event Action? BandsChanged;
@@ -73,8 +74,7 @@ public sealed class GraphicEqControl : Control
         double dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         var fg = Foreground ?? Brushes.Gray;
         dc.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, w, h));   // どこでもマウスを受け取る
-        double op = dimmed ? 0.45 : 1.0;
-        dc.PushOpacity(op);
+        dc.PushOpacity(1.0);
 
         // 目盛り(+12 / 0 / -12)
         var faint = new SolidColorBrush(Color.FromArgb(0x40, 0x80, 0x80, 0x80));
@@ -97,7 +97,7 @@ public sealed class GraphicEqControl : Control
         {
             double pos = -0.5 + (EqBands.Count) * (double)k / n;       // 帯域の番号(連続値)
             double hz = EqBands.Freqs[0] * Math.Pow(2, pos);
-            double db = Math.Clamp(EqMath.ResponseDb(bands, hz, 48000, hpfHz, param), -EqBands.MaxDb * 1.2, EqBands.MaxDb * 1.2);
+            double db = Math.Clamp(EqMath.ResponseDb(dimmed ? flat : bands, hz, 48000, hpfHz, param), -EqBands.MaxDb * 1.2, EqBands.MaxDb * 1.2);
             pts[k] = new Point(LeftW + pos * ColW + 0.5 * ColW, Math.Clamp(YOf(db), TopH - 4, TopH + PlotH + 4));
         }
         var curve = new StreamGeometry();
@@ -123,6 +123,7 @@ public sealed class GraphicEqControl : Control
         for (int i = 0; i < EqBands.Count; i++)
         {
             double x = XOf(i);
+            if (dimmed) dc.PushOpacity(0.45);
             dc.DrawRoundedRectangle(rail, null, new Rect(x - 1.5, TopH, 3, PlotH), 1.5, 1.5);
             // 0dBから現在値まで色を付ける
             double y0 = YOf(0), y1 = YOf(bands[i]);
@@ -131,6 +132,7 @@ public sealed class GraphicEqControl : Control
             bool hot = i == dragBand || i == hoverBand;
             var thumb = new Rect(x - ThumbW / 2, y1 - ThumbH / 2, ThumbW, ThumbH);
             dc.DrawRoundedRectangle(hot ? Brushes.White : new SolidColorBrush(accent), new Pen(new SolidColorBrush(Color.FromArgb(0x90, 0, 0, 0)), 0.8), thumb, 3, 3);
+            if (dimmed) dc.Pop();
             var lab = new FormattedText(EqBands.Labels[i], CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Face, 11, fg, dpi);
             dc.DrawText(lab, new Point(x - lab.Width / 2, h - BottomH + 6));
         }
