@@ -431,6 +431,7 @@ public partial class MainWindow
         p.WriteTrackTag = WriteTrackTagCheck.IsChecked == true;
         p.Outputs = outCards.Select(o => o.Clone()).ToList();
         p.InputNames = (string[])inputNames.Clone();
+        p.Effects = fxSettings.Select(e => e.Clone()).ToArray();
         p.Normalize();
         return p;
     }
@@ -483,6 +484,7 @@ public partial class MainWindow
             WriteTrackTagCheck.IsChecked = p.WriteTrackTag;
             UpdateGainTexts();
             ApplyOutputsFromPreset(p);
+            ApplyFxFromPreset(p);
         }
         finally { loading = prev; }
         UpdatePreview();

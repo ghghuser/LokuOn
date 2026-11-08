@@ -209,6 +209,28 @@ public sealed class RecorderController : IDisposable
         public bool Reported;
     }
 
+    // ---------------------------------------------------------------- 入力ごとのエフェクト
+
+    private EffectSetting[] fxSettings = Array.Empty<EffectSetting>();
+
+    private void TakeFx(Preset p) => fxSettings = (p.Effects ?? Array.Empty<EffectSetting>()).Select(e => e.Clone()).ToArray();
+
+    private List<EffectSetting?> MapFx()
+    {
+        var l = new List<EffectSetting?>();
+        foreach (var a in active) l.Add(a.Slot < fxSettings.Length ? fxSettings[a.Slot] : null);
+        return l;
+    }
+
+    /// <summary>入力ごとのエフェクト設定(入力1〜4の順)を渡し、動作中の録音・出力にもすぐ反映する。</summary>
+    public void SetEffects(EffectSetting[] fx)
+    {
+        fxSettings = fx.Select(e => e.Clone()).ToArray();
+        var map = MapFx();
+        try { engine?.SetEffects(map); } catch { }
+        foreach (var o in outSlots.Values) { try { o.Dev?.Renderer?.SetEffects(map); } catch { } }
+    }
+
     private readonly Dictionary<OutputSetting, OutSlot> outSlots = new(ReferenceEqualityComparer.Instance);
 
     /// <summary>出力を使う設定のカードがあるか(あれば入力の取り込みを開いたままにする)。</summary>
@@ -238,6 +260,7 @@ public sealed class RecorderController : IDisposable
     /// </summary>
     public string? StartOutput(OutputSetting card, Preset p)
     {
+        TakeFx(p);
         if (string.IsNullOrWhiteSpace(card.DeviceId)) return "出力先のデバイスを選んでください";
         string? loop = CheckLoop(p, card.DeviceId);
         if (loop != null) return loop;
@@ -294,6 +317,7 @@ public sealed class RecorderController : IDisposable
         var r = o.Dev?.Renderer; if (r == null) return;
         var c = o.Card;
         r.Bus.MasterGain = DbToLin(c.MasterGainDb);
+        r.SetEffects(MapFx());
         for (int j = 0; j < active.Count; j++)
         {
             int slot = active[j].Slot;
@@ -378,6 +402,7 @@ public sealed class RecorderController : IDisposable
 
     public void StartMonitor(Preset p)
     {
+        TakeFx(p);
         StopMonitor();
         if (engine != null) return;
         if (!OpenSources(p, out _)) return;
@@ -507,6 +532,7 @@ public sealed class RecorderController : IDisposable
     /// <summary>録音を始める。失敗したら理由を返す(成功なら null)。</summary>
     public string? StartRecording(Preset preset)
     {
+        TakeFx(preset);
         if (engine != null) return "すでに録音中です";
         if (FfmpegPath == null) return "ffmpeg が見つかりません。ffmpeg.exe を ffmpeg フォルダ(またはexeと同じ場所)に置いてください。";
         if (string.IsNullOrWhiteSpace(preset.SaveFolder)) return "保存先フォルダを指定してください";
@@ -531,6 +557,7 @@ public sealed class RecorderController : IDisposable
                 Preset = p, No = Settings.No, TrackStart = Settings.TrackStart, FfmpegPath = FfmpegPath,
                 JournalPath = JournalPath, DiskWarnGB = Settings.DiskWarnGB, DiskStopGB = Settings.DiskStopGB,
             }, active.Select(a => a.Buffer).ToList());
+            eng.SetEffects(MapFx());
             eng.Message += m => { Log(m); Message?.Invoke(m); };
             eng.FileFinished += f => { Interlocked.Increment(ref filesFinished); FileFinished?.Invoke(f); };
             eng.Stopped += r => stopReason = r;

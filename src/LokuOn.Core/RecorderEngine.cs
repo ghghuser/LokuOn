@@ -84,6 +84,24 @@ public sealed class RecorderEngine : IDisposable
     /// <summary>録音のミックスのバス。入力ごとに、録音へ送るか(と音量)を切り替えられる(既定はすべて送る)。</summary>
     public MixBus RecordingBus => recBus;
 
+    // 入力ごとのエフェクト(録音に反映する設定のときだけかける)。無音判定は、かける前の音で行う。
+    private readonly EffectChain?[] fxChain;
+    private readonly bool[] fxRecOn;
+    private float[]?[] fxDry;
+
+    /// <summary>入力ごとのエフェクト設定を渡す(録音中でも変更できる)。null や「録音に反映しない」設定の入力は素の音のまま録音する。</summary>
+    public void SetEffects(IReadOnlyList<EffectSetting?> bySource)
+    {
+        for (int i = 0; i < sources.Count; i++)
+        {
+            var s = i < bySource.Count ? bySource[i] : null;
+            if (s == null) { fxRecOn[i] = false; continue; }
+            var c = fxChain[i] ??= new EffectChain(rate, ch);
+            c.Update(s);
+            fxRecOn[i] = s.ToRecording && s.IsActive;
+        }
+    }
+
     public WaveformBuffer Waveform { get; }
     public volatile float MasterGainDb;
 
@@ -114,6 +132,9 @@ public sealed class RecorderEngine : IDisposable
         srcPeakAcc = new float[sources.Count];
         lastConnected = new bool[sources.Count];
         recBus = new MixBus(sources.Count);
+        fxChain = new EffectChain?[sources.Count];
+        fxRecOn = new bool[sources.Count];
+        fxDry = new float[]?[sources.Count];
         Waveform = new WaveformBuffer(rate);
         MasterGainDb = (float)p.MasterGainDb;
         if (!string.IsNullOrEmpty(opt.JournalPath)) journal = new RecordingJournal(opt.JournalPath!);
@@ -281,7 +302,16 @@ public sealed class RecorderEngine : IDisposable
                 if (a > pk) pk = a;
             }
             lock (levelGate) { if (pk > srcPeakAcc[i]) srcPeakAcc[i] = pk; }
+            if (fxRecOn[i])
+            {
+                var d = fxDry[i];
+                if (d == null || d.Length < samples) fxDry[i] = d = new float[samples];
+                Array.Copy(b, d, samples);
+                fxChain[i]!.Process(b, n);
+            }
         }
+        bool fxAny = false;
+        for (int i = 0; i < fxRecOn.Length; i++) if (fxRecOn[i]) { fxAny = true; break; }
 
         float gm = DbToLin(MasterGainDb);
         // 録音のミックス: 入力を足し合わせ(送りの設定に従う)、全体音量をかけて、±1を超えた分は切り詰める
@@ -293,6 +323,26 @@ public sealed class RecorderEngine : IDisposable
 
         double silThr = Math.Pow(10, p.SilenceDb / 20.0);
         float allPeak = Math.Max(pl, pr);
+        // エフェクトを録音にかけているときも、無音の判定はかける前の音で行う(残響の尾で無音が途切れないように)
+        float DryPeak(int[] idx, bool useSends)
+        {
+            float pk = 0; int cc = Math.Min(ch, 2);
+            for (int f = 0; f < n; f++)
+                for (int c = 0; c < cc; c++)
+                {
+                    float x = 0;
+                    foreach (int si in idx)
+                    {
+                        if (useSends && !recBus.IsSendOn(si)) continue;
+                        var bb = fxRecOn[si] ? fxDry[si]! : srcBuf[si];
+                        x += bb[f * ch + c] * (useSends ? recBus.SendGain(si) : 1f);
+                    }
+                    x *= gm;
+                    float a = x < 0 ? -x : x; if (a > 1f) a = 1f; if (a > pk) pk = a;
+                }
+            return pk;
+        }
+        if (fxAny) allPeak = DryPeak(Enumerable.Range(0, sources.Count).ToArray(), true);
 
         // 手動分割
         if (Interlocked.Exchange(ref splitRequested, 0) == 1 && state == (int)EngineState.Recording)
@@ -321,6 +371,7 @@ public sealed class RecorderEngine : IDisposable
                     o.Mix[j] = x;
                     float a = x < 0 ? -x : x; if (a > opk) opk = a;
                 }
+                if (fxAny) opk = DryPeak(o.Src, false);
             }
 
             if (state == (int)EngineState.Armed)

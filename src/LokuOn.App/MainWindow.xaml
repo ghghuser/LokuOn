@@ -292,40 +292,48 @@
                                         <ColumnDefinition Width="44"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="62"/>
+                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock x:Name="GName1" Text="入力1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                     <Slider x:Name="Gain1" Grid.Column="1" Minimum="-30" Maximum="20" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="Gain1Text" Grid.Column="2" Text="+0.0 dB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    <Button x:Name="FxBtn1" Grid.Column="3" Content="FX" Padding="6,0" Margin="6,0,0,0" MinWidth="30" FontSize="11" ToolTip="エフェクト(イコライザ・エコー・リバーブ)。右クリックでメニュー"/>
                                 </Grid>
                                 <Grid Margin="0,0,0,2">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="44"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="62"/>
+                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock x:Name="GName2" Text="入力2" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                     <Slider x:Name="Gain2" Grid.Column="1" Minimum="-30" Maximum="20" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="Gain2Text" Grid.Column="2" Text="+0.0 dB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    <Button x:Name="FxBtn2" Grid.Column="3" Content="FX" Padding="6,0" Margin="6,0,0,0" MinWidth="30" FontSize="11" ToolTip="エフェクト(イコライザ・エコー・リバーブ)。右クリックでメニュー"/>
                                 </Grid>
                                 <Grid Margin="0,0,0,2">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="44"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="62"/>
+                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock x:Name="GName3" Text="入力3" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                     <Slider x:Name="Gain3" Grid.Column="1" Minimum="-30" Maximum="20" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="Gain3Text" Grid.Column="2" Text="+0.0 dB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    <Button x:Name="FxBtn3" Grid.Column="3" Content="FX" Padding="6,0" Margin="6,0,0,0" MinWidth="30" FontSize="11" ToolTip="エフェクト(イコライザ・エコー・リバーブ)。右クリックでメニュー"/>
                                 </Grid>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="44"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="62"/>
+                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock x:Name="GName4" Text="入力4" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                     <Slider x:Name="Gain4" Grid.Column="1" Minimum="-30" Maximum="20" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="Gain4Text" Grid.Column="2" Text="+0.0 dB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    <Button x:Name="FxBtn4" Grid.Column="3" Content="FX" Padding="6,0" Margin="6,0,0,0" MinWidth="30" FontSize="11" ToolTip="エフェクト(イコライザ・エコー・リバーブ)。右クリックでメニュー"/>
                                 </Grid>
                             </StackPanel>
                         </Grid>

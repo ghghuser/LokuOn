@@ -36,6 +36,25 @@ public sealed class OutputRenderer
     private float[] mix = new float[0];
 
     public MixBus Bus { get; }
+
+    private EffectChain?[] fx = Array.Empty<EffectChain?>();
+    private volatile bool[] fxOn = Array.Empty<bool>();
+
+    /// <summary>入力ごとのエフェクト設定を渡す(動作中でも変更できる)。「出力に反映しない」設定や null は素の音のまま流す。</summary>
+    public void SetEffects(IReadOnlyList<EffectSetting?> byInput)
+    {
+        if (fx.Length != chans.Length) fx = new EffectChain?[chans.Length];
+        var on = new bool[chans.Length];
+        for (int i = 0; i < chans.Length; i++)
+        {
+            var s = i < byInput.Count ? byInput[i] : null;
+            if (s == null) continue;
+            var c = fx[i] ??= new EffectChain(devRate, devCh);
+            c.Update(s);
+            on[i] = s.ToOutput && s.IsActive;
+        }
+        fxOn = on;
+    }
     public int DeviceRate => devRate;
     public int DeviceChannels => devCh;
 
@@ -182,6 +201,8 @@ public sealed class OutputRenderer
             c.Primed = false;                    // 足りなくなった: たまり直すまで無音
             Interlocked.Increment(ref Underruns);
         }
+        var on = fxOn;
+        if (i < on.Length && on[i]) fx[i]!.Process(buf, frames);
         if (c.PendPos > 0 && c.PendPos >= c.Pend.Count) { c.Pend.Clear(); c.PendPos = 0; }
         else if (c.PendPos > 16384) { c.Pend.RemoveRange(0, c.PendPos); c.PendPos = 0; }
     }

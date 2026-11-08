@@ -126,6 +126,10 @@ public sealed class Preset
     /// <summary>入力1〜4の表示名(空=既定の「入力1〜4」)。画面・出力ウィンドウで共通に使う。</summary>
     public string[] InputNames { get; set; } = new string[SourceSlots] { "", "", "", "" };
 
+    /// <summary>入力1〜4ごとのエフェクト(旧プリセットにはない項目。無ければ「かけない」)。</summary>
+    public EffectSetting[] Effects { get; set; } = NewEffects();
+    private static EffectSetting[] NewEffects() { var a = new EffectSetting[SourceSlots]; for (int i = 0; i < a.Length; i++) a[i] = new EffectSetting(); return a; }
+
     public string InputName(int slot)
         => InputNames != null && (uint)slot < (uint)InputNames.Length && !string.IsNullOrWhiteSpace(InputNames[slot]) ? InputNames[slot] : "入力" + (slot + 1);
 
@@ -189,6 +193,8 @@ public sealed class Preset
         c.Tags = (Tags ?? new TagSettings()).Clone();
         c.Outputs = (Outputs ?? new List<OutputSetting>()).Select(o => (o ?? new OutputSetting()).Clone()).ToList();
         c.InputNames = (string[])(InputNames ?? new string[SourceSlots]).Clone();
+        c.Effects = new EffectSetting[SourceSlots];
+        for (int i = 0; i < SourceSlots; i++) c.Effects[i] = Effects != null && i < Effects.Length && Effects[i] != null ? Effects[i].Clone() : new EffectSetting();
         return c;
     }
 
@@ -217,6 +223,13 @@ public sealed class Preset
             names[i] = n.Length > OutputSetting.NameMax ? n.Substring(0, OutputSetting.NameMax) : n;
         }
         InputNames = names;
+        var fx = new EffectSetting[SourceSlots];
+        for (int i = 0; i < SourceSlots; i++)
+        {
+            fx[i] = Effects != null && i < Effects.Length && Effects[i] != null ? Effects[i] : new EffectSetting();
+            fx[i].Normalize();
+        }
+        Effects = fx;
 
         if (!Enum.IsDefined(Format)) Format = AudioFormat.Flac;
         if (!Enum.IsDefined(MixMode)) MixMode = MixMode.Mix;
@@ -295,6 +308,11 @@ public sealed class Preset
             s.Set($"Output{n}Collapsed", o.Collapsed);
         }
         for (int i = 0; i < SourceSlots; i++)
+        {
+            var fx = Effects != null && i < Effects.Length ? Effects[i] : null;
+            if (fx != null && !fx.IsDefault) fx.WriteTo(s, $"Fx{i + 1}", comments);
+        }
+        for (int i = 0; i < SourceSlots; i++)
             s.Set($"Input{i + 1}Label", InputNames != null && i < InputNames.Length ? InputNames[i] : "", i == 0 ? C("入力1〜4の表示名(空=既定の「入力1〜4」)") : null);
         s.Set("MixMode", MixMode, C("Mix=ミックスして1ファイル / Separate=入力ごとに別ファイル"));
         s.Set("MasterGainDb", MasterGainDb, C("録音ゲイン(dB)"));
@@ -371,6 +389,7 @@ public sealed class Preset
             p.Outputs.Add(o);
         }
         for (int i = 0; i < SourceSlots; i++) p.InputNames[i] = s.GetString($"Input{i + 1}Label");
+        for (int i = 0; i < SourceSlots; i++) p.Effects[i] = EffectSetting.ReadFrom(s, $"Fx{i + 1}");
         p.MixMode = s.GetEnum("MixMode", d.MixMode);
         p.MasterGainDb = s.GetDouble("MasterGainDb", d.MasterGainDb);
 

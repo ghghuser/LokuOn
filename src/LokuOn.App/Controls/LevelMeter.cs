@@ -45,6 +45,29 @@ public sealed class LevelMeter : FrameworkElement
         UseLayoutRounding = true;
     }
 
+    /// <summary>バーをダブルクリックしたとき(バーの番号)。</summary>
+    public event Action<int>? BarDoubleClicked;
+    /// <summary>バーを右クリックしたとき(バーの番号)。</summary>
+    public event Action<int>? BarRightClicked;
+
+    private int BarAt(Point p)
+    {
+        int i = (int)(p.Y / (RowHeight + 2));
+        return Math.Clamp(i, 0, Math.Max(0, labels.Length - 1));
+    }
+
+    protected override void OnMouseLeftButtonDown(System.Windows.Input.MouseButtonEventArgs e)
+    {
+        base.OnMouseLeftButtonDown(e);
+        if (e.ClickCount == 2 && labels.Length > 0) { BarDoubleClicked?.Invoke(BarAt(e.GetPosition(this))); e.Handled = true; }
+    }
+
+    protected override void OnMouseRightButtonUp(System.Windows.Input.MouseButtonEventArgs e)
+    {
+        base.OnMouseRightButtonUp(e);
+        if (labels.Length > 0) { BarRightClicked?.Invoke(BarAt(e.GetPosition(this))); e.Handled = true; }
+    }
+
     /// <summary>本数とラベルを設定する。</summary>
     public void Configure(string[] barLabels)
     {
@@ -118,6 +141,7 @@ public sealed class LevelMeter : FrameworkElement
         double now = clock.Elapsed.TotalSeconds;
         double dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         EnsureText(dpi);
+        dc.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, w, h));   // どこを押してもクリックを受け取る
 
         for (int i = 0; i < shown.Length; i++)
         {
