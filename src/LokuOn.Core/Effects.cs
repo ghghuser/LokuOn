@@ -18,6 +18,10 @@ public sealed class EffectSetting
     /// <summary>10個の帯域のゲイン(dB)。EqBands.Freqs の順。</summary>
     public double[] Bands { get; set; } = new double[EqBands.Count];
 
+    // ---- パラメトリックEQ(4バンド。位置(周波数)・ゲイン・幅(Q)を自由に決める。グラフィックEQの後にかかる)
+    public bool ParamOn { get; set; }
+    public ParamBand[] Params { get; set; } = ParamBand.Defaults();
+
     // ---- エコー
     public bool EchoOn { get; set; }
     public double EchoMs { get; set; } = 300;
@@ -32,14 +36,15 @@ public sealed class EffectSetting
 
 
     /// <summary>効果が実際にかかるか(バイパスでなく、どれかがオン)。</summary>
-    public bool IsActive => !Bypass && (EqOn || EchoOn || ReverbOn);
+    public bool IsActive => !Bypass && HasAny;
     /// <summary>設定が1つでも入っているか(FXボタンの色づけ用。バイパス中でも true)。</summary>
-    public bool HasAny => EqOn || EchoOn || ReverbOn;
+    public bool HasAny => EqOn || HpfHz >= 20 || ParamOn || EchoOn || ReverbOn;
 
     public EffectSetting Clone()
     {
         var c = (EffectSetting)MemberwiseClone();
         c.Bands = (double[])(Bands ?? new double[EqBands.Count]).Clone();
+        c.Params = (Params ?? ParamBand.Defaults()).Select(p => p.Clone()).ToArray();
         return c;
     }
 
@@ -51,6 +56,10 @@ public sealed class EffectSetting
         var bd = new double[EqBands.Count];
         for (int i = 0; i < bd.Length; i++) bd[i] = Bands != null && i < Bands.Length ? C(Bands[i], -EqBands.MaxDb, EqBands.MaxDb, 0) : 0;
         Bands = bd;
+        var pd = ParamBand.Defaults();
+        for (int i = 0; i < pd.Length; i++)
+            if (Params != null && i < Params.Length && Params[i] != null) { pd[i] = Params[i]; pd[i].Normalize(i); }
+        Params = pd;
         EchoMs = C(EchoMs, 20, 1000, 300); EchoFeedback = C(EchoFeedback, 0, 0.9, 0.35); EchoMix = C(EchoMix, 0, 1, 0.3);
         ReverbRoom = C(ReverbRoom, 0, 1, 0.5); ReverbDamp = C(ReverbDamp, 0, 1, 0.5); ReverbMix = C(ReverbMix, 0, 1, 0.25);
     }
@@ -67,6 +76,9 @@ public sealed class EffectSetting
         s.Set(prefix + "HpfHz", HpfHz, C("ローカット(Hz、0=なし)"));
         s.Set(prefix + "EqBands", string.Join(",", (Bands ?? new double[EqBands.Count]).Select(v => v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))),
             C("イコライザ 31/62/125/250/500/1k/2k/4k/8k/16kHz のゲイン(dB、±12)"));
+        s.Set(prefix + "ParamOn", ParamOn);
+        s.Set(prefix + "ParamBands", string.Join(",", (Params ?? ParamBand.Defaults()).Select(b => b.ToText())),
+            C("パラメトリックEQ 4バンドの 周波数Hz:ゲインdB:幅(Q)"));
         s.Set(prefix + "EchoOn", EchoOn); s.Set(prefix + "EchoMs", EchoMs); s.Set(prefix + "EchoFeedback", EchoFeedback); s.Set(prefix + "EchoMix", EchoMix);
         s.Set(prefix + "ReverbOn", ReverbOn); s.Set(prefix + "ReverbRoom", ReverbRoom); s.Set(prefix + "ReverbDamp", ReverbDamp); s.Set(prefix + "ReverbMix", ReverbMix);
     }
@@ -77,7 +89,7 @@ public sealed class EffectSetting
         var e = new EffectSetting
         {
             Bypass = s.GetBool(prefix + "Bypass", d.Bypass), ToRecording = s.GetBool(prefix + "ToRecording", d.ToRecording), ToOutput = s.GetBool(prefix + "ToOutput", d.ToOutput),
-            EqOn = s.GetBool(prefix + "EqOn", d.EqOn), HpfHz = s.GetDouble(prefix + "HpfHz", d.HpfHz),
+            EqOn = s.GetBool(prefix + "EqOn", d.EqOn), ParamOn = s.GetBool(prefix + "ParamOn", d.ParamOn), HpfHz = s.GetDouble(prefix + "HpfHz", d.HpfHz),
             EchoOn = s.GetBool(prefix + "EchoOn", d.EchoOn), EchoMs = s.GetDouble(prefix + "EchoMs", d.EchoMs),
             EchoFeedback = s.GetDouble(prefix + "EchoFeedback", d.EchoFeedback), EchoMix = s.GetDouble(prefix + "EchoMix", d.EchoMix),
             ReverbOn = s.GetBool(prefix + "ReverbOn", d.ReverbOn), ReverbRoom = s.GetDouble(prefix + "ReverbRoom", d.ReverbRoom),
@@ -86,6 +98,8 @@ public sealed class EffectSetting
         var parts = s.GetString(prefix + "EqBands").Split(',', StringSplitOptions.TrimEntries);
         for (int i = 0; i < EqBands.Count; i++)
             e.Bands[i] = i < parts.Length && double.TryParse(parts[i], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 0;
+        var pp = s.GetString(prefix + "ParamBands").Split(',', StringSplitOptions.TrimEntries);
+        for (int i = 0; i < e.Params.Length && i < pp.Length; i++) ParamBand.TryParse(pp[i], e.Params[i]);
         e.Normalize();
         return e;
     }
@@ -98,9 +112,17 @@ public sealed class EffectSetting
         return true;
     }
 
+    private bool SameParams(EffectSetting o)
+    {
+        if (Params == null || o.Params == null) return Params == o.Params;
+        if (Params.Length != o.Params.Length) return false;
+        for (int i = 0; i < Params.Length; i++) if (!Params[i].Same(o.Params[i])) return false;
+        return true;
+    }
+
     /// <summary>効果の中身(オン/オフと数値)が同じか。録音・出力への反映先の設定は比べない。</summary>
     public bool SameSound(EffectSetting o) =>
-        Bypass == o.Bypass && EqOn == o.EqOn && HpfHz == o.HpfHz && SameBands(o) && EchoOn == o.EchoOn && EchoMs == o.EchoMs && EchoFeedback == o.EchoFeedback
+        Bypass == o.Bypass && EqOn == o.EqOn && HpfHz == o.HpfHz && SameBands(o) && ParamOn == o.ParamOn && SameParams(o) && EchoOn == o.EchoOn && EchoMs == o.EchoMs && EchoFeedback == o.EchoFeedback
         && EchoMix == o.EchoMix && ReverbOn == o.ReverbOn && ReverbRoom == o.ReverbRoom && ReverbDamp == o.ReverbDamp && ReverbMix == o.ReverbMix;
 }
 
@@ -123,7 +145,8 @@ public sealed class EffectChain
     }
     private readonly Bq[] bands = Enumerable.Range(0, EqBands.Count).Select(_ => new Bq()).ToArray();
     private readonly Bq hpfBq = new();
-    private readonly Bq[] eqAll;    // ローカット → 10バンド の順
+    private readonly Bq[] paramBq = Enumerable.Range(0, ParamBand.Count).Select(_ => new Bq()).ToArray();
+    private readonly Bq[] eqAll;    // ローカット → 10バンド → パラメトリック の順
     private bool eqWasOn;
 
     // --- エコー
@@ -146,7 +169,7 @@ public sealed class EffectChain
     public EffectChain(int sampleRate, int channels)
     {
         sr = sampleRate; ch = Math.Max(1, channels);
-        eqAll = new[] { hpfBq }.Concat(bands).ToArray();
+        eqAll = new[] { hpfBq }.Concat(bands).Concat(paramBq).ToArray();
     }
 
     /// <summary>設定を渡す(コピーして持つ。次の Process から反映)。</summary>
@@ -182,13 +205,14 @@ public sealed class EffectChain
 
     private void Rebuild(EffectSetting s)
     {
-        // イコライザ
-        eqOnNow = s.EqOn;
-        if (s.EqOn)
+        // イコライザ(ローカット / グラフィック / パラメトリックは、それぞれ独立にオン・オフできる)
+        bool hpfOn = s.HpfHz >= 20;
+        eqOnNow = s.EqOn || hpfOn || s.ParamOn;
+        if (eqOnNow)
         {
             if (!eqWasOn) { foreach (var b in eqAll) { b.Z1 = new double[ch]; b.Z2 = new double[ch]; } }
-            hpfBq.On = s.HpfHz >= 20;
-            if (hpfBq.On)
+            hpfBq.On = hpfOn;
+            if (hpfOn)
             {
                 var (h0, h1, h2, ha1, ha2) = EqMath.HighPass(sr, s.HpfHz);
                 hpfBq.B0 = h0; hpfBq.B1 = h1; hpfBq.B2 = h2; hpfBq.A1 = ha1; hpfBq.A2 = ha2;
@@ -196,15 +220,25 @@ public sealed class EffectChain
             for (int i = 0; i < bands.Length; i++)
             {
                 double db = s.Bands[i];
-                bands[i].On = Math.Abs(db) > 0.01;
+                bands[i].On = s.EqOn && Math.Abs(db) > 0.01;
                 if (bands[i].On)
                 {
                     var (b0, b1, b2, a1, a2) = EqMath.Peaking(sr, EqBands.Freqs[i], EqBands.Q, db);
                     bands[i].B0 = b0; bands[i].B1 = b1; bands[i].B2 = b2; bands[i].A1 = a1; bands[i].A2 = a2;
                 }
             }
+            for (int i = 0; i < paramBq.Length; i++)
+            {
+                var pb = s.Params[i];
+                paramBq[i].On = s.ParamOn && Math.Abs(pb.Db) > 0.01;
+                if (paramBq[i].On)
+                {
+                    var (b0, b1, b2, a1, a2) = EqMath.Peaking(sr, pb.Freq, pb.Q, pb.Db);
+                    paramBq[i].B0 = b0; paramBq[i].B1 = b1; paramBq[i].B2 = b2; paramBq[i].A1 = a1; paramBq[i].A2 = a2;
+                }
+            }
         }
-        eqWasOn = s.EqOn;
+        eqWasOn = eqOnNow;
 
         // エコー
         echoOn = s.EchoOn;
@@ -325,6 +359,45 @@ public sealed class EffectChain
     }
 }
 
+/// <summary>パラメトリックEQの1バンド(ピーキング)。Db=0 なら効果なし。</summary>
+public sealed class ParamBand
+{
+    public const int Count = 4;
+    public static readonly string[] Names = { "低域", "中低域", "中高域", "高域" };
+    public static readonly double[] DefaultFreqs = { 100, 500, 2000, 8000 };
+    public const double MaxDb = 12, MinQ = 0.3, MaxQ = 8, DefaultQ = 1.0, MinHz = 20, MaxHz = 20000;
+
+    public double Freq { get; set; } = 1000;
+    public double Db { get; set; }
+    public double Q { get; set; } = DefaultQ;
+
+    public static ParamBand[] Defaults() => Enumerable.Range(0, Count).Select(i => new ParamBand { Freq = DefaultFreqs[i] }).ToArray();
+    public ParamBand Clone() => new() { Freq = Freq, Db = Db, Q = Q };
+    public bool Same(ParamBand o) => Freq == o.Freq && Db == o.Db && Q == o.Q;
+
+    public void Normalize(int i)
+    {
+        Freq = double.IsFinite(Freq) ? Math.Clamp(Freq, MinHz, MaxHz) : DefaultFreqs[i];
+        Db = double.IsFinite(Db) ? Math.Clamp(Db, -MaxDb, MaxDb) : 0;
+        Q = double.IsFinite(Q) ? Math.Clamp(Q, MinQ, MaxQ) : DefaultQ;
+    }
+
+    public string ToText()
+    {
+        var ci = System.Globalization.CultureInfo.InvariantCulture;
+        return Freq.ToString("0.#", ci) + ":" + Db.ToString("0.#", ci) + ":" + Q.ToString("0.##", ci);
+    }
+
+    public static void TryParse(string t, ParamBand into)
+    {
+        var ci = System.Globalization.CultureInfo.InvariantCulture;
+        var a = t.Split(':', StringSplitOptions.TrimEntries);
+        if (a.Length >= 1 && double.TryParse(a[0], System.Globalization.NumberStyles.Float, ci, out var f)) into.Freq = f;
+        if (a.Length >= 2 && double.TryParse(a[1], System.Globalization.NumberStyles.Float, ci, out var d)) into.Db = d;
+        if (a.Length >= 3 && double.TryParse(a[2], System.Globalization.NumberStyles.Float, ci, out var q)) into.Q = q;
+    }
+}
+
 /// <summary>グラフィックEQの帯域(31Hz〜16kHz、オクターブ間隔)。</summary>
 public static class EqBands
 {
@@ -377,7 +450,7 @@ public static class EqMath
     }
 
     /// <summary>ローカットと10バンドを全部通したときの、周波数 hz での音量変化(dB)。画面のカーブ表示用。hpfHz は 0=なし。</summary>
-    public static double ResponseDb(double[] bands, double hz, int sr = 48000, double hpfHz = 0)
+    public static double ResponseDb(double[] bands, double hz, int sr = 48000, double hpfHz = 0, ParamBand[]? param = null)
     {
         double total = 0, w = 2 * Math.PI * hz / sr, c1 = Math.Cos(w), c2 = Math.Cos(2 * w);
         if (hpfHz >= 20) { var (h0, h1, h2, ha1, ha2) = HighPass(sr, hpfHz); total += MagDb(h0, h1, h2, ha1, ha2, c1, c2); }
@@ -389,6 +462,13 @@ public static class EqMath
             double den = 1 + a1 * a1 + a2 * a2 + 2 * (a1 + a1 * a2) * c1 + 2 * a2 * c2;
             total += 10 * Math.Log10(Math.Max(1e-12, num / den));
         }
+        if (param != null)
+            foreach (var pb in param)
+            {
+                if (Math.Abs(pb.Db) <= 0.01) continue;
+                var (b0, b1, b2, a1, a2) = Peaking(sr, pb.Freq, pb.Q, pb.Db);
+                total += MagDb(b0, b1, b2, a1, a2, c1, c2);
+            }
         return total;
     }
 }

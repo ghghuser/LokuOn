@@ -94,6 +94,25 @@ static class EffectTests
                 check(Math.Abs(meas - calc) < 0.4, $"ローカットを含むカーブの計算が実際の音と一致 {hz}Hz", $"{meas:F2} vs {calc:F2}");
             }
             check(new EffectSetting { EqOn = true, HpfHz = 5 }.Clone() is var cn && Normalized(cn).HpfHz == 0 && Normalized(new EffectSetting { HpfHz = 9999 }).HpfHz == 400, "ローカットの範囲: 20未満=なし、最大400");
+            // パラメトリックEQ(グラフィックと同時に使える)
+            var pe = new EffectSetting { ParamOn = true };
+            pe.Params[2].Freq = 3000; pe.Params[2].Db = 9; pe.Params[2].Q = 4;
+            double p3k = ToneGainDb(pe, 3000), pfar = ToneGainDb(pe, 600), pfar2 = ToneGainDb(pe, 15000);
+            check(Math.Abs(p3k - 9) < 0.6 && Math.Abs(pfar) < 1.0 && Math.Abs(pfar2) < 1.0, "パラメトリック: 3kHz+9dB(Q4)は中心で+9、遠い音は変わらない", $"{p3k:F2} / {pfar:F2} / {pfar2:F2}");
+            var both = new EffectSetting { EqOn = true, ParamOn = true, HpfHz = 100, Bands = new double[] { 0, 0, 0, 0, 5, 0, 0, -4, 0, 0 } };
+            both.Params[0].Freq = 80; both.Params[0].Db = -8; both.Params[0].Q = 2;
+            both.Params[3].Freq = 6000; both.Params[3].Db = 6; both.Params[3].Q = 1.5;
+            foreach (double hz in new[] { 60.0, 80, 150, 500, 4000, 6000, 12000 })
+            {
+                double meas = ToneGainDb(both, hz), calc = EqMath.ResponseDb(both.Bands, hz, 48000, 100, both.Params);
+                check(Math.Abs(meas - calc) < 0.5, $"ローカット+グラフィック+パラメトリックの同時使用: カーブの計算が実際の音と一致 {hz}Hz", $"{meas:F2} vs {calc:F2}");
+            }
+            var onlyG = new EffectSetting { EqOn = true, Bands = (double[])both.Bands.Clone() };
+            var offG = new EffectSetting { ParamOn = true, Params = both.Params.Select(x => x.Clone()).ToArray() };
+            check(Math.Abs(ToneGainDb(both, 500) - ToneGainDb(onlyG, 500) - 0) < 1.0 && ToneGainDb(offG, 500) is var og && Math.Abs(og) < 1.5, "グラフィックだけ・パラメトリックだけでも別々に効く");
+            check(!new EffectSetting { ParamOn = false, Params = both.Params.Select(x => x.Clone()).ToArray() }.HasAny, "パラメトリックがオフなら設定が残っていても何もかからない");
+            var pr2 = ParamBand.Defaults(); ParamBand.TryParse("1234.5:-3.5:2.5", pr2[1]);
+            check(pr2[1].Freq == 1234.5 && pr2[1].Db == -3.5 && pr2[1].Q == 2.5, "パラメトリックの文字列の書き出し・読み込み");
             // 帯域の設定の途中変更
             var live = new EffectChain(SR, 2); live.Update(Eq((5, 6)));
             var lb = new float[960]; for (int i = 0; i < lb.Length; i++) lb[i] = 0.1f;
@@ -167,6 +186,12 @@ static class EffectTests
             PresetStore.Save(tmp, new Preset { Name = "fx", Effects = p.Effects });
             var lp = PresetStore.LoadAll(tmp, out _).First(x => x.Name == "fx");
             check(lp.Effects[1].SameSound(p.Effects[1]) && lp.Effects[0].IsDefault, "エフェクト設定がプリセットのJSONに入る");
+            var pm = new Preset(); pm.Effects[2] = new EffectSetting { ParamOn = true, EqOn = true, HpfHz = 90 }; pm.Effects[2].Params[1].Freq = 1500; pm.Effects[2].Params[1].Db = -5; pm.Effects[2].Params[1].Q = 3;
+            string ini2 = Path.Combine(tmp, "b.ini"); SettingsStore.Save(ini2, new AppSettings { Current = pm });
+            var r2 = SettingsStore.Load(ini2).Current.Effects[2];
+            check(r2.ParamOn && r2.SameSound(pm.Effects[2]) && r2.Params[1].Freq == 1500, "パラメトリックの設定がiniに保存・復元される");
+            PresetStore.Save(tmp, new Preset { Name = "pm", Effects = pm.Effects });
+            check(PresetStore.LoadAll(tmp, out _).First(x => x.Name == "pm").Effects[2].SameSound(pm.Effects[2]), "パラメトリックの設定がプリセットのJSONに入る");
             var cl = lp.Clone(); cl.Effects[1].Bands[0] = -9;
             check(lp.Effects[1].Bands[0] == 3.5, "Cloneはエフェクトも別物にコピーする");
             File.WriteAllText(Path.Combine(tmp, "旧.json"), "{ \"Format\": \"Mp3\" }");

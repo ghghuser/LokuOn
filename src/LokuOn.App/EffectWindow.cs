@@ -20,11 +20,11 @@ public sealed class EffectWindow : Window
     private readonly Func<Preset> readPreset;
     private readonly Action changed;
     private readonly ComboBox slotBox = new();
-    private readonly CheckBox bypassCheck = new() { Content = "すべてバイパス(効果を一時的に切る。設定は残る)", Margin = new Thickness(0, 6, 0, 2) };
-    private readonly CheckBox toRecCheck = new() { Content = "エフェクトを録音に反映する(オフ=録音は素の音のまま)", Margin = new Thickness(0, 2, 0, 0) };
-    private readonly CheckBox toOutCheck = new() { Content = "エフェクトを出力に反映する", Margin = new Thickness(0, 2, 0, 0) };
+    private readonly CheckBox bypassCheck = new() { Content = "すべてバイパス(効果を一時的に切る。設定は残る)", Margin = new Thickness(0, 3, 0, 0) };
+    private readonly CheckBox toRecCheck = new() { Content = "録音に反映(オフ=録音は素の音)" };
+    private readonly CheckBox toOutCheck = new() { Content = "出力に反映" };
     private readonly List<Action> refreshers = new();
-    private readonly Button pasteBtn = new() { Content = "貼り付け", Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(6, 0, 0, 0) };
+    private readonly Button pasteBtn = new() { Content = "貼り付け", Padding = new Thickness(10, 1, 10, 1), Margin = new Thickness(6, 0, 0, 0) };
     private readonly ComboBox presetBox = new() { MinWidth = 180 };
     private readonly Controls.GraphicEqControl eqView = new();
     private CheckBox? eqCheck;
@@ -37,22 +37,22 @@ public sealed class EffectWindow : Window
     {
         this.fx = fx; this.readPreset = readPreset; this.changed = changed;
         Title = "LokuOn - エフェクト";
-        Width = 520; SizeToContent = SizeToContent.Height; MaxHeight = 760;
+        Width = 560; SizeToContent = SizeToContent.Height; MaxHeight = 760;
         ResizeMode = ResizeMode.CanMinimize;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         FontFamily = new FontFamily("Yu Gothic UI, Meiryo UI, Segoe UI");
-        FontSize = 12;
+        FontSize = 11.5;
         ThemeHelper.ApplyWindowMode(this);
         SourceInitialized += (s, e) => ThemeHelper.ApplyWindow(this);
 
-        var root = new StackPanel { Margin = new Thickness(12) };
+        var root = new StackPanel { Margin = new Thickness(8, 5, 8, 5) };
 
         // 入力の切り替え・コピー/貼り付け
         var top = new Grid();
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var copyBtn = new Button { Content = "コピー", Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(6, 0, 0, 0) };
+        var copyBtn = new Button { Content = "コピー", Padding = new Thickness(10, 1, 10, 1), Margin = new Thickness(6, 0, 0, 0) };
         copyBtn.Click += (s, e) => { clipboard = Cur.Clone(); UpdatePaste(); };
         pasteBtn.Click += (s, e) => PasteSound();
         Grid.SetColumn(copyBtn, 1); Grid.SetColumn(pasteBtn, 2);
@@ -63,10 +63,25 @@ public sealed class EffectWindow : Window
         root.Children.Add(bypassCheck);
         bypassCheck.Click += (s, e) => Edit(c => c.Bypass = bypassCheck.IsChecked == true);
 
-        // イコライザ
-        var eq = Section(root, "イコライザ", c => c.EqOn, (c, v) => c.EqOn = v, cb => eqCheck = cb);
-        // 10バンドのグラフィックEQ(縦のつまみを横に並べる。曲線は実際の周波数特性)
-        var eqTop = new Grid { Margin = new Thickness(0, 0, 0, 4) };
+        // ローカット(グラフィック/パラメトリックとは独立。0=なし)
+        var lc = Section(root, "ローカット(低い音を削る。風・振動・こもりの低音に)", null, null, null);
+        AddSlider(lc, "カットする周波数", 0, 400, 5, c => c.HpfHz, (c, v) => c.HpfHz = v < 20 ? 0 : v,
+            v => v < 20 ? "なし" : $"{v:0} Hz", 0);
+        refreshers.Add(() => eqView.SetHpf(Cur.HpfHz));
+
+        // イコライザ(グラフィックとパラメトリックは両方同時にかけられる。表示だけタブで切り替える)
+        var eqBox = new GroupBox { Margin = new Thickness(0, 4, 0, 0), Padding = new Thickness(3, 1, 3, 2) };
+        eqBox.Header = new TextBlock { Text = "イコライザ(グラフィック・パラメトリックは同時に使えます。タブは表示の切り替え)", FontWeight = FontWeights.SemiBold };
+        var tabs = new TabControl { Padding = new Thickness(4, 4, 4, 2) };
+        eqBox.Content = tabs;
+        root.Children.Add(eqBox);
+
+        var gPanel = new StackPanel();
+        var gTab = new TabItem { Header = TabHeader("グラフィック", out var gcb), Content = gPanel };
+        eqCheck = gcb;
+        gcb.Click += (s, e) => { Edit(c => c.EqOn = gcb.IsChecked == true); eqView.Dimmed = !Cur.EqOn; };
+        tabs.Items.Add(gTab);
+        var eqTop = new Grid { Margin = new Thickness(0, 0, 0, 3) };
         eqTop.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         eqTop.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         foreach (var pr in EqBands.Presets) presetBox.Items.Add(pr.Name);
@@ -78,12 +93,12 @@ public sealed class EffectWindow : Window
             eqView.SetBands(Cur.Bands);
             RefreshEqSwitch();
         };
-        var eqReset = new Button { Content = "リセット", Padding = new Thickness(12, 3, 12, 3), Margin = new Thickness(6, 0, 0, 0) };
+        var eqReset = new Button { Content = "リセット", Padding = new Thickness(12, 1, 12, 1), Margin = new Thickness(6, 0, 0, 0) };
         eqReset.Click += (s, e) => { Edit(c => c.Bands = new double[EqBands.Count]); eqView.SetBands(Cur.Bands); loading = true; presetBox.SelectedIndex = 0; loading = false; };
         Grid.SetColumn(eqReset, 1);
         eqTop.Children.Add(presetBox); eqTop.Children.Add(eqReset);
-        eq.Children.Add(eqTop);
-        eq.Children.Add(eqView);
+        gPanel.Children.Add(eqTop);
+        gPanel.Children.Add(eqView);
         eqView.BandsChanged += () =>
         {
             if (loading) return;
@@ -91,11 +106,9 @@ public sealed class EffectWindow : Window
             loading = true; presetBox.SelectedIndex = -1; loading = false;
             RefreshEqSwitch();
         };
-        refreshers.Add(() => { eqView.SetBands(Cur.Bands); eqView.Dimmed = !Cur.EqOn; presetBox.SelectedIndex = MatchPreset(Cur.Bands); });
-        AddSlider(eq, "ローカット", 0, 400, 5, c => c.HpfHz, (c, v) => { c.HpfHz = v < 20 ? 0 : v; if (c.HpfHz > 0) c.EqOn = true; },
-            v => v < 20 ? "なし" : $"{v:0} Hz", 0);
-        refreshers.Add(() => eqView.SetHpf(Cur.HpfHz));
+        refreshers.Add(() => { eqView.SetBands(Cur.Bands); eqView.Dimmed = !Cur.EqOn; gcb.IsChecked = Cur.EqOn; presetBox.SelectedIndex = MatchPreset(Cur.Bands); });
 
+        BuildParametric(tabs);
 
         // エコー
         var echo = Section(root, "エコー", c => c.EchoOn, (c, v) => c.EchoOn = v);
@@ -110,16 +123,19 @@ public sealed class EffectWindow : Window
         AddSlider(rev, "量", 0, 1, 0.05, c => c.ReverbMix, (c, v) => c.ReverbMix = v, Pct, 0.25);
 
         // 反映先
-        root.Children.Add(new Separator { Margin = new Thickness(0, 8, 0, 6) });
-        root.Children.Add(toRecCheck); root.Children.Add(toOutCheck);
+        root.Children.Add(new Separator { Margin = new Thickness(0, 4, 0, 3) });
+        var dest = new StackPanel { Orientation = Orientation.Horizontal };
+        toOutCheck.Margin = new Thickness(18, 0, 0, 0);
+        dest.Children.Add(toRecCheck); dest.Children.Add(toOutCheck);
+        root.Children.Add(dest);
         toRecCheck.Click += (s, e) => Edit(c => c.ToRecording = toRecCheck.IsChecked == true);
         toOutCheck.Click += (s, e) => Edit(c => c.ToOutput = toOutCheck.IsChecked == true);
         root.Children.Add(new TextBlock
         {
-            Text = "かける順番: イコライザ → エコー → リバーブ。無音での自動分割・自動開始は、エフェクトをかける前の音で判定します。スライダーはダブルクリックで初期値に戻ります。",
-            TextWrapping = TextWrapping.Wrap, Opacity = 0.65, Margin = new Thickness(0, 6, 0, 6),
+            Text = "かける順番: ローカット → グラフィックEQ → パラメトリックEQ → エコー → リバーブ。無音での自動分割・自動開始は、エフェクトをかける前の音で判定します。スライダーはダブルクリックで初期値に戻ります。",
+            TextWrapping = TextWrapping.Wrap, Opacity = 0.65, FontSize = 10.5, Margin = new Thickness(0, 3, 0, 4),
         });
-        var reset = new Button { Content = "この入力を初期値に戻す", Padding = new Thickness(10, 3, 10, 3), HorizontalAlignment = HorizontalAlignment.Left };
+        var reset = new Button { Content = "この入力を初期値に戻す", Padding = new Thickness(10, 1, 10, 1), HorizontalAlignment = HorizontalAlignment.Left };
         reset.Click += (s, e) =>
         {
             var d = new EffectSetting { ToRecording = Cur.ToRecording, ToOutput = Cur.ToOutput };
@@ -133,6 +149,84 @@ public sealed class EffectWindow : Window
     }
 
     private EffectSetting Cur => fx[slot];
+
+    private static StackPanel TabHeader(string text, out CheckBox cb)
+    {
+        cb = new CheckBox { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0), ToolTip = "チェック=このEQをかける" };
+        var sp = new StackPanel { Orientation = Orientation.Horizontal };
+        sp.Children.Add(cb); sp.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center });
+        return sp;
+    }
+
+    /// <summary>パラメトリックEQ(4バンド)のタブ。タブ見出しのチェックで有効/無効。グラフィックの後にかかる。</summary>
+    private void BuildParametric(TabControl tabs)
+    {
+        var panel = new StackPanel { Margin = new Thickness(2, 2, 0, 2) };
+        tabs.Items.Add(new TabItem { Header = TabHeader("パラメトリック", out var cb), Content = panel });
+        cb.Click += (s, e) => { Edit(c => c.ParamOn = cb.IsChecked == true); panel.Opacity = cb.IsChecked == true ? 1.0 : 0.55; };
+        paramCheckRefresh = () => { cb.IsChecked = Cur.ParamOn; panel.Opacity = Cur.ParamOn ? 1.0 : 0.55; };
+        refreshers.Add(() =>
+        {
+            cb.IsChecked = Cur.ParamOn; panel.Opacity = Cur.ParamOn ? 1.0 : 0.55;
+            eqView.SetParams(Cur.ParamOn ? Cur.Params : null);
+        });
+        panel.Children.Add(new TextBlock { Text = "気になる周波数をピンポイントで上げ下げします(例: ハム音の削り、声の帯域の強調)。全部を合わせた周波数カーブは、グラフィックのタブに表示されます。", TextWrapping = TextWrapping.Wrap, FontSize = 10.5, Opacity = 0.65, Margin = new Thickness(0, 0, 0, 4) });
+
+        var head = new Grid { Margin = new Thickness(0, 0, 0, 1), Opacity = 0.7 };
+        ParamCols(head);
+        AddHead(head, "周波数", 1); AddHead(head, "ゲイン", 3); AddHead(head, "幅(大きいほど狭い)", 5);
+        panel.Children.Add(head);
+        for (int i = 0; i < ParamBand.Count; i++)
+        {
+            int bi = i;
+            var g = new Grid { Height = 21 };
+            ParamCols(g);
+            g.Children.Add(new TextBlock { Text = ParamBand.Names[i], VerticalAlignment = VerticalAlignment.Center });
+            // 周波数は 20Hz から半音(1/12オクターブ)刻み。0〜120 で 20Hz〜約20kHz
+            ParamSlider(g, 1, 0, 120, 1, c => 12 * Math.Log2(c.Params[bi].Freq / ParamBand.MinHz), (c, v) => c.Params[bi].Freq = ParamBand.MinHz * Math.Pow(2, v / 12),
+                v => { double f = ParamBand.MinHz * Math.Pow(2, v / 12); return f >= 1000 ? $"{f / 1000:0.##} kHz" : $"{f:0} Hz"; }, 12 * Math.Log2(ParamBand.DefaultFreqs[i] / ParamBand.MinHz));
+            ParamSlider(g, 3, -ParamBand.MaxDb, ParamBand.MaxDb, 0.5, c => c.Params[bi].Db, (c, v) => { c.Params[bi].Db = v; if (Math.Abs(v) > 0.01) c.ParamOn = true; }, Db, 0);
+            ParamSlider(g, 5, ParamBand.MinQ, ParamBand.MaxQ, 0.1, c => c.Params[bi].Q, (c, v) => c.Params[bi].Q = v, v => "Q " + v.ToString("0.0", CultureInfo.InvariantCulture), ParamBand.DefaultQ);
+            panel.Children.Add(g);
+        }
+        var rs = new Button { Content = "パラメトリックを初期値に戻す", Padding = new Thickness(10, 2, 10, 2), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 3, 0, 0) };
+        rs.Click += (s, e) => { Edit(c => c.Params = ParamBand.Defaults()); Reload(); };
+        panel.Children.Add(rs);
+    }
+
+    private static void ParamCols(Grid g)
+    {
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) });
+        for (int k = 0; k < 3; k++)
+        {
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(58) });
+        }
+    }
+
+    private static void AddHead(Grid g, string t, int col)
+    {
+        var tb = new TextBlock { Text = t, FontSize = 10.5 }; Grid.SetColumn(tb, col); g.Children.Add(tb);
+    }
+
+    private void ParamSlider(Grid g, int col, double min, double max, double step, Func<EffectSetting, double> get, Action<EffectSetting, double> set, Func<double, string> fmt, double def)
+    {
+        var sl = new Slider { Minimum = min, Maximum = max, SmallChange = step, LargeChange = step * 4, TickFrequency = step, IsSnapToTickEnabled = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) };
+        var val = new TextBlock { TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 };
+        Grid.SetColumn(sl, col); Grid.SetColumn(val, col + 1);
+        g.Children.Add(sl); g.Children.Add(val);
+        sl.ValueChanged += (s, e) =>
+        {
+            val.Text = fmt(sl.Value);
+            if (loading) return;
+            Edit(c => set(c, Math.Round(sl.Value / step) * step));
+            if (paramCheckRefresh != null) paramCheckRefresh();
+        };
+        sl.MouseDoubleClick += (s, e) => sl.Value = Math.Clamp(def, min, max);
+        refreshers.Add(() => { sl.Value = Math.Clamp(get(Cur), min, max); val.Text = fmt(sl.Value); });
+    }
+
+    private Action? paramCheckRefresh;
 
     private static string Db(double v) => (v >= 0 ? "+" : "") + v.ToString("0.0", CultureInfo.InvariantCulture) + " dB";
     private static string Pct(double v) => (v * 100).ToString("0", CultureInfo.InvariantCulture) + " %";
@@ -197,7 +291,7 @@ public sealed class EffectWindow : Window
         if (loading) return;
         apply(Cur); Cur.Normalize();
         changed();
-        if (eqCheck != null) { eqView.SetHpf(Cur.HpfHz); RefreshEqSwitch(); }
+        if (eqCheck != null) { eqView.SetHpf(Cur.HpfHz); eqView.SetParams(Cur.ParamOn ? Cur.Params : null); RefreshEqSwitch(); }
         // 見出しの入力名に付く「かかっています」の表示だけ更新する
         UpdateSlotLabels();
     }
@@ -220,25 +314,30 @@ public sealed class EffectWindow : Window
         finally { loading = false; }
     }
 
-    private StackPanel Section(StackPanel root, string title, Func<EffectSetting, bool> get, Action<EffectSetting, bool> set, Action<CheckBox>? grab = null)
+    private StackPanel Section(StackPanel root, string title, Func<EffectSetting, bool>? get, Action<EffectSetting, bool>? set, Action<CheckBox>? grab = null)
     {
-        var box = new GroupBox { Margin = new Thickness(0, 8, 0, 0), Padding = new Thickness(6, 4, 6, 4) };
+        var box = new GroupBox { Margin = new Thickness(0, 3, 0, 0), Padding = new Thickness(5, 1, 5, 2) };
+        var panel = new StackPanel();
+        box.Content = panel;
+        root.Children.Add(box);
+        if (get == null || set == null)
+        {
+            box.Header = new TextBlock { Text = title, FontWeight = FontWeights.SemiBold };
+            return panel;
+        }
         var cb = new CheckBox { Content = title, FontWeight = FontWeights.SemiBold };
         box.Header = cb;
         grab?.Invoke(cb);
-        var panel = new StackPanel();
-        box.Content = panel;
         cb.Click += (s, e) => { Edit(c => set(c, cb.IsChecked == true)); panel.Opacity = cb.IsChecked == true ? 1.0 : 0.55; if (ReferenceEquals(cb, eqCheck)) eqView.Dimmed = !Cur.EqOn; };
         refreshers.Add(() => { cb.IsChecked = get(Cur); panel.Opacity = get(Cur) ? 1.0 : 0.55; });
-        root.Children.Add(box);
         return panel;
     }
 
     private void AddSlider(StackPanel panel, string label, double min, double max, double step,
         Func<EffectSetting, double> get, Action<EffectSetting, double> set, Func<double, string> fmt, double def)
     {
-        var g = new Grid { Height = 26 };
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+        var g = new Grid { Height = 21 };
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
         var name = new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center };
