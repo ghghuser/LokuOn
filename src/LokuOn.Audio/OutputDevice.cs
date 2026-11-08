@@ -24,7 +24,7 @@ public sealed class OutputDevice : IDisposable
         {
             this.r = r; ch = fmt.Channels; WaveFormat = fmt; bits = fmt.BitsPerSample;
             isFloat = fmt.Encoding == WaveFormatEncoding.IeeeFloat
-                || (fmt is WaveFormatExtensible ex && ex.SubFormat == AudioMediaSubtypes.MEDIASUBTYPE_IEEE_FLOAT);
+                || (fmt is WaveFormatExtensible ex && ex.SubFormat == new Guid("00000003-0000-0010-8000-00aa00389b71"));
         }
         public WaveFormat WaveFormat { get; }
         public static bool Supports(WaveFormat f)
