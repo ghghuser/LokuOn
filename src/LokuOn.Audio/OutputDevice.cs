@@ -1,7 +1,6 @@
 using LokuOn.Core;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
-using NAudio.Wave.SampleProviders;
 
 namespace LokuOn.Audio;
 
@@ -11,20 +10,50 @@ namespace LokuOn.Audio;
 /// </summary>
 public sealed class OutputDevice : IDisposable
 {
-    private sealed class RenderProvider : ISampleProvider
+    /// <summary>
+    /// デバイスが答えた形式(MixFormat)そのままの形で音を渡す。Bluetoothなどは、形式が少しでも違うと
+    /// 「Value does not fall within the expected range」で開けないことがあるため、float 以外(16/24/32bit整数)にも対応する。
+    /// </summary>
+    private sealed class RenderProvider : IWaveProvider
     {
         private readonly OutputRenderer r;
-        private readonly int ch;
+        private readonly int ch, bits;
+        private readonly bool isFloat;
         private float[] scratch = new float[0];
-        public RenderProvider(OutputRenderer r, WaveFormat fmt) { this.r = r; ch = fmt.Channels; WaveFormat = fmt; }
-        public WaveFormat WaveFormat { get; }
-        public int Read(float[] buffer, int offset, int count)
+        public RenderProvider(OutputRenderer r, WaveFormat fmt)
         {
-            // NAudio の SampleToWaveProvider は byte[] を float[] として渡してくるため、Array.Copy/Clear は使えない(型の不一致になる)。
-            // 自前の配列に作ってから、1サンプルずつ書き写す。
-            if (scratch.Length < count) scratch = new float[count];
-            r.Render(scratch, 0, count / ch);
-            for (int i = 0; i < count; i++) buffer[offset + i] = scratch[i];
+            this.r = r; ch = fmt.Channels; WaveFormat = fmt; bits = fmt.BitsPerSample;
+            isFloat = fmt.Encoding == WaveFormatEncoding.IeeeFloat
+                || (fmt is WaveFormatExtensible ex && ex.SubFormat == AudioMediaSubtypes.MEDIASUBTYPE_IEEE_FLOAT);
+        }
+        public WaveFormat WaveFormat { get; }
+        public static bool Supports(WaveFormat f)
+            => f.Encoding == WaveFormatEncoding.IeeeFloat || f.Encoding == WaveFormatEncoding.Pcm || f is WaveFormatExtensible;
+
+        public int Read(byte[] buffer, int offset, int count)
+        {
+            int bytesPer = bits / 8, frameBytes = bytesPer * ch;
+            int frames = count / frameBytes;
+            int samples = frames * ch;
+            if (scratch.Length < samples) scratch = new float[samples];
+            r.Render(scratch, 0, frames);
+            if (isFloat && bits == 32) { Buffer.BlockCopy(scratch, 0, buffer, offset, samples * 4); }
+            else
+            {
+                int o = offset;
+                for (int i = 0; i < samples; i++)
+                {
+                    float v = scratch[i]; if (v > 1f) v = 1f; else if (v < -1f) v = -1f;
+                    switch (bits)
+                    {
+                        case 16: { short x = (short)Math.Round(v * 32767f); buffer[o++] = (byte)x; buffer[o++] = (byte)(x >> 8); break; }
+                        case 24: { int x = (int)Math.Round(v * 8388607f); buffer[o++] = (byte)x; buffer[o++] = (byte)(x >> 8); buffer[o++] = (byte)(x >> 16); break; }
+                        default: { int x = (int)Math.Round(v * 2147483647.0); buffer[o++] = (byte)x; buffer[o++] = (byte)(x >> 8); buffer[o++] = (byte)(x >> 16); buffer[o++] = (byte)(x >> 24); break; }
+                    }
+                }
+            }
+            int used = frames * frameBytes;
+            for (int i = used; i < count; i++) buffer[offset + i] = 0;
             return count;
         }
     }
@@ -47,7 +76,7 @@ public sealed class OutputDevice : IDisposable
     {
         // (イベント駆動, バッファms)
         var attempts = new (bool Event, int Ms)[] { (true, 60), (true, 120), (true, 250), (false, 120), (false, 300) };
-        string last = "";
+        string last = "", fmtText = "不明";
         foreach (var (ev, ms) in attempts)
         {
             MMDevice? d = null; WasapiOut? w = null;
@@ -58,14 +87,16 @@ public sealed class OutputDevice : IDisposable
                 d = id == "default" || id.Length == 0 ? en.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia) : en.GetDevice(id);
                 DeviceName = d.FriendlyName;
                 var mix = d.AudioClient.MixFormat;
-                var fmt = WaveFormat.CreateIeeeFloatWaveFormat(mix.SampleRate, mix.Channels);
+                fmtText = $"{mix.SampleRate}Hz {mix.Channels}ch {mix.BitsPerSample}bit {mix.Encoding}";
+                var fmt = RenderProvider.Supports(mix) && (mix.BitsPerSample is 16 or 24 or 32)
+                    ? mix : WaveFormat.CreateIeeeFloatWaveFormat(mix.SampleRate, mix.Channels);
                 var r = new OutputRenderer(sources, taps, fmt.SampleRate, fmt.Channels);
                 w = new WasapiOut(d, AudioClientShareMode.Shared, ev, ms);
                 w.PlaybackStopped += (s, e) =>
                 {
                     if (e.Exception != null) { LastError = e.Exception.Message; Failed = true; }
                 };
-                w.Init(new SampleToWaveProvider(new RenderProvider(r, fmt)));
+                w.Init(new RenderProvider(r, fmt));
                 w.Play();
                 Renderer = r; wo = w; dev = d;
                 Failed = false; LastError = "";
@@ -73,7 +104,7 @@ public sealed class OutputDevice : IDisposable
             }
             catch (Exception ex)
             {
-                last = $"{ex.Message} (0x{ex.HResult:X8}, {(ev ? "イベント" : "ポーリング")} {ms}ms)";
+                last = $"{ex.Message} (0x{ex.HResult:X8} / デバイスの形式: {fmtText} / {(ev ? "イベント駆動" : "ポーリング")}・バッファ{ms}ms)";
                 try { w?.Dispose(); } catch { }
                 try { d?.Dispose(); } catch { }
             }
