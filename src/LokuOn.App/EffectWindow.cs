@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using LokuOn.Core;
@@ -33,7 +34,7 @@ public sealed class EffectWindow : Window
     {
         this.fx = fx; this.readPreset = readPreset; this.changed = changed;
         Title = "LokuOn - エフェクト";
-        Width = 440; SizeToContent = SizeToContent.Height; MaxHeight = 760;
+        Width = 480; SizeToContent = SizeToContent.Height; MaxHeight = 760;
         ResizeMode = ResizeMode.CanMinimize;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         FontFamily = new FontFamily("Yu Gothic UI, Meiryo UI, Segoe UI");
@@ -61,14 +62,21 @@ public sealed class EffectWindow : Window
 
         // イコライザ
         var eq = Section(root, "イコライザ", c => c.EqOn, (c, v) => c.EqOn = v);
-        AddSlider(eq, "ローカット", 0, 400, 5, c => c.HpfHz, (c, v) => c.HpfHz = v < 20 ? 0 : v, v => v < 20 ? "なし" : $"{v:0} Hz", 0);
-        AddSlider(eq, "低域", -15, 15, 0.5, c => c.LowDb, (c, v) => c.LowDb = v, Db, 0);
-        AddSlider(eq, "　低域の位置", 40, 400, 5, c => c.LowHz, (c, v) => c.LowHz = v, v => $"{v:0} Hz", 120);
-        AddSlider(eq, "中域", -15, 15, 0.5, c => c.MidDb, (c, v) => c.MidDb = v, Db, 0);
-        AddSlider(eq, "　中域の位置", 200, 5000, 50, c => c.MidHz, (c, v) => c.MidHz = v, v => $"{v:0} Hz", 1000);
-        AddSlider(eq, "　中域の幅(Q)", 0.3, 4, 0.1, c => c.MidQ, (c, v) => c.MidQ = v, v => v.ToString("0.0", CultureInfo.InvariantCulture), 1.0);
-        AddSlider(eq, "高域", -15, 15, 0.5, c => c.HighDb, (c, v) => c.HighDb = v, Db, 0);
-        AddSlider(eq, "　高域の位置", 2000, 12000, 100, c => c.HighHz, (c, v) => c.HighHz = v, v => $"{v:0} Hz", 6000);
+        // 4つの帯域を横に並べる(縦のスライダー=上げ下げ。位置・幅は下の小さなスライダー)
+        var bands = new UniformGrid { Columns = 4, Margin = new Thickness(0, 2, 0, 0) };
+        var cHpf = BandColumn(bands, "ローカット");
+        AddVSlider(cHpf, 0, 400, 5, c => c.HpfHz, (c, v) => c.HpfHz = v < 20 ? 0 : v, v => v < 20 ? "なし" : $"{v:0} Hz", 0);
+        var cLow = BandColumn(bands, "低域");
+        AddVSlider(cLow, -15, 15, 0.5, c => c.LowDb, (c, v) => c.LowDb = v, Db, 0);
+        AddMini(cLow, "位置", 40, 400, 5, c => c.LowHz, (c, v) => c.LowHz = v, v => $"{v:0} Hz", 120);
+        var cMid = BandColumn(bands, "中域");
+        AddVSlider(cMid, -15, 15, 0.5, c => c.MidDb, (c, v) => c.MidDb = v, Db, 0);
+        AddMini(cMid, "位置", 200, 5000, 50, c => c.MidHz, (c, v) => c.MidHz = v, v => $"{v:0} Hz", 1000);
+        AddMini(cMid, "幅(Q)", 0.3, 4, 0.1, c => c.MidQ, (c, v) => c.MidQ = v, v => v.ToString("0.0", CultureInfo.InvariantCulture), 1.0);
+        var cHigh = BandColumn(bands, "高域");
+        AddVSlider(cHigh, -15, 15, 0.5, c => c.HighDb, (c, v) => c.HighDb = v, Db, 0);
+        AddMini(cHigh, "位置", 2000, 12000, 100, c => c.HighHz, (c, v) => c.HighHz = v, v => $"{v:0} Hz", 6000);
+        eq.Children.Add(bands);
 
         // エコー
         var echo = Section(root, "エコー", c => c.EchoOn, (c, v) => c.EchoOn = v);
@@ -185,6 +193,54 @@ public sealed class EffectWindow : Window
         refreshers.Add(() => { cb.IsChecked = get(Cur); panel.Opacity = get(Cur) ? 1.0 : 0.55; });
         root.Children.Add(box);
         return panel;
+    }
+
+    private static StackPanel BandColumn(UniformGrid grid, string title)
+    {
+        var col = new StackPanel { Margin = new Thickness(4, 0, 4, 0), HorizontalAlignment = HorizontalAlignment.Stretch };
+        col.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 2) });
+        grid.Children.Add(col);
+        return col;
+    }
+
+    /// <summary>縦のスライダー(上がプラス)。値は下に表示。ダブルクリックで初期値。</summary>
+    private void AddVSlider(StackPanel col, double min, double max, double step,
+        Func<EffectSetting, double> get, Action<EffectSetting, double> set, Func<double, string> fmt, double def)
+    {
+        var sl = new Slider
+        {
+            Orientation = Orientation.Vertical, Minimum = min, Maximum = max, Height = 120, HorizontalAlignment = HorizontalAlignment.Center,
+            SmallChange = step, LargeChange = step * 4, TickFrequency = step, IsSnapToTickEnabled = true,
+        };
+        var val = new TextBlock { TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 2, 0, 4) };
+        col.Children.Add(sl); col.Children.Add(val);
+        Bind(sl, val, min, max, step, get, set, fmt, def);
+    }
+
+    /// <summary>位置・幅などの小さな横スライダー(帯域の下に付ける)。</summary>
+    private void AddMini(StackPanel col, string label, double min, double max, double step,
+        Func<EffectSetting, double> get, Action<EffectSetting, double> set, Func<double, string> fmt, double def)
+    {
+        var head = new Grid();
+        head.Children.Add(new TextBlock { Text = label, Opacity = 0.75, FontSize = 11 });
+        var val = new TextBlock { HorizontalAlignment = HorizontalAlignment.Right, FontSize = 11 };
+        head.Children.Add(val);
+        var sl = new Slider { Minimum = min, Maximum = max, SmallChange = step, LargeChange = step * 4, TickFrequency = step, IsSnapToTickEnabled = true, Margin = new Thickness(0, 0, 0, 2) };
+        col.Children.Add(head); col.Children.Add(sl);
+        Bind(sl, val, min, max, step, get, set, fmt, def);
+    }
+
+    private void Bind(Slider sl, TextBlock val, double min, double max, double step,
+        Func<EffectSetting, double> get, Action<EffectSetting, double> set, Func<double, string> fmt, double def)
+    {
+        sl.ValueChanged += (s, e) =>
+        {
+            val.Text = fmt(sl.Value);
+            if (loading) return;
+            Edit(c => set(c, Math.Round(sl.Value / step) * step));
+        };
+        sl.MouseDoubleClick += (s, e) => sl.Value = Math.Clamp(def, min, max);
+        refreshers.Add(() => { sl.Value = Math.Clamp(get(Cur), min, max); val.Text = fmt(sl.Value); });
     }
 
     private void AddSlider(StackPanel panel, string label, double min, double max, double step,
