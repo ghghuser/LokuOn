@@ -17,6 +17,7 @@ public sealed class GraphicEqControl : Control
     private static readonly Typeface Face = new("Yu Gothic UI, Meiryo UI, Segoe UI");
 
     private double[] bands = new double[EqBands.Count];
+    private double hpfHz;
     private int dragBand = -1;
     private int hoverBand = -1;
 
@@ -43,6 +44,9 @@ public sealed class GraphicEqControl : Control
         for (int i = 0; i < bands.Length; i++) bands[i] = i < v.Length ? Math.Clamp(v[i], -EqBands.MaxDb, EqBands.MaxDb) : 0;
         InvalidateVisual();
     }
+
+    /// <summary>ローカットの周波数(0=なし)。カーブに反映する。</summary>
+    public void SetHpf(double hz) { hpfHz = hz; InvalidateVisual(); }
 
     public double[] GetBands() => (double[])bands.Clone();
 
@@ -89,7 +93,7 @@ public sealed class GraphicEqControl : Control
         {
             double pos = -0.5 + (EqBands.Count) * (double)k / n;       // 帯域の番号(連続値)
             double hz = EqBands.Freqs[0] * Math.Pow(2, pos);
-            double db = Math.Clamp(EqMath.ResponseDb(bands, hz), -EqBands.MaxDb * 1.2, EqBands.MaxDb * 1.2);
+            double db = Math.Clamp(EqMath.ResponseDb(bands, hz, 48000, hpfHz), -EqBands.MaxDb * 1.2, EqBands.MaxDb * 1.2);
             pts[k] = new Point(LeftW + pos * ColW + 0.5 * ColW, Math.Clamp(YOf(db), TopH - 4, TopH + PlotH + 4));
         }
         var curve = new StreamGeometry();

@@ -26,6 +26,8 @@ static class EffectTests
 
     static EffectSetting WithFx(EffectSetting e) { e.EchoOn = true; e.ReverbOn = true; e.Bypass = true; return e; }
 
+    static EffectSetting Normalized(EffectSetting e) { e.Normalize(); return e; }
+
     static EffectSetting Eq(params (int Band, double Db)[] bs)
     {
         var e = new EffectSetting { EqOn = true };
@@ -80,6 +82,18 @@ static class EffectTests
                 if (off > 48000) for (int j = 0; j < buf.Length; j++) { si += cp[j] * cp[j]; so += buf[j] * buf[j]; }
             }
             check(Math.Abs(10 * Math.Log10(so / si) + 12) < 1.0, "96kHzでも16kHz帯域が効く", $"{10 * Math.Log10(so / si):F1}");
+            // ローカット
+            double h50 = ToneGainDb(new EffectSetting { EqOn = true, HpfHz = 200 }, 50);
+            double h200 = ToneGainDb(new EffectSetting { EqOn = true, HpfHz = 200 }, 200);
+            double h2k = ToneGainDb(new EffectSetting { EqOn = true, HpfHz = 200 }, 2000);
+            check(h50 < -20 && Math.Abs(h200 + 3) < 1.0 && Math.Abs(h2k) < 0.3, "ローカット200Hz: 50Hzは大きく減り、200Hzは-3dB、2kHzは変わらない", $"{h50:F1} / {h200:F1} / {h2k:F2}");
+            var hm = new EffectSetting { EqOn = true, HpfHz = 120, Bands = new double[] { 0, 0, 3, 0, 0, 4, 0, 0, 0, -3 } };
+            foreach (double hz in new[] { 60.0, 120, 300, 1000, 12000 })
+            {
+                double meas = ToneGainDb(hm, hz), calc = EqMath.ResponseDb(hm.Bands, hz, 48000, 120);
+                check(Math.Abs(meas - calc) < 0.4, $"ローカットを含むカーブの計算が実際の音と一致 {hz}Hz", $"{meas:F2} vs {calc:F2}");
+            }
+            check(new EffectSetting { EqOn = true, HpfHz = 5 }.Clone() is var cn && Normalized(cn).HpfHz == 0 && Normalized(new EffectSetting { HpfHz = 9999 }).HpfHz == 400, "ローカットの範囲: 20未満=なし、最大400");
             // 帯域の設定の途中変更
             var live = new EffectChain(SR, 2); live.Update(Eq((5, 6)));
             var lb = new float[960]; for (int i = 0; i < lb.Length; i++) lb[i] = 0.1f;
@@ -143,12 +157,12 @@ static class EffectTests
         {
             var tmp = Path.Combine(Path.GetTempPath(), "lokuon-fx-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(tmp);
             var p = new Preset();
-            p.Effects[1] = new EffectSetting { EqOn = true, Bands = new double[] { 3.5, 0, -4, 1.5, 0, 0, 2, 0, -6, 12 }, EchoOn = true, EchoMs = 420, EchoFeedback = 0.5, EchoMix = 0.4, ReverbOn = true, ReverbRoom = 0.8, ToRecording = true, ToOutput = false, Bypass = true };
+            p.Effects[1] = new EffectSetting { EqOn = true, HpfHz = 85, Bands = new double[] { 3.5, 0, -4, 1.5, 0, 0, 2, 0, -6, 12 }, EchoOn = true, EchoMs = 420, EchoFeedback = 0.5, EchoMix = 0.4, ReverbOn = true, ReverbRoom = 0.8, ToRecording = true, ToOutput = false, Bypass = true };
             string ini = Path.Combine(tmp, "a.ini");
             SettingsStore.Save(ini, new AppSettings { Current = p });
             string text = File.ReadAllText(ini);
             var r = SettingsStore.Load(ini).Current.Effects;
-            check(r[1].SameSound(p.Effects[1]) && r[1].ToRecording && !r[1].ToOutput, "エフェクト設定がiniに保存・復元される");
+            check(r[1].HpfHz == 85 && r[1].SameSound(p.Effects[1]) && r[1].ToRecording && !r[1].ToOutput, "エフェクト設定がiniに保存・復元される");
             check(r[0].IsDefault && r[2].IsDefault && !text.Contains("Fx1EqOn"), "初期値のままの入力はiniに書かない");
             PresetStore.Save(tmp, new Preset { Name = "fx", Effects = p.Effects });
             var lp = PresetStore.LoadAll(tmp, out _).First(x => x.Name == "fx");

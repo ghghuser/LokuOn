@@ -13,6 +13,8 @@ public sealed class EffectSetting
 
     // ---- イコライザ(10バンドのグラフィックEQ。31Hz〜16kHz、各±12dB)
     public bool EqOn { get; set; }
+    /// <summary>ローカット(Hz)。この周波数より低い音を削る(12dB/oct)。0=なし、20〜400。イコライザの前にかかる。</summary>
+    public double HpfHz { get; set; } = 0;
     /// <summary>10個の帯域のゲイン(dB)。EqBands.Freqs の順。</summary>
     public double[] Bands { get; set; } = new double[EqBands.Count];
 
@@ -45,6 +47,7 @@ public sealed class EffectSetting
 
     public void Normalize()
     {
+        HpfHz = double.IsFinite(HpfHz) && HpfHz >= 20 ? Math.Clamp(HpfHz, 20, 400) : 0;
         var bd = new double[EqBands.Count];
         for (int i = 0; i < bd.Length; i++) bd[i] = Bands != null && i < Bands.Length ? C(Bands[i], -EqBands.MaxDb, EqBands.MaxDb, 0) : 0;
         Bands = bd;
@@ -61,6 +64,7 @@ public sealed class EffectSetting
         s.Set(prefix + "Bypass", Bypass, C("入力ごとのエフェクト。Bypass=すべてバイパス / ToRecording=録音に反映 / ToOutput=出力に反映"));
         s.Set(prefix + "ToRecording", ToRecording); s.Set(prefix + "ToOutput", ToOutput);
         s.Set(prefix + "EqOn", EqOn);
+        s.Set(prefix + "HpfHz", HpfHz, C("ローカット(Hz、0=なし)"));
         s.Set(prefix + "EqBands", string.Join(",", (Bands ?? new double[EqBands.Count]).Select(v => v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))),
             C("イコライザ 31/62/125/250/500/1k/2k/4k/8k/16kHz のゲイン(dB、±12)"));
         s.Set(prefix + "EchoOn", EchoOn); s.Set(prefix + "EchoMs", EchoMs); s.Set(prefix + "EchoFeedback", EchoFeedback); s.Set(prefix + "EchoMix", EchoMix);
@@ -73,7 +77,7 @@ public sealed class EffectSetting
         var e = new EffectSetting
         {
             Bypass = s.GetBool(prefix + "Bypass", d.Bypass), ToRecording = s.GetBool(prefix + "ToRecording", d.ToRecording), ToOutput = s.GetBool(prefix + "ToOutput", d.ToOutput),
-            EqOn = s.GetBool(prefix + "EqOn", d.EqOn),
+            EqOn = s.GetBool(prefix + "EqOn", d.EqOn), HpfHz = s.GetDouble(prefix + "HpfHz", d.HpfHz),
             EchoOn = s.GetBool(prefix + "EchoOn", d.EchoOn), EchoMs = s.GetDouble(prefix + "EchoMs", d.EchoMs),
             EchoFeedback = s.GetDouble(prefix + "EchoFeedback", d.EchoFeedback), EchoMix = s.GetDouble(prefix + "EchoMix", d.EchoMix),
             ReverbOn = s.GetBool(prefix + "ReverbOn", d.ReverbOn), ReverbRoom = s.GetDouble(prefix + "ReverbRoom", d.ReverbRoom),
@@ -96,7 +100,7 @@ public sealed class EffectSetting
 
     /// <summary>効果の中身(オン/オフと数値)が同じか。録音・出力への反映先の設定は比べない。</summary>
     public bool SameSound(EffectSetting o) =>
-        Bypass == o.Bypass && EqOn == o.EqOn && SameBands(o) && EchoOn == o.EchoOn && EchoMs == o.EchoMs && EchoFeedback == o.EchoFeedback
+        Bypass == o.Bypass && EqOn == o.EqOn && HpfHz == o.HpfHz && SameBands(o) && EchoOn == o.EchoOn && EchoMs == o.EchoMs && EchoFeedback == o.EchoFeedback
         && EchoMix == o.EchoMix && ReverbOn == o.ReverbOn && ReverbRoom == o.ReverbRoom && ReverbDamp == o.ReverbDamp && ReverbMix == o.ReverbMix;
 }
 
@@ -118,6 +122,8 @@ public sealed class EffectChain
         public double[] Z1 = Array.Empty<double>(), Z2 = Array.Empty<double>();
     }
     private readonly Bq[] bands = Enumerable.Range(0, EqBands.Count).Select(_ => new Bq()).ToArray();
+    private readonly Bq hpfBq = new();
+    private readonly Bq[] eqAll;    // ローカット → 10バンド の順
     private bool eqWasOn;
 
     // --- エコー
@@ -140,6 +146,7 @@ public sealed class EffectChain
     public EffectChain(int sampleRate, int channels)
     {
         sr = sampleRate; ch = Math.Max(1, channels);
+        eqAll = new[] { hpfBq }.Concat(bands).ToArray();
     }
 
     /// <summary>設定を渡す(コピーして持つ。次の Process から反映)。</summary>
@@ -167,7 +174,7 @@ public sealed class EffectChain
 
     private void ResetStates()
     {
-        foreach (var b in bands) { Array.Clear(b.Z1); Array.Clear(b.Z2); }
+        foreach (var b in eqAll) { Array.Clear(b.Z1); Array.Clear(b.Z2); }
         echo = null; combs = null; allpasses = null; echoWasOn = revWasOn = eqWasOn = false;
     }
 
@@ -179,7 +186,13 @@ public sealed class EffectChain
         eqOnNow = s.EqOn;
         if (s.EqOn)
         {
-            if (!eqWasOn) { foreach (var b in bands) { b.Z1 = new double[ch]; b.Z2 = new double[ch]; } }
+            if (!eqWasOn) { foreach (var b in eqAll) { b.Z1 = new double[ch]; b.Z2 = new double[ch]; } }
+            hpfBq.On = s.HpfHz >= 20;
+            if (hpfBq.On)
+            {
+                var (h0, h1, h2, ha1, ha2) = EqMath.HighPass(sr, s.HpfHz);
+                hpfBq.B0 = h0; hpfBq.B1 = h1; hpfBq.B2 = h2; hpfBq.A1 = ha1; hpfBq.A2 = ha2;
+            }
             for (int i = 0; i < bands.Length; i++)
             {
                 double db = s.Bands[i];
@@ -235,7 +248,7 @@ public sealed class EffectChain
 
     private void ProcessEq(float[] buf, int frames)
     {
-        foreach (var b in bands)
+        foreach (var b in eqAll)
         {
             if (!b.On) continue;
             double b0 = b.B0, b1 = b.B1, b2 = b.B2, a1 = b.A1, a2 = b.A2;
@@ -348,10 +361,26 @@ public static class EqMath
         return ((1 + al * A) / a0, -2 * cs / a0, (1 - al * A) / a0, -2 * cs / a0, (1 - al / A) / a0);
     }
 
-    /// <summary>10バンドを全部通したときの、周波数 hz での音量変化(dB)。画面のカーブ表示用。</summary>
-    public static double ResponseDb(double[] bands, double hz, int sr = 48000)
+    /// <summary>ローカット(2次のバターワース相当)の係数 (b0, b1, b2, a1, a2)。</summary>
+    public static (double, double, double, double, double) HighPass(int sr, double f)
+    {
+        double w = 2 * Math.PI * Math.Min(f, sr * 0.45) / sr, cs = Math.Cos(w), al = Math.Sin(w) / (2 * 0.7071);
+        double a0 = 1 + al;
+        return ((1 + cs) / 2 / a0, -(1 + cs) / a0, (1 + cs) / 2 / a0, -2 * cs / a0, (1 - al) / a0);
+    }
+
+    private static double MagDb(double b0, double b1, double b2, double a1, double a2, double c1, double c2)
+    {
+        double num = b0 * b0 + b1 * b1 + b2 * b2 + 2 * (b0 * b1 + b1 * b2) * c1 + 2 * b0 * b2 * c2;
+        double den = 1 + a1 * a1 + a2 * a2 + 2 * (a1 + a1 * a2) * c1 + 2 * a2 * c2;
+        return 10 * Math.Log10(Math.Max(1e-12, num / den));
+    }
+
+    /// <summary>ローカットと10バンドを全部通したときの、周波数 hz での音量変化(dB)。画面のカーブ表示用。hpfHz は 0=なし。</summary>
+    public static double ResponseDb(double[] bands, double hz, int sr = 48000, double hpfHz = 0)
     {
         double total = 0, w = 2 * Math.PI * hz / sr, c1 = Math.Cos(w), c2 = Math.Cos(2 * w);
+        if (hpfHz >= 20) { var (h0, h1, h2, ha1, ha2) = HighPass(sr, hpfHz); total += MagDb(h0, h1, h2, ha1, ha2, c1, c2); }
         for (int i = 0; i < EqBands.Count && i < bands.Length; i++)
         {
             if (Math.Abs(bands[i]) <= 0.01) continue;

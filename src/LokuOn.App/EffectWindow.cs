@@ -92,6 +92,10 @@ public sealed class EffectWindow : Window
             RefreshEqSwitch();
         };
         refreshers.Add(() => { eqView.SetBands(Cur.Bands); eqView.Dimmed = !Cur.EqOn; presetBox.SelectedIndex = MatchPreset(Cur.Bands); });
+        AddSlider(eq, "ローカット", 0, 400, 5, c => c.HpfHz, (c, v) => { c.HpfHz = v < 20 ? 0 : v; if (c.HpfHz > 0) c.EqOn = true; },
+            v => v < 20 ? "なし" : $"{v:0} Hz", 0);
+        refreshers.Add(() => eqView.SetHpf(Cur.HpfHz));
+
 
         // エコー
         var echo = Section(root, "エコー", c => c.EchoOn, (c, v) => c.EchoOn = v);
@@ -193,6 +197,7 @@ public sealed class EffectWindow : Window
         if (loading) return;
         apply(Cur); Cur.Normalize();
         changed();
+        if (eqCheck != null) { eqView.SetHpf(Cur.HpfHz); RefreshEqSwitch(); }
         // 見出しの入力名に付く「かかっています」の表示だけ更新する
         UpdateSlotLabels();
     }
