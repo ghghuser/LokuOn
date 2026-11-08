@@ -1,6 +1,8 @@
 using LokuOn.Core;
 
 /// <summary>エフェクト(イコライザ・エコー・リバーブ)の計算のテスト。</summary>
+static class EffectTestsExt { }
+
 static class EffectTests
 {
     const int SR = 48000;
@@ -22,6 +24,15 @@ static class EffectTests
         return 10 * Math.Log10(sumOut / sumIn);
     }
 
+    static EffectSetting WithFx(EffectSetting e) { e.EchoOn = true; e.ReverbOn = true; e.Bypass = true; return e; }
+
+    static EffectSetting Eq(params (int Band, double Db)[] bs)
+    {
+        var e = new EffectSetting { EqOn = true };
+        foreach (var (b, db) in bs) e.Bands[b] = db;
+        return e;
+    }
+
     public static void Run(CheckFn check, Action<string> section)
     {
         section("エフェクト(イコライザ・エコー・リバーブ)");
@@ -29,7 +40,7 @@ static class EffectTests
         // 何もかけない/バイパスは、配列に触れない(ビット一致)
         {
             var src = new float[960]; var rnd = new Random(1); for (int i = 0; i < src.Length; i++) src[i] = (float)(rnd.NextDouble() * 2 - 1);
-            foreach (var s in new[] { new EffectSetting(), new EffectSetting { EqOn = true, LowDb = 9, EchoOn = true, ReverbOn = true, Bypass = true } })
+            foreach (var s in new[] { new EffectSetting(), WithFx(Eq((1, 9))) })
             {
                 var chain = new EffectChain(SR, 2); chain.Update(s);
                 var b = (float[])src.Clone(); chain.Process(b, 480);
@@ -38,35 +49,46 @@ static class EffectTests
             check(!new EffectSetting().IsActive && new EffectSetting { EqOn = true, Bypass = true }.HasAny && !new EffectSetting { EqOn = true, Bypass = true }.IsActive, "IsActive/HasAny");
         }
 
-        // イコライザ
+        // イコライザ(10バンド)
         {
-            double g0 = ToneGainDb(new EffectSetting { EqOn = true }, 1000);
-            check(Math.Abs(g0) < 0.05, "EQオンでも設定が0dBなら変わらない", $"{g0:F2}");
-            double lo = ToneGainDb(new EffectSetting { EqOn = true, LowDb = 12, LowHz = 120 }, 40);
-            double loHi = ToneGainDb(new EffectSetting { EqOn = true, LowDb = 12, LowHz = 120 }, 4000);
-            check(lo > 9 && lo < 13 && Math.Abs(loHi) < 0.5, "低域+12dB: 低い音が上がり、高い音は変わらない", $"{lo:F1} / {loHi:F2}");
-            double hi = ToneGainDb(new EffectSetting { EqOn = true, HighDb = -12, HighHz = 6000 }, 12000);
-            double hiLo = ToneGainDb(new EffectSetting { EqOn = true, HighDb = -12, HighHz = 6000 }, 300);
-            check(hi < -9 && hi > -13 && Math.Abs(hiLo) < 0.5, "高域-12dB", $"{hi:F1} / {hiLo:F2}");
-            double pk = ToneGainDb(new EffectSetting { EqOn = true, MidDb = 9, MidHz = 1000, MidQ = 1 }, 1000);
-            double pkOff = ToneGainDb(new EffectSetting { EqOn = true, MidDb = 9, MidHz = 1000, MidQ = 1 }, 100);
-            check(Math.Abs(pk - 9) < 0.5 && Math.Abs(pkOff) < 1.5, "中域+9dB(中心で+9、離れると変わらない)", $"{pk:F2} / {pkOff:F2}");
-            double h50 = ToneGainDb(new EffectSetting { EqOn = true, HpfHz = 200 }, 50);
-            double h2k = ToneGainDb(new EffectSetting { EqOn = true, HpfHz = 200 }, 2000);
-            check(h50 < -20 && Math.Abs(h2k) < 0.3, "ローカット200Hz: 50Hzは大きく減り、2kHzは変わらない", $"{h50:F1} / {h2k:F2}");
-            double mono = ToneGainDb(new EffectSetting { EqOn = true, MidDb = 9 }, 1000, 1);
+            double g0 = ToneGainDb(Eq(), 1000);
+            check(Math.Abs(g0) < 0.05, "EQオンでも全帯域0dBなら変わらない", $"{g0:F2}");
+            double b1k = ToneGainDb(Eq((5, 9)), 1000);
+            double b1kFar = ToneGainDb(Eq((5, 9)), 100);
+            double b1kFar2 = ToneGainDb(Eq((5, 9)), 10000);
+            check(Math.Abs(b1k - 9) < 0.5 && Math.Abs(b1kFar) < 1.0 && Math.Abs(b1kFar2) < 1.0, "1kHz帯域+9dB: 中心で+9、遠い音はほぼ変わらない", $"{b1k:F2} / {b1kFar:F2} / {b1kFar2:F2}");
+            double b31 = ToneGainDb(Eq((0, 12)), 31.25);
+            check(Math.Abs(b31 - 12) < 1.0, "31Hz帯域+12dB", $"{b31:F2}");
+            double b16 = ToneGainDb(Eq((9, -12)), 16000);
+            check(Math.Abs(b16 + 12) < 1.0, "16kHz帯域-12dB", $"{b16:F2}");
+            // 複数帯域: 画面のカーブ(計算)と実際の音が一致する
+            var multi = Eq((1, 6), (3, -4), (6, 5), (8, -7));
+            foreach (double hz in new[] { 62.5, 150, 250, 1000, 2000, 5000, 8000 })
+            {
+                double meas = ToneGainDb(multi, hz), calc = EqMath.ResponseDb(multi.Bands, hz);
+                check(Math.Abs(meas - calc) < 0.4, $"カーブ表示の計算が実際の音と一致 {hz}Hz", $"{meas:F2} vs {calc:F2}");
+            }
+            double mono = ToneGainDb(Eq((5, 9)), 1000, 1);
             check(Math.Abs(mono - 9) < 0.5, "モノラルでも同じ", $"{mono:F2}");
-            double rate = ToneGainDb(new EffectSetting { EqOn = true, LowDb = 12 }, 40);
             // 96kHz でも同様に動く
-            var chain = new EffectChain(96000, 2); chain.Update(new EffectSetting { EqOn = true, HighDb = -12, HighHz = 6000 });
+            var chain = new EffectChain(96000, 2); chain.Update(Eq((9, -12)));
             var buf = new float[960 * 2]; double si = 0, so = 0;
             for (int off = 0; off < 96000; off += 960)
             {
-                for (int f = 0; f < 960; f++) { float v = (float)(0.1 * Math.Sin(2 * Math.PI * 20000 * (off + f) / 96000.0)); buf[f * 2] = v; buf[f * 2 + 1] = v; }
+                for (int f = 0; f < 960; f++) { float v = (float)(0.1 * Math.Sin(2 * Math.PI * 16000 * (off + f) / 96000.0)); buf[f * 2] = v; buf[f * 2 + 1] = v; }
                 var cp = (float[])buf.Clone(); chain.Process(buf, 960);
                 if (off > 48000) for (int j = 0; j < buf.Length; j++) { si += cp[j] * cp[j]; so += buf[j] * buf[j]; }
             }
-            check(10 * Math.Log10(so / si) < -9, "96kHzでも高域カットが効く", $"{10 * Math.Log10(so / si):F1}");
+            check(Math.Abs(10 * Math.Log10(so / si) + 12) < 1.0, "96kHzでも16kHz帯域が効く", $"{10 * Math.Log10(so / si):F1}");
+            // 帯域の設定の途中変更
+            var live = new EffectChain(SR, 2); live.Update(Eq((5, 6)));
+            var lb = new float[960]; for (int i = 0; i < lb.Length; i++) lb[i] = 0.1f;
+            for (int k = 0; k < 10; k++) live.Process(lb, 480);
+            live.Update(Eq((5, -6)));
+            for (int k = 0; k < 10; k++) live.Process(lb, 480);
+            check(lb.All(float.IsFinite), "帯域の設定を途中で変えても壊れない");
+            // 初期設定の一覧
+            check(EqBands.Presets.All(p => p.Db.Length == EqBands.Count && p.Db.All(v => Math.Abs(v) <= EqBands.MaxDb)) && EqBands.Presets[0].Db.All(v => v == 0), "EQの初期設定の一覧は範囲内で、先頭はフラット");
         }
 
         // エコー
@@ -93,7 +115,7 @@ static class EffectTests
             check(E(4.0, 6.0) < E(0.5, 1.5) * 0.2, "リバーブ: 時間とともに減衰する");
             check(buf.All(float.IsFinite), "リバーブ: 値がおかしくならない");
             // 大きな雑音を長く入れても発散しない
-            var c2 = new EffectChain(SR, 2); c2.Update(new EffectSetting { EqOn = true, LowDb = 15, HighDb = 15, MidDb = 15, EchoOn = true, EchoFeedback = 0.9, EchoMix = 1, ReverbOn = true, ReverbRoom = 1, ReverbDamp = 0, ReverbMix = 1 });
+            var c2 = new EffectChain(SR, 2); c2.Update(new EffectSetting { EqOn = true, Bands = new double[] { 12, 12, 12, 12, 12, 12, 12, 12, 12, 12 }, EchoOn = true, EchoFeedback = 0.9, EchoMix = 1, ReverbOn = true, ReverbRoom = 1, ReverbDamp = 0, ReverbMix = 1 });
             var rnd = new Random(3); var nb = new float[960]; float mx = 0; bool fin = true;
             for (int k = 0; k < 1000; k++)
             {
@@ -121,7 +143,7 @@ static class EffectTests
         {
             var tmp = Path.Combine(Path.GetTempPath(), "lokuon-fx-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(tmp);
             var p = new Preset();
-            p.Effects[1] = new EffectSetting { EqOn = true, HpfHz = 100, LowDb = 3.5, MidDb = -4, MidHz = 2500, MidQ = 2, EchoOn = true, EchoMs = 420, EchoFeedback = 0.5, EchoMix = 0.4, ReverbOn = true, ReverbRoom = 0.8, ToRecording = true, ToOutput = false, Bypass = true };
+            p.Effects[1] = new EffectSetting { EqOn = true, Bands = new double[] { 3.5, 0, -4, 1.5, 0, 0, 2, 0, -6, 12 }, EchoOn = true, EchoMs = 420, EchoFeedback = 0.5, EchoMix = 0.4, ReverbOn = true, ReverbRoom = 0.8, ToRecording = true, ToOutput = false, Bypass = true };
             string ini = Path.Combine(tmp, "a.ini");
             SettingsStore.Save(ini, new AppSettings { Current = p });
             string text = File.ReadAllText(ini);
@@ -131,8 +153,8 @@ static class EffectTests
             PresetStore.Save(tmp, new Preset { Name = "fx", Effects = p.Effects });
             var lp = PresetStore.LoadAll(tmp, out _).First(x => x.Name == "fx");
             check(lp.Effects[1].SameSound(p.Effects[1]) && lp.Effects[0].IsDefault, "エフェクト設定がプリセットのJSONに入る");
-            var cl = lp.Clone(); cl.Effects[1].LowDb = -9;
-            check(lp.Effects[1].LowDb == 3.5, "Cloneはエフェクトも別物にコピーする");
+            var cl = lp.Clone(); cl.Effects[1].Bands[0] = -9;
+            check(lp.Effects[1].Bands[0] == 3.5, "Cloneはエフェクトも別物にコピーする");
             File.WriteAllText(Path.Combine(tmp, "旧.json"), "{ \"Format\": \"Mp3\" }");
             var oldp = PresetStore.LoadAll(tmp, out _).First(x => x.Name == "旧");
             check(oldp.Effects.Length == 4 && oldp.Effects.All(e => e.IsDefault), "エフェクトの項目がない旧プリセットは「かけない」で読める");
@@ -162,9 +184,9 @@ static class EffectTests
 
         // 設定の保存・正規化
         {
-            var e = new EffectSetting { EqOn = true, HpfHz = 5000, LowDb = 99, MidQ = double.NaN, EchoOn = true, EchoMs = 5, EchoFeedback = 5, ReverbOn = true, ReverbMix = -1, ToRecording = true, ToOutput = false };
+            var e = new EffectSetting { EqOn = true, Bands = new double[] { 99, -99, double.NaN, 1 }, EchoOn = true, EchoMs = 5, EchoFeedback = 5, ReverbOn = true, ReverbMix = -1, ToRecording = true, ToOutput = false };
             e.Normalize();
-            check(e.HpfHz == 400 && e.LowDb == 15 && e.MidQ == 1.0 && e.EchoMs == 20 && e.EchoFeedback == 0.9 && e.ReverbMix == 0, "範囲外の値は使える値に直る");
+            check(e.Bands.Length == 10 && e.Bands[0] == 12 && e.Bands[1] == -12 && e.Bands[2] == 0 && e.Bands[3] == 1 && e.Bands[9] == 0 && e.EchoMs == 20 && e.EchoFeedback == 0.9 && e.ReverbMix == 0, "範囲外の値は使える値に直る");
             var d = new EffectSetting();
             check(!d.ToRecording && d.ToOutput, "既定: 録音は素の音(エフェクトなし)、出力には反映");
         }

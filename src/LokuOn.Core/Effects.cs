@@ -11,17 +11,10 @@ public sealed class EffectSetting
     /// <summary>エフェクトをかけた音を出力に流すか(既定: する)。</summary>
     public bool ToOutput { get; set; } = true;
 
-    // ---- イコライザ
+    // ---- イコライザ(10バンドのグラフィックEQ。31Hz〜16kHz、各±12dB)
     public bool EqOn { get; set; }
-    /// <summary>ローカット(Hz)。0=なし。</summary>
-    public double HpfHz { get; set; } = 0;
-    public double LowDb { get; set; } = 0;
-    public double LowHz { get; set; } = 120;
-    public double MidDb { get; set; } = 0;
-    public double MidHz { get; set; } = 1000;
-    public double MidQ { get; set; } = 1.0;
-    public double HighDb { get; set; } = 0;
-    public double HighHz { get; set; } = 6000;
+    /// <summary>10個の帯域のゲイン(dB)。EqBands.Freqs の順。</summary>
+    public double[] Bands { get; set; } = new double[EqBands.Count];
 
     // ---- エコー
     public bool EchoOn { get; set; }
@@ -35,23 +28,26 @@ public sealed class EffectSetting
     public double ReverbDamp { get; set; } = 0.5;
     public double ReverbMix { get; set; } = 0.25;
 
-    public const double EqDbMax = 15;
 
     /// <summary>効果が実際にかかるか(バイパスでなく、どれかがオン)。</summary>
     public bool IsActive => !Bypass && (EqOn || EchoOn || ReverbOn);
     /// <summary>設定が1つでも入っているか(FXボタンの色づけ用。バイパス中でも true)。</summary>
     public bool HasAny => EqOn || EchoOn || ReverbOn;
 
-    public EffectSetting Clone() => (EffectSetting)MemberwiseClone();
+    public EffectSetting Clone()
+    {
+        var c = (EffectSetting)MemberwiseClone();
+        c.Bands = (double[])(Bands ?? new double[EqBands.Count]).Clone();
+        return c;
+    }
 
     private static double C(double v, double lo, double hi, double def) => double.IsFinite(v) ? Math.Clamp(v, lo, hi) : def;
 
     public void Normalize()
     {
-        HpfHz = HpfHz <= 0 || !double.IsFinite(HpfHz) ? 0 : Math.Clamp(HpfHz, 20, 400);
-        LowDb = C(LowDb, -EqDbMax, EqDbMax, 0); LowHz = C(LowHz, 40, 400, 120);
-        MidDb = C(MidDb, -EqDbMax, EqDbMax, 0); MidHz = C(MidHz, 200, 5000, 1000); MidQ = C(MidQ, 0.3, 4, 1.0);
-        HighDb = C(HighDb, -EqDbMax, EqDbMax, 0); HighHz = C(HighHz, 2000, 12000, 6000);
+        var bd = new double[EqBands.Count];
+        for (int i = 0; i < bd.Length; i++) bd[i] = Bands != null && i < Bands.Length ? C(Bands[i], -EqBands.MaxDb, EqBands.MaxDb, 0) : 0;
+        Bands = bd;
         EchoMs = C(EchoMs, 20, 1000, 300); EchoFeedback = C(EchoFeedback, 0, 0.9, 0.35); EchoMix = C(EchoMix, 0, 1, 0.3);
         ReverbRoom = C(ReverbRoom, 0, 1, 0.5); ReverbDamp = C(ReverbDamp, 0, 1, 0.5); ReverbMix = C(ReverbMix, 0, 1, 0.25);
     }
@@ -64,10 +60,9 @@ public sealed class EffectSetting
         string? C(string t) => comment ? t : null;
         s.Set(prefix + "Bypass", Bypass, C("入力ごとのエフェクト。Bypass=すべてバイパス / ToRecording=録音に反映 / ToOutput=出力に反映"));
         s.Set(prefix + "ToRecording", ToRecording); s.Set(prefix + "ToOutput", ToOutput);
-        s.Set(prefix + "EqOn", EqOn); s.Set(prefix + "HpfHz", HpfHz, C("ローカット(Hz、0=なし)"));
-        s.Set(prefix + "LowDb", LowDb); s.Set(prefix + "LowHz", LowHz);
-        s.Set(prefix + "MidDb", MidDb); s.Set(prefix + "MidHz", MidHz); s.Set(prefix + "MidQ", MidQ);
-        s.Set(prefix + "HighDb", HighDb); s.Set(prefix + "HighHz", HighHz);
+        s.Set(prefix + "EqOn", EqOn);
+        s.Set(prefix + "EqBands", string.Join(",", (Bands ?? new double[EqBands.Count]).Select(v => v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))),
+            C("イコライザ 31/62/125/250/500/1k/2k/4k/8k/16kHz のゲイン(dB、±12)"));
         s.Set(prefix + "EchoOn", EchoOn); s.Set(prefix + "EchoMs", EchoMs); s.Set(prefix + "EchoFeedback", EchoFeedback); s.Set(prefix + "EchoMix", EchoMix);
         s.Set(prefix + "ReverbOn", ReverbOn); s.Set(prefix + "ReverbRoom", ReverbRoom); s.Set(prefix + "ReverbDamp", ReverbDamp); s.Set(prefix + "ReverbMix", ReverbMix);
     }
@@ -78,23 +73,30 @@ public sealed class EffectSetting
         var e = new EffectSetting
         {
             Bypass = s.GetBool(prefix + "Bypass", d.Bypass), ToRecording = s.GetBool(prefix + "ToRecording", d.ToRecording), ToOutput = s.GetBool(prefix + "ToOutput", d.ToOutput),
-            EqOn = s.GetBool(prefix + "EqOn", d.EqOn), HpfHz = s.GetDouble(prefix + "HpfHz", d.HpfHz),
-            LowDb = s.GetDouble(prefix + "LowDb", d.LowDb), LowHz = s.GetDouble(prefix + "LowHz", d.LowHz),
-            MidDb = s.GetDouble(prefix + "MidDb", d.MidDb), MidHz = s.GetDouble(prefix + "MidHz", d.MidHz), MidQ = s.GetDouble(prefix + "MidQ", d.MidQ),
-            HighDb = s.GetDouble(prefix + "HighDb", d.HighDb), HighHz = s.GetDouble(prefix + "HighHz", d.HighHz),
+            EqOn = s.GetBool(prefix + "EqOn", d.EqOn),
             EchoOn = s.GetBool(prefix + "EchoOn", d.EchoOn), EchoMs = s.GetDouble(prefix + "EchoMs", d.EchoMs),
             EchoFeedback = s.GetDouble(prefix + "EchoFeedback", d.EchoFeedback), EchoMix = s.GetDouble(prefix + "EchoMix", d.EchoMix),
             ReverbOn = s.GetBool(prefix + "ReverbOn", d.ReverbOn), ReverbRoom = s.GetDouble(prefix + "ReverbRoom", d.ReverbRoom),
             ReverbDamp = s.GetDouble(prefix + "ReverbDamp", d.ReverbDamp), ReverbMix = s.GetDouble(prefix + "ReverbMix", d.ReverbMix),
         };
+        var parts = s.GetString(prefix + "EqBands").Split(',', StringSplitOptions.TrimEntries);
+        for (int i = 0; i < EqBands.Count; i++)
+            e.Bands[i] = i < parts.Length && double.TryParse(parts[i], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 0;
         e.Normalize();
         return e;
     }
 
+    private bool SameBands(EffectSetting o)
+    {
+        if (Bands == null || o.Bands == null) return Bands == o.Bands;
+        if (Bands.Length != o.Bands.Length) return false;
+        for (int i = 0; i < Bands.Length; i++) if (Bands[i] != o.Bands[i]) return false;
+        return true;
+    }
+
     /// <summary>効果の中身(オン/オフと数値)が同じか。録音・出力への反映先の設定は比べない。</summary>
     public bool SameSound(EffectSetting o) =>
-        Bypass == o.Bypass && EqOn == o.EqOn && HpfHz == o.HpfHz && LowDb == o.LowDb && LowHz == o.LowHz && MidDb == o.MidDb && MidHz == o.MidHz
-        && MidQ == o.MidQ && HighDb == o.HighDb && HighHz == o.HighHz && EchoOn == o.EchoOn && EchoMs == o.EchoMs && EchoFeedback == o.EchoFeedback
+        Bypass == o.Bypass && EqOn == o.EqOn && SameBands(o) && EchoOn == o.EchoOn && EchoMs == o.EchoMs && EchoFeedback == o.EchoFeedback
         && EchoMix == o.EchoMix && ReverbOn == o.ReverbOn && ReverbRoom == o.ReverbRoom && ReverbDamp == o.ReverbDamp && ReverbMix == o.ReverbMix;
 }
 
@@ -108,14 +110,14 @@ public sealed class EffectChain
     private volatile EffectSetting snap = new();
     private EffectSetting? applied;
 
-    // --- イコライザ(BiQuad)
+    // --- イコライザ(10バンド。各帯域はオクターブ幅のピーキングBiQuad)
     private sealed class Bq
     {
         public double B0 = 1, B1, B2, A1, A2;
         public bool On;
         public double[] Z1 = Array.Empty<double>(), Z2 = Array.Empty<double>();
     }
-    private readonly Bq[] bands = { new(), new(), new(), new() };   // ローカット, 低域, 中域, 高域
+    private readonly Bq[] bands = Enumerable.Range(0, EqBands.Count).Select(_ => new Bq()).ToArray();
     private bool eqWasOn;
 
     // --- エコー
@@ -178,10 +180,16 @@ public sealed class EffectChain
         if (s.EqOn)
         {
             if (!eqWasOn) { foreach (var b in bands) { b.Z1 = new double[ch]; b.Z2 = new double[ch]; } }
-            SetBand(bands[0], s.HpfHz > 0, () => Hpf(s.HpfHz));
-            SetBand(bands[1], Math.Abs(s.LowDb) > 0.01, () => LowShelf(s.LowHz, s.LowDb));
-            SetBand(bands[2], Math.Abs(s.MidDb) > 0.01, () => Peak(s.MidHz, s.MidQ, s.MidDb));
-            SetBand(bands[3], Math.Abs(s.HighDb) > 0.01, () => HighShelf(s.HighHz, s.HighDb));
+            for (int i = 0; i < bands.Length; i++)
+            {
+                double db = s.Bands[i];
+                bands[i].On = Math.Abs(db) > 0.01;
+                if (bands[i].On)
+                {
+                    var (b0, b1, b2, a1, a2) = EqMath.Peaking(sr, EqBands.Freqs[i], EqBands.Q, db);
+                    bands[i].B0 = b0; bands[i].B1 = b1; bands[i].B2 = b2; bands[i].A1 = a1; bands[i].A2 = a2;
+                }
+            }
         }
         eqWasOn = s.EqOn;
 
@@ -221,46 +229,6 @@ public sealed class EffectChain
             revMix = (float)s.ReverbMix;
         }
         revWasOn = s.ReverbOn;
-    }
-
-    private static void SetBand(Bq b, bool on, Func<(double, double, double, double, double)> make)
-    {
-        b.On = on;
-        if (!on) return;
-        var (b0, b1, b2, a1, a2) = make();
-        b.B0 = b0; b.B1 = b1; b.B2 = b2; b.A1 = a1; b.A2 = a2;
-    }
-
-    // RBJ Audio EQ Cookbook。戻り値は a0 で割った (b0, b1, b2, a1, a2)
-    private (double, double, double, double, double) Norm(double b0, double b1, double b2, double a0, double a1, double a2)
-        => (b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0);
-
-    private (double, double, double, double, double) Hpf(double f)
-    {
-        double w = 2 * Math.PI * Math.Min(f, sr * 0.45) / sr, cs = Math.Cos(w), al = Math.Sin(w) / (2 * 0.7071);
-        return Norm((1 + cs) / 2, -(1 + cs), (1 + cs) / 2, 1 + al, -2 * cs, 1 - al);
-    }
-
-    private (double, double, double, double, double) Peak(double f, double q, double db)
-    {
-        double A = Math.Pow(10, db / 40), w = 2 * Math.PI * Math.Min(f, sr * 0.45) / sr, cs = Math.Cos(w), al = Math.Sin(w) / (2 * q);
-        return Norm(1 + al * A, -2 * cs, 1 - al * A, 1 + al / A, -2 * cs, 1 - al / A);
-    }
-
-    private (double, double, double, double, double) LowShelf(double f, double db)
-    {
-        double A = Math.Pow(10, db / 40), w = 2 * Math.PI * Math.Min(f, sr * 0.45) / sr, cs = Math.Cos(w), sn = Math.Sin(w);
-        double beta = 2 * Math.Sqrt(A) * (sn / (2 * Math.Sqrt(0.5)));   // S=1 相当(Q=0.7071)
-        return Norm(A * ((A + 1) - (A - 1) * cs + beta), 2 * A * ((A - 1) - (A + 1) * cs), A * ((A + 1) - (A - 1) * cs - beta),
-                    (A + 1) + (A - 1) * cs + beta, -2 * ((A - 1) + (A + 1) * cs), (A + 1) + (A - 1) * cs - beta);
-    }
-
-    private (double, double, double, double, double) HighShelf(double f, double db)
-    {
-        double A = Math.Pow(10, db / 40), w = 2 * Math.PI * Math.Min(f, sr * 0.45) / sr, cs = Math.Cos(w), sn = Math.Sin(w);
-        double beta = 2 * Math.Sqrt(A) * (sn / (2 * Math.Sqrt(0.5)));
-        return Norm(A * ((A + 1) + (A - 1) * cs + beta), -2 * A * ((A - 1) + (A + 1) * cs), A * ((A + 1) + (A - 1) * cs - beta),
-                    (A + 1) - (A - 1) * cs + beta, 2 * ((A - 1) - (A + 1) * cs), (A + 1) - (A - 1) * cs - beta);
     }
 
     // ------------------------------------------------------------ 処理
@@ -341,5 +309,57 @@ public sealed class EffectChain
                 buf[i] = x + sum * 3f * mix;
             }
         }
+    }
+}
+
+/// <summary>グラフィックEQの帯域(31Hz〜16kHz、オクターブ間隔)。</summary>
+public static class EqBands
+{
+    public const int Count = 10;
+    public const double MaxDb = 12;
+    public const double Q = 1.41;   // 約1オクターブ幅
+    public static readonly double[] Freqs = { 31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000, 16000 };
+    public static readonly string[] Labels = { "31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k" };
+
+    /// <summary>よく使う設定(名前, 10帯域のdB)。先頭は「フラット」。</summary>
+    public static readonly (string Name, double[] Db)[] Presets =
+    {
+        ("フラット", new double[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }),
+        ("低音を強く", new double[] { 6, 6, 5, 3, 1, 0, 0, 0, 0, 0 }),
+        ("高音を強く", new double[] { 0, 0, 0, 0, 0, 1, 2, 4, 5, 6 }),
+        ("声を聞きやすく", new double[] { -6, -5, -3, -1, 1, 3, 4, 3, 1, 0 }),
+        ("音楽/映画鑑賞向け", new double[] { 4, 5, 2, -1, -2, -3, -1, 3, 5, 5 }),
+        ("ロック", new double[] { 4, 3, 2, 0, -2, -1, 1, 3, 4, 4 }),
+        ("ポップ", new double[] { -1, 2, 3, 3, 2, 0, -1, -1, 1, 1 }),
+        ("クラシック", new double[] { 0, 0, 0, 0, 0, 0, -2, -3, -3, -4 }),
+        ("こもりを取る", new double[] { 0, 0, -2, -4, -3, 0, 1, 2, 2, 1 }),
+        ("ノイズ(シャー音)を抑える", new double[] { 0, 0, 0, 0, 0, 0, -1, -3, -6, -9 }),
+    };
+}
+
+/// <summary>BiQuad係数と周波数特性の計算(RBJ Audio EQ Cookbook)。</summary>
+public static class EqMath
+{
+    /// <summary>ピーキングEQの係数 (b0, b1, b2, a1, a2)(a0で割ってある)。</summary>
+    public static (double, double, double, double, double) Peaking(int sr, double f, double q, double db)
+    {
+        double A = Math.Pow(10, db / 40), w = 2 * Math.PI * Math.Min(f, sr * 0.45) / sr, cs = Math.Cos(w), al = Math.Sin(w) / (2 * q);
+        double a0 = 1 + al / A;
+        return ((1 + al * A) / a0, -2 * cs / a0, (1 - al * A) / a0, -2 * cs / a0, (1 - al / A) / a0);
+    }
+
+    /// <summary>10バンドを全部通したときの、周波数 hz での音量変化(dB)。画面のカーブ表示用。</summary>
+    public static double ResponseDb(double[] bands, double hz, int sr = 48000)
+    {
+        double total = 0, w = 2 * Math.PI * hz / sr, c1 = Math.Cos(w), c2 = Math.Cos(2 * w);
+        for (int i = 0; i < EqBands.Count && i < bands.Length; i++)
+        {
+            if (Math.Abs(bands[i]) <= 0.01) continue;
+            var (b0, b1, b2, a1, a2) = Peaking(sr, EqBands.Freqs[i], EqBands.Q, bands[i]);
+            double num = b0 * b0 + b1 * b1 + b2 * b2 + 2 * (b0 * b1 + b1 * b2) * c1 + 2 * b0 * b2 * c2;
+            double den = 1 + a1 * a1 + a2 * a2 + 2 * (a1 + a1 * a2) * c1 + 2 * a2 * c2;
+            total += 10 * Math.Log10(Math.Max(1e-12, num / den));
+        }
+        return total;
     }
 }
