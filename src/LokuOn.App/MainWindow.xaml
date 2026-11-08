@@ -18,7 +18,7 @@
                 ToolTip="歯車: 画面の色・スリープ防止・最小化の動作・ヘルプ・バージョン情報・GitHub"/>
         <Button x:Name="BtnOutput" Grid.Row="0" Content="🔊" FontSize="14" Width="34" Height="30" Padding="0"
                 HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,46,0" Panel.ZIndex="5"
-                ToolTip="出力: 入力の音をスピーカーやVB-CABLEなどの再生デバイスへ流します(録音とは独立)"/>
+                ToolTip="出力: クリックで、出力ごとのオン/オフ・すべて再開・出力ウィンドウを開く(録音とは独立)"/>
         <WrapPanel Grid.Row="0" Margin="8,6,90,2" VerticalAlignment="Center">
             <TextBlock Text="プリセット" VerticalAlignment="Center" Margin="0,0,6,0"/>
             <ComboBox x:Name="PresetCombo" Width="240" Margin="0,0,6,0"/>
