@@ -87,6 +87,19 @@ public static class DeviceCatalog
     /// 入力の ID(wasapi-loop:...)と出力の ID(wasapi-out:...)が同じ再生デバイスを指すか。
     /// 同じなら、出力した音を自分で拾い直す(ループ)ので組み合わせられない。「既定」は現在の既定デバイスとして比べる。
     /// </summary>
+    private static string cachedDefRender = "";
+    private static DateTime cachedDefAt = DateTime.MinValue;
+
+    /// <summary>既定の再生デバイスのID(画面の組み立てで何度も呼ばれるので、数秒だけ覚えておく)。</summary>
+    private static string CachedDefaultRenderId()
+    {
+        if ((DateTime.Now - cachedDefAt).TotalSeconds < 3) return cachedDefRender;
+        using var en = new MMDeviceEnumerator();
+        cachedDefRender = DefaultId(en, DataFlow.Render);
+        cachedDefAt = DateTime.Now;
+        return cachedDefRender;
+    }
+
     public static bool IsLoopCombination(string inputId, string outputId)
     {
         if (!inputId.StartsWith("wasapi-loop:", StringComparison.OrdinalIgnoreCase)) return false;
@@ -96,8 +109,7 @@ public static class DeviceCatalog
         if (a != "default" && b != "default") return false;
         try
         {
-            using var en = new MMDeviceEnumerator();
-            string def = DefaultId(en, DataFlow.Render);
+            string def = CachedDefaultRenderId();
             if (a == "default") a = def;
             if (b == "default") b = def;
             return a.Length > 0 && string.Equals(a, b, StringComparison.OrdinalIgnoreCase);

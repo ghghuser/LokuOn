@@ -50,6 +50,10 @@ public sealed class OutputWindow : Window
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private string usedKey = "";
     private int tickCount;
+    private List<DeviceInfo> devices = new();
+    private DateTime devicesAt = DateTime.MinValue;
+    private bool started;
+    private readonly ScrollViewer realContent;
 
     public OutputWindow(RecorderController ctl, List<OutputSetting> cards, string[] inputNames,
         Func<Preset> readPreset, Action changed, Action namesChanged)
@@ -74,12 +78,52 @@ public sealed class OutputWindow : Window
         root.Children.Add(emptyText);
         root.Children.Add(wrap);
         root.Children.Add(addBtn);
-        Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = root };
+        realContent = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = root };
+
+        // 出力デバイスの一覧を調べる間(少し時間がかかる)は、読み込み中の表示を出す
+        bool dark = ThemeHelper.IsDark(ctl.Settings.Theme);
+        Background = new SolidColorBrush(dark ? Color.FromRgb(0x20, 0x20, 0x20) : Color.FromRgb(0xF3, 0xF3, 0xF3));
+        Content = new Grid
+        {
+            Background = Background,
+            Children =
+            {
+                new TextBlock
+                {
+                    Text = "読み込み中…\n出力デバイスを調べています。少しお待ちください。",
+                    Foreground = new SolidColorBrush(dark ? Color.FromRgb(0xDD, 0xDD, 0xDD) : Color.FromRgb(0x33, 0x33, 0x33)),
+                    FontSize = 14, TextAlignment = TextAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                },
+            },
+        };
 
         addBtn.Click += (s, e) => AddCard();
-        Loaded += (s, e) => { Build(); timer.Start(); };
+        ContentRendered += async (s, e) =>
+        {
+            if (started) return;
+            started = true;
+            await RefreshDevicesAsync();
+            Content = realContent;
+            Build();
+            timer.Start();
+        };
+        Activated += async (s, e) =>
+        {
+            // 別のデバイスをつないだあとに戻ってきたとき、一覧を新しくする(10秒以上たっていれば)
+            if (!started || (DateTime.Now - devicesAt).TotalSeconds < 10) return;
+            await RefreshDevicesAsync();
+            if (IsLoaded) Build();
+        };
         Closed += (s, e) => timer.Stop();
         timer.Tick += (s, e) => OnTick();
+    }
+
+    private async Task RefreshDevicesAsync()
+    {
+        try { devices = await Task.Run(() => DeviceCatalog.EnumerateOutputs()); }
+        catch { devices = new List<DeviceInfo>(); }
+        devicesAt = DateTime.Now;
     }
 
     /// <summary>プリセットの切り替えなどで、カードの中身が入れ替わったときに作り直す。</summary>
@@ -245,7 +289,7 @@ public sealed class OutputWindow : Window
     {
         var card = v.Card;
         var list = new List<DeviceInfo> { new() { Id = "", Kind = DeviceKind.WasapiOutput, Display = "(未選択)" } };
-        foreach (var d in DeviceCatalog.EnumerateOutputs())
+        foreach (var d in devices)
         {
             string? loop = RecorderController.CheckLoop(p, d.Id);
             list.Add(loop == null ? d : new DeviceInfo { Id = d.Id, Kind = d.Kind, Display = d.Display + "  (入力と同じ=選べません)" });
