@@ -28,6 +28,7 @@ public sealed class EffectWindow : Window
     private readonly ComboBox presetBox = new() { MinWidth = 180 };
     private readonly Controls.GraphicEqControl eqView = new();
     private CheckBox? eqCheck;
+    private readonly TabItem eqTab = new(), fxTab = new();
     private bool loading;
     private int slot;
 
@@ -67,8 +68,8 @@ public sealed class EffectWindow : Window
         var mainTabs = new TabControl { Margin = new Thickness(0, 4, 0, 0), Padding = new Thickness(2, 2, 2, 2) };
         var eqPanel = new StackPanel();
         var fxPanel = new StackPanel();
-        mainTabs.Items.Add(new TabItem { Header = "イコライザ", Content = eqPanel });
-        mainTabs.Items.Add(new TabItem { Header = "エコー・リバーブ", Content = fxPanel });
+        eqTab.Content = eqPanel; fxTab.Content = fxPanel;
+        mainTabs.Items.Add(eqTab); mainTabs.Items.Add(fxTab);
         root.Children.Add(mainTabs);
 
         // グラフィックEQ(曲線は常に見える。ローカット・パラメトリックの効果もこの曲線に合成される)
@@ -239,6 +240,7 @@ public sealed class EffectWindow : Window
             toRecCheck.IsChecked = Cur.ToRecording;
             toOutCheck.IsChecked = Cur.ToOutput;
             foreach (var r in refreshers) r();
+            UpdateTabLabels();
             UpdatePaste();
         }
         finally { loading = false; }
@@ -281,8 +283,18 @@ public sealed class EffectWindow : Window
         UpdateSlotLabels();
     }
 
+    /// <summary>タブ見出しに、そのタブの中でいまかかっているものを出す(例: イコライザ ● グラフィック・ローカット)。</summary>
+    private void UpdateTabLabels()
+    {
+        var c = Cur;
+        string Join(params (bool on, string name)[] a) { var l = a.Where(x => x.on).Select(x => x.name).ToList(); return l.Count == 0 ? "" : (c.Bypass ? "  ○ バイパス中: " : "  ● ") + string.Join("・", l); }
+        eqTab.Header = "イコライザ" + Join((c.EqOn, "グラフィック"), (c.HpfHz >= 20, "ローカット"), (c.ParamOn, "パラメトリック"));
+        fxTab.Header = "エコー・リバーブ" + Join((c.EchoOn, "エコー"), (c.ReverbOn, "リバーブ"));
+    }
+
     private void UpdateSlotLabels()
     {
+        UpdateTabLabels();
         loading = true;
         try
         {
