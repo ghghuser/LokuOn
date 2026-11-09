@@ -186,6 +186,42 @@ public sealed class RecorderController : IDisposable
         active.Clear();
     }
 
+    /// <summary>
+    /// すでに開いている入力を、プリセット p でそのまま引き継げるか。引き継げるなら、入力ゲインを p に合わせ、
+    /// 取り込み用のバッファを空にする(前にたまっていた音を録音の先頭に混ぜないため)。出力用のタップには触れないので、出力は途切れない。
+    /// 引き継げなければ false(呼び出し側が従来どおり開き直す)。
+    /// </summary>
+    private bool TryReuseSources(Preset p, out int discardedMs)
+    {
+        discardedMs = 0;
+        var open = active.Select(a => new SourceReuse.OpenSource(a.Slot, a.DeviceId, a.Buffer.SampleRate, a.Buffer.Channels, a.Buffer.Connected)).ToList();
+        if (!SourceReuse.CanReuse(open, p)) return false;
+        int frames = 0;
+        foreach (var a in active)
+        {
+            frames = Math.Max(frames, a.Buffer.AvailableFrames);
+            a.Buffer.GainDb = (float)p.Sources[a.Slot].GainDb;
+            a.Buffer.Clear();
+        }
+        discardedMs = (int)(frames * 1000L / Math.Max(1, p.SampleRate));
+        return true;
+    }
+
+    /// <summary>入力確認の状態(波形・メーター・時計)を作る。入力はすでに開いていること。</summary>
+    private void BeginMonitorState(Preset p)
+    {
+        monitorPreset = p;
+        monRate = p.SampleRate; monCh = p.Channels;
+        monWave = new WaveformBuffer(monRate);
+        monBuf = active.Select(_ => new float[(monRate / 10) * monCh]).ToArray();
+        monMono = new float[monRate / 10];
+        lock (monLock) { monSrcPeak = new float[active.Count]; monL = monR = 0; monClip = false; }
+        monMasterDb = (float)p.MasterGainDb;
+        monClock = Stopwatch.StartNew();
+        monFed = 0;
+        monitoring = true;
+    }
+
     /// <summary>つながらなかった入力があればその説明を返す(なければ空)。</summary>
     public string DescribeSourceProblems()
     {
@@ -404,19 +440,12 @@ public sealed class RecorderController : IDisposable
     public void StartMonitor(Preset p)
     {
         TakeFx(p);
-        StopMonitor();
         if (engine != null) return;
+        // 録音が終わった直後など、入力が開いたままモニターの状態だけがない場合は、開き直さずに引き継ぐ(出力を途切れさせないため)
+        if (!monitoring && TryReuseSources(p, out _)) { BeginMonitorState(p); return; }
+        StopMonitor();
         if (!OpenSources(p, out _)) return;
-        monitorPreset = p;
-        monRate = p.SampleRate; monCh = p.Channels;
-        monWave = new WaveformBuffer(monRate);
-        monBuf = active.Select(_ => new float[(monRate / 10) * monCh]).ToArray();
-        monMono = new float[monRate / 10];
-        lock (monLock) { monSrcPeak = new float[active.Count]; monL = monR = 0; monClip = false; }
-        monMasterDb = (float)p.MasterGainDb;
-        monClock = Stopwatch.StartNew();
-        monFed = 0;
-        monitoring = true;
+        BeginMonitorState(p);
     }
 
     public void StopMonitor()
@@ -540,8 +569,18 @@ public sealed class RecorderController : IDisposable
 
         var p = preset.Clone();
         p.Name = preset.Name;
-        StopMonitor();
-        if (!OpenSources(p, out string err)) return err;
+        // 入力確認や出力で入力がすでに開いていて、同じ条件なら、開き直さずに引き継ぐ(出力が途切れない)。そうでなければ従来どおり開き直す。
+        if (active.Count > 0 && TryReuseSources(p, out int discardedMs))
+        {
+            monitoring = false; monWave = null; monClock = null;
+            string m = $"入力を開き直さず引き継ぎました(録音前にたまっていた音 {discardedMs} ms は破棄)";
+            Log(m); Message?.Invoke(m);
+        }
+        else
+        {
+            StopMonitor();
+            if (!OpenSources(p, out string err)) return err;
+        }
 
         if (active.All(a => !a.Buffer.Connected) && !p.AutoResume)
         {
@@ -607,7 +646,8 @@ public sealed class RecorderController : IDisposable
         if (e == null) return;
         engine = null;
         bool produced = e.ElapsedSeconds > 0 || Volatile.Read(ref filesFinished) > 0;
-        CloseSources();
+        // 入力確認や出力が必要なら入力を開いたままにする(出力が途切れない)。画面側が続けて StartMonitor を呼び、引き継ぐ。
+        if (!(Settings.MonitorInput || OutputWanted)) CloseSources();
         SetSleepLock(false);
         scheduledStopAt = null;
         if (produced) Settings.No++;
