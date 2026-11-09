@@ -9,12 +9,14 @@ public partial class MainWindow
 {
     private const int HotkeyIdStartStop = 0x5201;
     private const int HotkeyIdSplit = 0x5202;
+    private const int HotkeyIdPause = 0x5203;
     private const string HotkeyHintText = "欄をクリックして、割り当てたいキーを押します(Ctrl・Alt・Shift・Win のどれかと一緒に)。Delete か BackSpace で未設定にします。例: Ctrl+Alt+F9";
 
     private IntPtr hwnd = IntPtr.Zero;
     private HwndSource? hwndSource;
     private bool startStopRegistered;
     private bool splitRegistered;
+    private bool pauseRegistered;
 
     private System.Windows.Forms.NotifyIcon? tray;
     private System.Drawing.Icon? trayIconIdle;
@@ -181,11 +183,13 @@ public partial class MainWindow
 
         startStopRegistered = GlobalHotkeys.Register(hwnd, HotkeyIdStartStop, s.HotkeyStartStop);
         splitRegistered = GlobalHotkeys.Register(hwnd, HotkeyIdSplit, s.HotkeySplit);
+        pauseRegistered = GlobalHotkeys.Register(hwnd, HotkeyIdPause, s.HotkeyPause);
 
         var parts = new List<string>();
         parts.Add(startStopRegistered ? $"録音開始/停止 = {s.HotkeyStartStop} (登録しました)" : $"録音開始/停止 = {s.HotkeyStartStop} (登録できません)");
         parts.Add(splitRegistered ? $"分割 = {s.HotkeySplit} (登録しました)" : $"分割 = {s.HotkeySplit} (登録できません)");
-        string note = (startStopRegistered && splitRegistered) ? "" : "\n書式が違うか、ほかのアプリがすでに使っているキーの組み合わせです。別のキーにしてください。";
+        parts.Add(pauseRegistered ? $"一時停止/再開 = {s.HotkeyPause} (登録しました)" : $"一時停止/再開 = {s.HotkeyPause} (登録できません)");
+        string note = (startStopRegistered && splitRegistered && pauseRegistered) ? "" : "\n書式が違うか、ほかのアプリがすでに使っているキーの組み合わせです。別のキーにしてください。";
         HotkeyStatus.Text = string.Join(" / ", parts) + note;
     }
 
@@ -194,8 +198,10 @@ public partial class MainWindow
         if (hwnd == IntPtr.Zero) return;
         if (startStopRegistered) GlobalHotkeys.Unregister(hwnd, HotkeyIdStartStop);
         if (splitRegistered) GlobalHotkeys.Unregister(hwnd, HotkeyIdSplit);
+        if (pauseRegistered) GlobalHotkeys.Unregister(hwnd, HotkeyIdPause);
         startStopRegistered = false;
         splitRegistered = false;
+        pauseRegistered = false;
     }
 
     private IntPtr WndProc(IntPtr h, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -212,6 +218,12 @@ public partial class MainWindow
             {
                 handled = true;
                 if (ctl.IsRecording && ctl.EngineState == LokuOn.Core.EngineState.Recording) OnSplitClick(this, new RoutedEventArgs());
+            }
+            else if (id == HotkeyIdPause)
+            {
+                handled = true;
+                // ボタンと同じ条件(録音中)のときだけ、一時停止/再開を切り替える
+                if (ctl.IsRecording && ctl.EngineState == LokuOn.Core.EngineState.Recording) { ctl.TogglePauseRecording(); UpdateButtons(); }
             }
         }
         return IntPtr.Zero;

@@ -30,33 +30,69 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: FFmpeg を取得(LGPL版 → だめならGPL版)
+      - name: FFmpeg を取得(LGPL版。一時的な失敗は再試行 → だめなら次の候補 → 最後の手段でGPL版)
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force -Path ffmpeg-dl | Out-Null
+          # 候補の順番: ① 安定版(n8.1)のLGPL ② 開発版(master)のLGPL ③ gyan.dev のGPL版(LGPLが取れないときだけの最後の手段)
+          # ①のファイル名は新しい版に切り替わると 404 になるので、②が控えている。
           $urls = @(
+            'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-win64-lgpl-8.1.zip',
             'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-lgpl.zip',
             'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip'
           )
+          # アプリが使う形式 → エンコーダー名と拡張子
+          $codecs = @(
+            @('libmp3lame', 'mp3'), @('aac', 'm4a'), @('flac', 'flac'), @('libvorbis', 'ogg'), @('libopus', 'opus'), @('pcm_s16le', 'wav')
+          )
+          # 実際にエンコードできるかの確認用に、0.2秒ぶんの無音(48kHz/16bit/ステレオ)を用意する
+          $raw = Join-Path (Get-Location) 'ffmpeg-dl/silence.raw'
+          [IO.File]::WriteAllBytes($raw, (New-Object byte[] (48000 * 4 / 5)))
+
           $ok = $false
           foreach ($u in $urls) {
             try {
-              Write-Host "ダウンロード: $u"
-              Invoke-WebRequest -Uri $u -OutFile ffmpeg-dl/ffmpeg.zip -UseBasicParsing
+              # 一時的な 502/503 などに備えて、同じURLを最大3回(待ち時間を伸ばしながら)試す。404 などは再試行しても同じなので次の候補へ
+              $got = $false
+              for ($i = 1; $i -le 3 -and -not $got; $i++) {
+                try {
+                  Write-Host "ダウンロード($i/3): $u"
+                  Invoke-WebRequest -Uri $u -OutFile ffmpeg-dl/ffmpeg.zip -UseBasicParsing
+                  $got = $true
+                } catch {
+                  $code = $null
+                  if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
+                  Write-Host "  失敗: $($_.Exception.Message)"
+                  if ($code -ge 400 -and $code -lt 500 -and $code -ne 429) { throw }
+                  if ($i -lt 3) { Start-Sleep -Seconds (10 * $i) } else { throw }
+                }
+              }
               Remove-Item -Recurse -Force ffmpeg-dl/x -ErrorAction SilentlyContinue
               Expand-Archive ffmpeg-dl/ffmpeg.zip -DestinationPath ffmpeg-dl/x -Force
               $exe = Get-ChildItem ffmpeg-dl/x -Recurse -Filter ffmpeg.exe | Select-Object -First 1
               if (-not $exe) { throw 'ffmpeg.exe が見つかりません' }
+
+              # 検査1: エンコーダー一覧に、音声(A)のエンコーダーとして載っているか(説明文の中の同じ文字には反応しない)
               $enc = & $exe.FullName -hide_banner -encoders 2>&1 | Out-String
-              $missing = @('libmp3lame', ' aac ', ' flac ', 'pcm_s16le', 'libvorbis', 'libopus') | Where-Object { $enc -notmatch [regex]::Escape($_) }
+              $missing = @($codecs | Where-Object { $enc -notmatch ('(?m)^\s*A\S*\s+' + [regex]::Escape($_[0]) + '\s') } | ForEach-Object { $_[0] })
               if ($missing.Count -gt 0) { throw "必要なエンコーダーがありません: $($missing -join ', ')" }
+
+              # 検査2: 実際にその形式で書き出せるか(アプリと同じ、生のPCMを読み込んで書き出す)
+              foreach ($c in $codecs) {
+                $out = Join-Path (Get-Location) "ffmpeg-dl/check.$($c[1])"
+                Remove-Item $out -ErrorAction SilentlyContinue
+                & $exe.FullName -hide_banner -loglevel error -y -f s16le -ar 48000 -ac 2 -i $raw -c:a $c[0] $out
+                if ($LASTEXITCODE -ne 0 -or -not (Test-Path $out) -or (Get-Item $out).Length -le 0) { throw "エンコード確認に失敗: $($c[0]) (.$($c[1]))" }
+              }
+
               New-Item -ItemType Directory -Force -Path ffmpeg-dl/bin | Out-Null
               Copy-Item $exe.FullName ffmpeg-dl/bin/ffmpeg.exe -Force
+              if ($u -like '*gyan.dev*') { Write-Host '::warning::LGPL版を取得できなかったため、GPL版の FFmpeg を同梱します'; }
               $ok = $true
               break
             } catch {
-              Write-Host "失敗: $($_.Exception.Message)"
+              Write-Host "この候補は使えません: $($_.Exception.Message)"
             }
           }
           if (-not $ok) { throw 'FFmpeg を用意できませんでした' }

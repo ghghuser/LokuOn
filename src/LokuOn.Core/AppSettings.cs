@@ -88,6 +88,7 @@ public sealed class AppSettings
     public bool HotkeysEnabled { get; set; } = false;
     public string HotkeyStartStop { get; set; } = "Ctrl+Alt+F9";
     public string HotkeySplit { get; set; } = "Ctrl+Alt+F10";
+    public string HotkeyPause { get; set; } = "Ctrl+Alt+F11";
 
     public double DiskWarnGB { get; set; } = 1;
     public double DiskStopGB { get; set; } = 0.1;
@@ -144,6 +145,7 @@ public static class SettingsStore
             s.HotkeysEnabled = a.GetBool("HotkeysEnabled", d.HotkeysEnabled);
             s.HotkeyStartStop = a.GetString("HotkeyStartStop", d.HotkeyStartStop);
             s.HotkeySplit = a.GetString("HotkeySplit", d.HotkeySplit);
+            s.HotkeyPause = a.GetString("HotkeyPause", d.HotkeyPause);
             s.DiskWarnGB = a.GetDouble("DiskWarnGB", d.DiskWarnGB);
             s.DiskStopGB = a.GetDouble("DiskStopGB", d.DiskStopGB);
             // 旧版の既定値(5GB/0.5GB)のままなら新しい既定値(1GB/100MB)にする
@@ -212,6 +214,7 @@ public static class SettingsStore
         a.Set("HotkeysEnabled", s.HotkeysEnabled, "グローバルホットキー(他のアプリ使用中でも操作可)");
         a.Set("HotkeyStartStop", s.HotkeyStartStop);
         a.Set("HotkeySplit", s.HotkeySplit);
+        a.Set("HotkeyPause", s.HotkeyPause);
         a.Set("DiskWarnGB", s.DiskWarnGB, "空き容量がこれ未満になったら警告(GB)");
         a.Set("DiskStopGB", s.DiskStopGB, "空き容量がこれ未満になったら安全に録音を停止(GB)");
         a.Set("FfmpegPath", s.FfmpegPath, "空欄=ffmpegフォルダ内のffmpeg.exeを自動検出");

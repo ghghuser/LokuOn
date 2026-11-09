@@ -483,6 +483,8 @@
                                     <CheckBox x:Name="HotkeysCheck" Content="グローバルホットキーを使う" Margin="0,0,12,0" VerticalContentAlignment="Center"/>
                                     <TextBlock Text="録音開始/停止" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                     <TextBox x:Name="HotkeyStartBox" Width="120" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
+                                    <TextBlock Text="一時停止/再開" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBox x:Name="HotkeyPauseBox" Width="120" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
                                     <TextBlock Text="分割" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                     <TextBox x:Name="HotkeySplitBox" Width="120" VerticalContentAlignment="Center"/>
                                 </WrapPanel>

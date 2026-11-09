@@ -72,6 +72,7 @@ string ini = Path.Combine(tmp, "settings.ini");
 SettingsStore.Save(ini, st);
 var back = SettingsStore.Load(ini);
 Check(back.No == 918 && back.TrackStart == 5 && back.Theme == "dark" && back.HotkeysEnabled, "全体設定の往復");
+Check(new AppSettings().HotkeyPause == "Ctrl+Alt+F11" && back.HotkeyPause == "Ctrl+Alt+F11", "一時停止ホットキーの既定と往復");
 Check(back.Current.Format == AudioFormat.Mp3 && back.Current.SampleRate == 44100, "現在の設定の往復");
 Check(back.Current.SaveFolder == @"D:\録音\テスト" && back.Current.Tags.Title == "日本語タイトル ♪ ＡＢＣ", "日本語の往復");
 Check(back.Current.Sources[0].GainDb == -3.5 && back.Current.Sources[0].DeviceName == "スピーカー (Realtek)", "デバイス設定の往復");

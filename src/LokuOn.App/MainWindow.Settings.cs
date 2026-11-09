@@ -212,6 +212,7 @@ public partial class MainWindow
         HotkeysCheck.Click += (s, e) => { SyncAppFlagsFromUi(); RegisterHotkeys(); MarkDirty(); };
         HotkeyStartBox.LostFocus += (s, e) => { SyncAppFlagsFromUi(); RegisterHotkeys(); MarkDirty(); };
         HotkeySplitBox.LostFocus += (s, e) => { SyncAppFlagsFromUi(); RegisterHotkeys(); MarkDirty(); };
+        HotkeyPauseBox.LostFocus += (s, e) => { SyncAppFlagsFromUi(); RegisterHotkeys(); MarkDirty(); };
         FfmpegBox.LostFocus += (s, e) => ApplyFfmpegPath();
         BtnFfmpegBrowse.Click += (s, e) =>
         {
@@ -507,6 +508,7 @@ public partial class MainWindow
             HotkeysCheck.IsChecked = s.HotkeysEnabled;
             HotkeyStartBox.Text = s.HotkeyStartStop;
             HotkeySplitBox.Text = s.HotkeySplit;
+            HotkeyPauseBox.Text = s.HotkeyPause;
             DiskWarnBox.Text = Num(s.DiskWarnGB);
             DiskStopBox.Text = Num(s.DiskStopGB);
             FfmpegBox.Text = s.FfmpegPath;
@@ -525,6 +527,7 @@ public partial class MainWindow
         s.HotkeysEnabled = HotkeysCheck.IsChecked == true;
         s.HotkeyStartStop = HotkeyStartBox.Text.Trim();
         s.HotkeySplit = HotkeySplitBox.Text.Trim();
+        s.HotkeyPause = HotkeyPauseBox.Text.Trim();
         s.DiskWarnGB = ParseDouble(DiskWarnBox.Text, s.DiskWarnGB, 0, 100000);
         s.DiskStopGB = ParseDouble(DiskStopBox.Text, s.DiskStopGB, 0, 100000);
     }

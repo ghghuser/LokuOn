@@ -25,6 +25,7 @@ public partial class MainWindow
 
         HotkeyCapture.Attach(HotkeyStartBox);
         HotkeyCapture.Attach(HotkeySplitBox);
+        HotkeyCapture.Attach(HotkeyPauseBox);
     }
 
     /// <summary>テンプレートの試し書き用: 36：25 録音した場合のファイル名(拡張子つき)。</summary>
