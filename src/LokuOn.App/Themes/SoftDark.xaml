@@ -1,0 +1,89 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- ニューモーフィズム・ダーク(設定の「テーマ」で選ぶ)。WPF標準のFluentダークの上に、ボタンと入力欄だけを差し替える。
+         アイデアと配色は LokuOnX のソフト(ダーク)から。文字は明るいまま、コントラストは落とさない。
+         ボタン=同じ形の面を2枚重ね、下の面に左上の光、上の面に右下の影を付ける。押すと影を消してへこんだ見た目にする。
+         色はここを書き換えて調整できる(ウィンドウの背景色は ThemeHelper.SolidBack と同じ #282B31)。 -->
+    <SolidColorBrush x:Key="SoftFg" Color="#E6E8EC"/>
+    <SolidColorBrush x:Key="SoftFace" Color="#282B31"/>
+    <SolidColorBrush x:Key="SoftFaceHover" Color="#2F333A"/>
+    <SolidColorBrush x:Key="SoftFacePressed" Color="#22252A"/>
+    <SolidColorBrush x:Key="SoftDisabledFg" Color="#7A7E86"/>
+    <SolidColorBrush x:Key="SoftWell" Color="#1E2126"/>
+    <SolidColorBrush x:Key="SoftWellBorder" Color="#181A1E"/>
+    <SolidColorBrush x:Key="SoftFocus" Color="#7FB2F0"/>
+
+    <ControlTemplate x:Key="SoftButtonTemplate" TargetType="ButtonBase">
+        <Grid Margin="2">
+            <Border x:Name="Light" CornerRadius="7" Background="{StaticResource SoftFace}">
+                <Border.Effect>
+                    <DropShadowEffect Color="#4A505B" Direction="135" ShadowDepth="2" BlurRadius="6" Opacity="0.55"/>
+                </Border.Effect>
+            </Border>
+            <Border x:Name="Face" CornerRadius="7" Background="{StaticResource SoftFace}" Padding="{TemplateBinding Padding}" BorderThickness="1">
+                <Border.BorderBrush>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#40FFFFFF" Offset="0"/>
+                        <GradientStop Color="#10FFFFFF" Offset="0.5"/>
+                        <GradientStop Color="#30000000" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.BorderBrush>
+                <Border.Effect>
+                    <DropShadowEffect Color="#16181C" Direction="315" ShadowDepth="2" BlurRadius="6" Opacity="0.5"/>
+                </Border.Effect>
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+        </Grid>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Face" Property="Background" Value="{StaticResource SoftFaceHover}"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Face" Property="Background" Value="{StaticResource SoftFacePressed}"/>
+                <Setter TargetName="Light" Property="Effect" Value="{x:Null}"/>
+                <Setter TargetName="Face" Property="Effect" Value="{x:Null}"/>
+            </Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="Face" Property="BorderBrush" Value="{StaticResource SoftFocus}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="{StaticResource SoftDisabledFg}"/>
+                <Setter TargetName="Face" Property="Opacity" Value="0.7"/>
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <Style TargetType="Button">
+        <Setter Property="Foreground" Value="{StaticResource SoftFg}"/>
+        <Setter Property="Padding" Value="8,2"/>
+        <Setter Property="Template" Value="{StaticResource SoftButtonTemplate}"/>
+    </Style>
+
+    <!-- 入力欄: 面より少し暗い「へこみ」風(内側が暗く、左と上の縁だけ影色) -->
+    <Style TargetType="TextBox">
+        <Setter Property="Foreground" Value="{StaticResource SoftFg}"/>
+        <Setter Property="CaretBrush" Value="{StaticResource SoftFg}"/>
+        <Setter Property="Background" Value="{StaticResource SoftWell}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource SoftWellBorder}"/>
+        <Setter Property="Padding" Value="5,3"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="1,1,0,0" CornerRadius="6" SnapsToDevicePixels="True">
+                        <ScrollViewer x:Name="PART_ContentHost" Focusable="False" Padding="{TemplateBinding Padding}"
+                                      HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Auto"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource SoftFocus}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Opacity" Value="0.5"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

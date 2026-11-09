@@ -56,7 +56,7 @@ public sealed class AppInfoWindow : Window
         panel.Children.Add(Header("表示"));
         themeBox.ItemsSource = new List<Choice<string>>
         {
-            new("自動(システムに合わせる)", "system"), new("ダーク", "dark"), new("ライト", "light"),
+            new("自動(システムに合わせる)", "system"), new("ダーク", "dark"), new("ニューモーフィズム・ダーク", "softdark"), new("ライト", "light"),
         };
         panel.Children.Add(Row("テーマ", themeBox));
         backdropBox.ItemsSource = new List<Choice<string>>
@@ -154,7 +154,8 @@ public sealed class AppInfoWindow : Window
         loading = true;
         try
         {
-            bool dark = ThemeHelper.IsDark(settings.Theme);
+            bool soft = ThemeHelper.IsSoft(settings.Theme);
+            bool dark = ThemeHelper.IsDark(settings.Theme) && !soft;     // ニューモーフィズムは背景の効果なし固定
             Select(backdropBox, dark ? settings.Backdrop : "none");
             backdropBox.IsEnabled = dark;
 
@@ -163,7 +164,9 @@ public sealed class AppInfoWindow : Window
             strengthText.Text = (int)Math.Round(strengthSlider.Value) + "%";
             strengthSlider.IsEnabled = on;
 
-            backdropNote.Text = !dark
+            backdropNote.Text = soft
+                ? "ニューモーフィズム・ダークでは、ボタンの影を見せるため、背景の効果は「なし」に固定されます。"
+                : !dark
                 ? "ライトテーマでは、背景の効果は「なし」に固定されます。"
                 : "背景の効果は Windows 11 のダークテーマで使えます。濃さを上げると無地に近づき、背景の模様が目立たなくなります(アクリルは同じ濃さでも Mica より透けます)。壁紙しか後ろにないときは、Mica とアクリルは似て見えます。";
         }

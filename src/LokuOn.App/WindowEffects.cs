@@ -20,14 +20,14 @@ public static class WindowEffects
 
     /// <param name="mode">"none" / "mica" / "acrylic"。ライトテーマのときは、何を渡しても「none」になる。</param>
     /// <param name="strength">効果の上に重ねる暗い色の濃さ(30〜100)。大きいほど無地に近く、背景の模様が目立たない。</param>
-    public static void Apply(Window w, string? mode, bool dark, int strength = BackdropRules.DefaultStrength)
+    public static void Apply(Window w, string? mode, bool dark, int strength = BackdropRules.DefaultStrength, bool soft = false)
     {
         try
         {
             IntPtr hwnd = new WindowInteropHelper(w).Handle;
             if (hwnd == IntPtr.Zero) return;
 
-            string effect = BackdropRules.Effective(mode, dark);
+            string effect = soft ? "none" : BackdropRules.Effective(mode, dark);   // ニューモーフィズムは影の見え方のため、効果なしの不透明
 
             int useDark = dark ? 1 : 0;
             DwmSetWindowAttribute(hwnd, 20, ref useDark, sizeof(int));          // タイトルバーの明暗
@@ -52,7 +52,7 @@ public static class WindowEffects
                 // (指定しないと、システムが明るい設定のとき、ダークテーマでも後ろが白くなって文字が読めなくなる)
                 var m = new Margins();
                 DwmExtendFrameIntoClientArea(hwnd, ref m);
-                Color solid = dark ? Color.FromRgb(32, 32, 32) : Color.FromRgb(243, 243, 243);
+                Color solid = ThemeHelper.SolidBack(dark, soft);
                 if (src?.CompositionTarget != null) src.CompositionTarget.BackgroundColor = solid;
                 w.Background = new SolidColorBrush(solid);
             }

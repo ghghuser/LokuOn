@@ -720,7 +720,7 @@ public partial class MainWindow
     /// <summary>背景の効果(Mica / アクリル)とタイトルバーの明暗を反映する。</summary>
     private void ApplyBackdrop()
     {
-        WindowEffects.Apply(this, ctl.Settings.Backdrop, ThemeHelper.IsDark(ctl.Settings.Theme), ctl.Settings.BackdropStrength);
+        WindowEffects.Apply(this, ctl.Settings.Backdrop, ThemeHelper.IsDark(ctl.Settings.Theme), ctl.Settings.BackdropStrength, ThemeHelper.IsSoft(ctl.Settings.Theme));
     }
 
     // ---------------------------------------------------------------- ファイル名テンプレートの保存

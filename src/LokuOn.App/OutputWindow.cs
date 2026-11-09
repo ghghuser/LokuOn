@@ -84,7 +84,7 @@ public sealed class OutputWindow : Window
 
         // 出力デバイスの一覧を調べる間(少し時間がかかる)は、読み込み中の表示を出す
         bool dark = ThemeHelper.IsDark(ctl.Settings.Theme);
-        Background = new SolidColorBrush(dark ? Color.FromRgb(0x20, 0x20, 0x20) : Color.FromRgb(0xF3, 0xF3, 0xF3));
+        Background = new SolidColorBrush(ThemeHelper.SolidBack(dark, ThemeHelper.IsSoft(ctl.Settings.Theme)));
         Content = new Grid
         {
             Background = Background,

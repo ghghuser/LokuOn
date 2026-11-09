@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Runtime.InteropServices;
 
 namespace LokuOn.Core;
 
@@ -25,6 +26,13 @@ public static class PcmConverter
             case 16:
             {
                 int n = bytes / 2;
+                if (BitConverter.IsLittleEndian)
+                {
+                    // 1サンプルごとに Span を作らず、まとめて読む(結果は同じ。録音中ずっと動く部分なので軽くする)
+                    var s16 = MemoryMarshal.Cast<byte, short>(src.AsSpan(0, n * 2));
+                    for (int i = 0; i < s16.Length; i++) dst[i] = s16[i] / 32768f;
+                    return n;
+                }
                 for (int i = 0; i < n; i++) dst[i] = BinaryPrimitives.ReadInt16LittleEndian(src.AsSpan(i * 2)) / 32768f;
                 return n;
             }
@@ -42,6 +50,12 @@ public static class PcmConverter
             case 32:
             {
                 int n = bytes / 4;
+                if (BitConverter.IsLittleEndian)
+                {
+                    var s32 = MemoryMarshal.Cast<byte, int>(src.AsSpan(0, n * 4));
+                    for (int i = 0; i < s32.Length; i++) dst[i] = s32[i] / 2147483648f;
+                    return n;
+                }
                 for (int i = 0; i < n; i++) dst[i] = BinaryPrimitives.ReadInt32LittleEndian(src.AsSpan(i * 4)) / 2147483648f;
                 return n;
             }

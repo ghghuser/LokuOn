@@ -200,7 +200,7 @@ public static class SettingsStore
         a.Set("No", s.No, "次の録音ナンバー({No})。録音が終わると+1されます");
         a.Set("TrackStart", s.TrackStart, "トラック番号({Track})の開始値");
         a.Set("LastPresetName", s.LastPresetName);
-        a.Set("Theme", s.Theme, "dark / light / system");
+        a.Set("Theme", s.Theme, "dark / softdark(ニューモーフィズム・ダーク) / light / system");
         a.Set("PreventSleep", s.PreventSleep, "録音中にPCがスリープしないようにする");
         a.Set("MonitorInput", s.MonitorInput, "録音していないときも入力のメーターと波形を表示する(入力確認)");
         a.Set("ConfirmCloseWhileRecording", s.ConfirmCloseWhileRecording);

@@ -29,7 +29,23 @@ public partial class MainWindow
     private void UpdateFileCount()
     {
         int sel = FileList.SelectedItems.Count;
-        FileCountText.Text = sel > 1 ? $"{files.Count} 件(選択 {sel} 件)" : $"{files.Count} 件";
+        int shown = FileList.Items.Count;
+        string count = shown == files.Count ? $"{files.Count} 件" : $"{shown} / {files.Count} 件";
+        FileCountText.Text = sel > 1 ? $"{count}(選択 {sel} 件)" : count;
+    }
+
+    // ---- 絞り込み(ファイル名と日付フォルダ名に含まれる文字。件数が多くても探せるように。LokuOnX のアイデア) ----
+    private string fileFilter = "";
+
+    private void ApplyFileFilter()
+    {
+        fileFilter = FileFilterBox.Text.Trim();
+        var view = System.Windows.Data.CollectionViewSource.GetDefaultView(files);
+        view.Filter = fileFilter.Length == 0 ? null : o =>
+            o is FileItem f &&
+            (f.Name.Contains(fileFilter, StringComparison.OrdinalIgnoreCase) ||
+             System.IO.Path.GetFileName(f.Folder).Contains(fileFilter, StringComparison.OrdinalIgnoreCase));
+        UpdateFileCount();
     }
 
     private void OnFileFinished(RecordedFile f)
@@ -108,6 +124,7 @@ public partial class MainWindow
         BtnRename.Click += (s, e) => RenameSelected();
         BtnTrash.Click += (s, e) => TrashSelected();
         BtnRescan.Click += (s, e) => RescanFiles();
+        FileFilterBox.TextChanged += (s, e) => ApplyFileFilter();
 
         FileList.SelectionChanged += (s, e) => UpdateFileCount();
         FileList.MouseDoubleClick += (s, e) =>
