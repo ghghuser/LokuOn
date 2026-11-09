@@ -118,13 +118,15 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="保存先" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <TextBox x:Name="FolderBox" Grid.Column="1" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="FolderBox" ToolTip="録音ファイルの保存先です。日付フォルダを作る設定のときは、この中に日付のフォルダができます。" Grid.Column="1" VerticalContentAlignment="Center"/>
                                 <Button x:Name="BtnBrowse" Grid.Column="2" Content="参照…" Padding="8,2" Margin="4,0,0,0"/>
                                 <Button x:Name="BtnOpenFolder" Grid.Column="3" Content="開く" Padding="8,2" Margin="4,0,0,0"/>
                             </Grid>
                             <WrapPanel Margin="0,0,0,3">
-                                <CheckBox x:Name="UseDateFolderCheck" Content="日付フォルダを作る" VerticalContentAlignment="Center" Margin="0,0,6,0"/>
+                                <CheckBox x:Name="UseDateFolderCheck" ToolTip="保存先の中に、録音を始めた日付のフォルダを作って、その中に保存します。" Content="日付フォルダを作る" VerticalContentAlignment="Center" Margin="0,0,6,0"/>
                                 <TextBox x:Name="DateFormatBox" Width="200" VerticalContentAlignment="Center" ToolTip="例: {yyyy}-{MM}-{dd}（録音を始めた日で固定）"/>
+                                <Button x:Name="BtnVarDate" Content="？" Padding="8,2" Margin="4,0,0,0"
+                                        ToolTip="変数の説明を開きます。変数のボタンを押すと、カーソルの位置に入ります(結果のプレビューつき)"/>
                             </WrapPanel>
                             <Grid Margin="0,0,0,3">
                                 <Grid.ColumnDefinitions>
@@ -133,26 +135,29 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="テンプレート" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <ComboBox x:Name="TemplateCombo" Grid.Column="1"/>
+                                <ComboBox x:Name="TemplateCombo" ToolTip="よく使うファイル名の形を、名前を付けて保存しておけます。選ぶと下の「ファイル名」に入ります。" Grid.Column="1"/>
                                 <WrapPanel Grid.Column="2" Margin="4,0,0,0">
                                     <Button x:Name="BtnTemplateSave" Content="保存" Padding="8,2" Margin="0,0,4,0"/>
                                     <Button x:Name="BtnTemplateDelete" Content="削除" Padding="8,2" Margin="0,0,4,0"/>
-                                    <Button x:Name="BtnTemplateReset" Content="初期に戻す" Padding="8,2"/>
+                                    <Button x:Name="BtnTemplateReset" ToolTip="最初から入っているテンプレートを元に戻します。" Content="初期に戻す" Padding="8,2"/>
                                 </WrapPanel>
                             </Grid>
                             <Grid Margin="0,0,0,2">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="ファイル名" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                 <TextBox x:Name="TemplateBox" Grid.Column="1" VerticalContentAlignment="Center"/>
+                                <Button x:Name="BtnVarTemplate" Grid.Column="2" Content="？" Padding="8,2" Margin="4,0,0,0"
+                                        ToolTip="変数の説明を開きます。変数のボタンを押すと、カーソルの位置に入ります(結果のプレビューつき)"/>
                             </Grid>
                             <TextBlock x:Name="TemplatePreview" TextWrapping="Wrap" Margin="0,0,0,4" FontWeight="SemiBold"/>
                             <Expander Header="ファイル名の詳細(変数・時間表記・番号)" Margin="0,2,0,0">
                                 <StackPanel Margin="0,4,0,0">
                             <TextBlock x:Name="TemplateHint" TextWrapping="Wrap" Opacity="0.7" Margin="0,0,0,2"
-                                       Text="{}変数: {Date} {Time} {yyyy} {yy} {MM} {dd} {HH} {mm} {ss}(そのファイルを始めた時刻) {No} {Track:000} {Start} {End} {Length} {Device} {Preset} {ext}   {End:m}=125：30 形式 / {End:s}=秒数"/>
+                                       Text="{}変数は、ファイル名欄の右の「？」ボタンで、説明つきの一覧を開けます(押すとカーソルの位置に入ります)。{End:m} は 125：30 形式、{End:s} は秒数です。"/>
                             <WrapPanel Margin="0,0,0,3">
                                 <TextBlock Text="時間表記" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                 <ComboBox x:Name="TimeStyleCombo" MinWidth="250"/>
@@ -187,25 +192,25 @@
                             <Expander Header="オプション(無音で分割・音で録音開始・デバイス切断時の動作)" Margin="0,2,0,0">
                                 <StackPanel Margin="0,4,0,0">
                             <WrapPanel Margin="0,0,0,3">
-                                <CheckBox x:Name="SilenceSplitCheck" Content="無音で分割" VerticalContentAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox x:Name="SilenceDbBox" Width="46" VerticalContentAlignment="Center"/>
+                                <CheckBox x:Name="SilenceSplitCheck" ToolTip="入力が無音(しきい値以下)のまま指定の秒数たつと、次のファイルへ分割します。判定には、エフェクトをかける前の音を使います。" Content="無音で分割" VerticalContentAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox x:Name="SilenceDbBox" ToolTip="この音量(dB)以下を無音とみなします。0に近いほど、大きめの音まで無音とみなします。" Width="46" VerticalContentAlignment="Center"/>
                                 <TextBlock Text="dB以下が" VerticalAlignment="Center" Margin="4,0,4,0"/>
-                                <TextBox x:Name="SilenceSecBox" Width="40" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="SilenceSecBox" ToolTip="無音がこの秒数続いたら分割します。" Width="40" VerticalContentAlignment="Center"/>
                                 <TextBlock Text="秒続いたら(1曲最短" VerticalAlignment="Center" Margin="4,0,4,0"/>
-                                <TextBox x:Name="MinTrackBox" Width="40" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="MinTrackBox" ToolTip="無音で分割するとき、これより短いファイルは作りません(秒)。" Width="40" VerticalContentAlignment="Center"/>
                                 <TextBlock Text="秒)" VerticalAlignment="Center" Margin="4,0,0,0"/>
                             </WrapPanel>
                             <WrapPanel Margin="0,0,0,3">
-                                <CheckBox x:Name="AutoStartCheck" Content="音が出たら録音開始" VerticalContentAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox x:Name="AutoStartDbBox" Width="46" VerticalContentAlignment="Center"/>
+                                <CheckBox x:Name="AutoStartCheck" ToolTip="ONにすると、録音ボタンを押しても音が出るまでファイルを作らず待機し、音が出たら録音を始めます。" Content="音が出たら録音開始" VerticalContentAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox x:Name="AutoStartDbBox" ToolTip="この音量(dB)以上の音が入ったら録音を始めます。" Width="46" VerticalContentAlignment="Center"/>
                                 <TextBlock Text="dB以上" VerticalAlignment="Center" Margin="4,0,14,0"/>
                                 <TextBlock Text="無音で自動停止" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                <TextBox x:Name="AutoStopBox" Width="44" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="AutoStopBox" ToolTip="無音がこの秒数続いたら、録音を止めて保存します(0=止めない)。" Width="44" VerticalContentAlignment="Center"/>
                                 <TextBlock Text="秒(0=しない)" VerticalAlignment="Center" Margin="4,0,0,0"/>
                             </WrapPanel>
                             <WrapPanel>
-                                <CheckBox x:Name="AutoResumeCheck" Content="デバイス切断時に自動再開" VerticalContentAlignment="Center" Margin="0,0,8,0"/>
-                                <ComboBox x:Name="LostPolicyCombo" Width="230"/>
+                                <CheckBox x:Name="AutoResumeCheck" ToolTip="デバイスが外れたり変わったりしても、録音を自動で続けます。外れている間の扱いは右の選択で決まります。" Content="デバイス切断時に自動再開" VerticalContentAlignment="Center" Margin="0,0,8,0"/>
+                                <ComboBox x:Name="LostPolicyCombo" ToolTip="デバイスが外れたときの扱いです。同じファイルで続ける=外れている間は無音を入れて続けます。戻るまで待機=一時停止して、戻ったら再開します。戻ったら別ファイルに分割=戻った時点で次のファイルにします。" Width="230"/>
                             </WrapPanel>
                                 </StackPanel>
                             </Expander>
@@ -252,9 +257,9 @@
                         <!-- ボタン -->
                         <StackPanel Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Top">
                             <Button x:Name="BtnRecord" Content="●  録音開始" Width="150" Height="46" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                            <Button x:Name="BtnPauseRec" Content="❚❚  一時停止" Width="150" Height="38" FontSize="14" IsEnabled="False" Margin="0,0,0,6"/>
-                            <Button x:Name="BtnSplit" Content="✂  分割" Width="150" Height="38" FontSize="14" IsEnabled="False" Margin="0,0,0,6"/>
-                            <CheckBox x:Name="MonitorCheck" Content="入力確認(待機中も表示)" Margin="0,2,0,0"/>
+                            <Button x:Name="BtnPauseRec" ToolTip="録音を一時停止します。もう一度押すと再開します。" Content="❚❚  一時停止" Width="150" Height="38" FontSize="14" IsEnabled="False" Margin="0,0,0,6"/>
+                            <Button x:Name="BtnSplit" ToolTip="録音を止めずに、ここで次のファイルへ切り替えます。" Content="✂  分割" Width="150" Height="38" FontSize="14" IsEnabled="False" Margin="0,0,0,6"/>
+                            <CheckBox x:Name="MonitorCheck" ToolTip="録音していないあいだも、選んだ入力の音量をメーターと波形に出します(ファイルには何も書きません)。オフにすると、録音を始めるまで入力デバイスを開きません(出力が動いている間は開いたままです)。" Content="入力確認(待機中も表示)" Margin="0,2,0,0"/>
                         </StackPanel>
 
                         <!-- 波形 -->
@@ -482,7 +487,7 @@
                                     <TextBox x:Name="HotkeySplitBox" Width="120" VerticalContentAlignment="Center"/>
                                 </WrapPanel>
                                 <TextBlock x:Name="HotkeyStatus" Opacity="0.75" Margin="0,0,0,8" TextWrapping="Wrap"
-                                           Text="例: Ctrl+Alt+F9 (Ctrl / Alt / Shift / Win と、英数字・F1〜F24 などの組み合わせ)"/>
+                                           Text="欄をクリックして、割り当てたいキーを押します(Ctrl・Alt・Shift・Win のどれかと一緒に)。Delete か BackSpace で未設定にします。例: Ctrl+Alt+F9"/>
                                 <WrapPanel Margin="0,0,0,8">
                                     <TextBlock Text="ディスク空き容量: 警告" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                     <TextBox x:Name="DiskWarnBox" Width="46" VerticalContentAlignment="Center"/>

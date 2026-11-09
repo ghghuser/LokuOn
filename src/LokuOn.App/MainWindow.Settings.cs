@@ -142,6 +142,7 @@ public partial class MainWindow
         BitDepthCombo.SelectionChanged += (s, e) => OnSettingChanged();
         TimeStyleCombo.SelectionChanged += (s, e) => OnSettingChanged();
         LostPolicyCombo.SelectionChanged += (s, e) => OnSettingChanged();
+        WireHelpers();
 
         foreach (var tb in new[] { FolderBox, DateFormatBox, TemplateBox, NoBox, TrackBox, AutoSplitBox, MaxHoursBox, SilenceDbBox,
                      SilenceSecBox, MinTrackBox, AutoStartDbBox, AutoStopBox, TagTitle, TagArtist, TagAlbum, TagAlbumArtist,

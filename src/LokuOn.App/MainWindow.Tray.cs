@@ -9,7 +9,7 @@ public partial class MainWindow
 {
     private const int HotkeyIdStartStop = 0x5201;
     private const int HotkeyIdSplit = 0x5202;
-    private const string HotkeyHintText = "例: Ctrl+Alt+F9 (Ctrl / Alt / Shift / Win と、英数字・F1〜F24 などの組み合わせ)";
+    private const string HotkeyHintText = "欄をクリックして、割り当てたいキーを押します(Ctrl・Alt・Shift・Win のどれかと一緒に)。Delete か BackSpace で未設定にします。例: Ctrl+Alt+F9";
 
     private IntPtr hwnd = IntPtr.Zero;
     private HwndSource? hwndSource;
