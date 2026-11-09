@@ -1,6 +1,14 @@
 # LokuOn 引き継ぎメモ（Claude用・新しいチャットはまずこれだけ読む）
 
-最終更新: 2026-11-08(段階4: 入力ごとのエフェクト) / 最新: 6259d14 以降（Actionsビルド成功、自己テスト246件成功）。11/5の軽量化・最適化は main に反映済みでビルド成功(「6.」参照。実機確認は未)
+最終更新: 2026-11-09 / 最新コミット: 録音開始・終了での出力の途切れ修正+docs改訂(`git log -3` で確認) / Actionsビルド成功、自己テスト310件成功。
+
+## 0. いまの状態と、続きの着手方法(最初にここを読む)
+- **追加機能(出力・ルーティング・エフェクト)の計画は、段階1〜6まで全部終了**(段階6=VSTは調査のみで、実装は保留)。ユーザーが次に何を言うかで着手する。自分から新機能を始めない。
+- 最重要の資料: `docs/SUMMARY-additions.txt`(追加機能以降の実装まとめ。仕様・工夫・注意点・確認状況・保留事項。**まずこれを読む**)。ほかに `docs/DECISIONS-summary.txt`(決定事項)、`docs/SPEC-output-routing.txt`(元の仕様)、`docs/SPEC-waveform.txt`(波形表示の仕様)、`docs/INVESTIGATION-vst.txt`(VST調査)。
+- 実機確認の状況: 段階1〜4・パラメトリック/ローカット・出力中の録音開始/終了(途切れ修正)は確認済み。**確認の報告がまだ**: 段階5(出力ごとのFX・リミッター)、ノイズゲートの聞こえ方、🔊ボタンのダブルクリック。**保留(最後まで)**: 録音中に出力デバイスを抜いたときの挙動。
+- 保留・再検討: ①VST対応(別プロセスのヘルパー方式を推奨。再開時は「使いたいプラグイン」「録音側のみでよいか」「6a試作に進むか」を確認) ②簡単モニター(不要の可能性が高い。聞かれたら SUMMARY の7章で答える) ③ニューモーフィズム風スキン、ASIO実機確認(従来からの保留)。
+- ユーザーの傾向: 実機テストの結果を番号付きで返してくれる。画面の見た目には具体的な要望が出る(参考画像を添付することもある)。大がかりなものは先に相談、小さなものは直して報告。リスクのある変更(録音の経路など)は「慎重に」と言われる。
+- 新チャットの手順: ①`add_repo`(ghghuser/LokuOn, access=push)→clone ②この文書と docs/SUMMARY-additions.txt を読む ③Linuxで検証できるのは Core のみ(`tests/LokuOn.SelfTest`)。WPF/Audio は Actions でのビルドが唯一の確認 ④push後は `gh run list` でビルド成功を確認してから報告する。
 
 ## 1. 目的と運用
 - Windows 11 用の自作録音アプリ（用途は自分用）。ユーザー(お嬢)はローカル開発環境なし。**Claudeがこのリポジトリを直接編集→push→GitHub Actionsでビルド**。ユーザーは Actions の Artifacts(`LokuOn-win-x64`) をDLして実機テストし、結果を報告する。
@@ -24,9 +32,10 @@
 
 ## 3. 構成
 - `src/LokuOn.Core`(net8.0, OS非依存): Models(Preset/SourceSetting/AudioFormat), AppSettings(+SettingsStore, TemplateLibrary, BackdropRules), PresetStore(Presets\*.json), EncoderSession(FFmpeg引数), RecorderEngine/SourceBuffer/Resampler/Journal(復旧), NameTemplate, TimeText, WsolaStretcher, IniFile ほか。
-- `src/LokuOn.Audio`(net8.0-windows): DeviceCatalog, CaptureSource, RecorderController, FilePlayer。
+- `src/LokuOn.Audio`(net8.0-windows): DeviceCatalog, CaptureSource, RecorderController(入力の開閉・出力スロット・録音/モニター), OutputDevice(WASAPI出力), FilePlayer。
 - `src/LokuOn.App`(net9.0-windows, WPF): MainWindow.xaml + .xaml.cs/.Settings.cs/.Files.cs/.Tray.cs, AppInfoWindow(⚙), ThemeHelper, WindowEffects(Mica/Acrylic), PromptWindow, Controls/。
-- `tests/LokuOn.SelfTest`: コンソール自己テスト(147件)。ffmpegで実エンコードまで検証。
+- 追加機能のCore(`src/LokuOn.Core`): Routing.cs(MixBus), OutputRenderer.cs, SourceBuffer.cs(タップ), Resampler.cs(Trim), Effects.cs(EffectSetting/EffectChain/EqBands/ParamBand/EqMath/ノイズゲート), OutputFx.cs(OutputFxSetting/Limiter/OutputFxChain), SourceReuse.cs(入力の引き継ぎ判定), Waveform.cs。App側: OutputWindow.cs, OutputFxWindow.cs, EffectWindow.cs, MainWindow.Output.cs, MainWindow.Fx.cs, Controls/GraphicEqControl.cs, Controls/LevelMeter.cs。
+- `tests/LokuOn.SelfTest`: コンソール自己テスト(現在310件。147件から増加)。ffmpegで実エンコードまで検証。
 - `.github/workflows/build.yml`: windows-latest。FFmpeg取得(BtbN LGPL→gyan)＋エンコーダー確認、自己テスト、単一exe publish、`publish/LokuOn/`を Artifact `LokuOn-win-x64` に。`v*`タグでRelease。
 
 ## 4. 作業のやり方（トークン節約）
