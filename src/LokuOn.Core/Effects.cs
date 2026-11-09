@@ -1,6 +1,6 @@
 namespace LokuOn.Core;
 
-/// <summary>入力1本ぶんのエフェクト設定(イコライザ → エコー → リバーブ の順に通す)。プリセットに保存される。</summary>
+/// <summary>入力1本ぶんのエフェクト設定(ノイズゲート → ローカット/イコライザ → エコー → リバーブ の順に通す)。プリセットに保存される。</summary>
 public sealed class EffectSetting
 {
     // ---- 全体
@@ -10,6 +10,15 @@ public sealed class EffectSetting
     public bool ToRecording { get; set; } = false;
     /// <summary>エフェクトをかけた音を出力に流すか(既定: する)。</summary>
     public bool ToOutput { get; set; } = true;
+
+    // ---- ノイズゲート(いちばん最初にかかる。小さい音=ノイズを自動で下げ、声などの大きい音のときだけ通す)
+    public bool GateOn { get; set; }
+    /// <summary>この音量(dB)を超えると開く。-70〜-10。</summary>
+    public double GateThresholdDb { get; set; } = -45;
+    /// <summary>音が小さくなってから、閉じていく速さ(ミリ秒)。20〜1000。</summary>
+    public double GateReleaseMs { get; set; } = 200;
+    /// <summary>閉じたときに下げる量(dB)。6〜80。大きいほど無音に近くなる。</summary>
+    public double GateReductionDb { get; set; } = 40;
 
     // ---- イコライザ(10バンドのグラフィックEQ。31Hz〜16kHz、各±12dB)
     public bool EqOn { get; set; }
@@ -38,7 +47,7 @@ public sealed class EffectSetting
     /// <summary>効果が実際にかかるか(バイパスでなく、どれかがオン)。</summary>
     public bool IsActive => !Bypass && HasAny;
     /// <summary>設定が1つでも入っているか(FXボタンの色づけ用。バイパス中でも true)。</summary>
-    public bool HasAny => EqOn || HpfHz >= 20 || ParamOn || EchoOn || ReverbOn;
+    public bool HasAny => GateOn || EqOn || HpfHz >= 20 || ParamOn || EchoOn || ReverbOn;
 
     public EffectSetting Clone()
     {
@@ -60,6 +69,7 @@ public sealed class EffectSetting
         for (int i = 0; i < pd.Length; i++)
             if (Params != null && i < Params.Length && Params[i] != null) { pd[i] = Params[i]; pd[i].Normalize(i); }
         Params = pd;
+        GateThresholdDb = C(GateThresholdDb, -70, -10, -45); GateReleaseMs = C(GateReleaseMs, 20, 1000, 200); GateReductionDb = C(GateReductionDb, 6, 80, 40);
         EchoMs = C(EchoMs, 20, 1000, 300); EchoFeedback = C(EchoFeedback, 0, 0.9, 0.35); EchoMix = C(EchoMix, 0, 1, 0.3);
         ReverbRoom = C(ReverbRoom, 0, 1, 0.5); ReverbDamp = C(ReverbDamp, 0, 1, 0.5); ReverbMix = C(ReverbMix, 0, 1, 0.25);
     }
@@ -72,6 +82,7 @@ public sealed class EffectSetting
         string? C(string t) => comment ? t : null;
         s.Set(prefix + "Bypass", Bypass, C("入力ごとのエフェクト。Bypass=すべてバイパス / ToRecording=録音に反映 / ToOutput=出力に反映"));
         s.Set(prefix + "ToRecording", ToRecording); s.Set(prefix + "ToOutput", ToOutput);
+        s.Set(prefix + "GateOn", GateOn, C("ノイズゲート(閾値dB-70〜-10 / 戻りms / 下げる量dB)")); s.Set(prefix + "GateThresholdDb", GateThresholdDb); s.Set(prefix + "GateReleaseMs", GateReleaseMs); s.Set(prefix + "GateReductionDb", GateReductionDb);
         s.Set(prefix + "EqOn", EqOn);
         s.Set(prefix + "HpfHz", HpfHz, C("ローカット(Hz、0=なし)"));
         s.Set(prefix + "EqBands", string.Join(",", (Bands ?? new double[EqBands.Count]).Select(v => v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))),
@@ -89,6 +100,8 @@ public sealed class EffectSetting
         var e = new EffectSetting
         {
             Bypass = s.GetBool(prefix + "Bypass", d.Bypass), ToRecording = s.GetBool(prefix + "ToRecording", d.ToRecording), ToOutput = s.GetBool(prefix + "ToOutput", d.ToOutput),
+            GateOn = s.GetBool(prefix + "GateOn", d.GateOn), GateThresholdDb = s.GetDouble(prefix + "GateThresholdDb", d.GateThresholdDb),
+            GateReleaseMs = s.GetDouble(prefix + "GateReleaseMs", d.GateReleaseMs), GateReductionDb = s.GetDouble(prefix + "GateReductionDb", d.GateReductionDb),
             EqOn = s.GetBool(prefix + "EqOn", d.EqOn), ParamOn = s.GetBool(prefix + "ParamOn", d.ParamOn), HpfHz = s.GetDouble(prefix + "HpfHz", d.HpfHz),
             EchoOn = s.GetBool(prefix + "EchoOn", d.EchoOn), EchoMs = s.GetDouble(prefix + "EchoMs", d.EchoMs),
             EchoFeedback = s.GetDouble(prefix + "EchoFeedback", d.EchoFeedback), EchoMix = s.GetDouble(prefix + "EchoMix", d.EchoMix),
@@ -122,7 +135,7 @@ public sealed class EffectSetting
 
     /// <summary>効果の中身(オン/オフと数値)が同じか。録音・出力への反映先の設定は比べない。</summary>
     public bool SameSound(EffectSetting o) =>
-        Bypass == o.Bypass && EqOn == o.EqOn && HpfHz == o.HpfHz && SameBands(o) && ParamOn == o.ParamOn && SameParams(o) && EchoOn == o.EchoOn && EchoMs == o.EchoMs && EchoFeedback == o.EchoFeedback
+        Bypass == o.Bypass && GateOn == o.GateOn && GateThresholdDb == o.GateThresholdDb && GateReleaseMs == o.GateReleaseMs && GateReductionDb == o.GateReductionDb && EqOn == o.EqOn && HpfHz == o.HpfHz && SameBands(o) && ParamOn == o.ParamOn && SameParams(o) && EchoOn == o.EchoOn && EchoMs == o.EchoMs && EchoFeedback == o.EchoFeedback
         && EchoMix == o.EchoMix && ReverbOn == o.ReverbOn && ReverbRoom == o.ReverbRoom && ReverbDamp == o.ReverbDamp && ReverbMix == o.ReverbMix;
 }
 
@@ -148,6 +161,11 @@ public sealed class EffectChain
     private readonly Bq[] paramBq = Enumerable.Range(0, ParamBand.Count).Select(_ => new Bq()).ToArray();
     private readonly Bq[] eqAll;    // ローカット → 10バンド → パラメトリック の順
     private bool eqWasOn;
+
+    // --- ノイズゲート
+    private bool gateOn, gateWasOn, gateOpen = true;
+    private float gateOpenLin, gateCloseLin, gateFloor = 0.01f, gateG = 1f, gateRel = 0.001f, gateAtk = 0.1f;
+    private int gateHold, gateHoldFrames;
 
     // --- エコー
     private float[][]? echo;
@@ -188,6 +206,7 @@ public sealed class EffectChain
         if (!s.IsActive) { if (applied != null && applied.IsActive) { applied = s; ResetStates(); } return; }
         if (!ReferenceEquals(s, applied)) { Rebuild(s); applied = s; }
 
+        if (gateOn) ProcessGate(buf, frames);
         if (eqOnNow) ProcessEq(buf, frames);
         if (echoOn) ProcessEcho(buf, frames);
         if (revOn) ProcessReverb(buf, frames);
@@ -195,16 +214,52 @@ public sealed class EffectChain
 
     private bool eqOnNow;
 
+    /// <summary>
+    /// ノイズゲート。全チャンネルの最大の大きさで開閉を決め(左右連動)、開く: 3ms、閉じる: 設定の戻り時間でゲインを滑らかに動かす。
+    /// 開く閾値より4dB低い値を下回り、さらに60ms続いたら閉じる(バタつき防止)。
+    /// </summary>
+    private void ProcessGate(float[] buf, int frames)
+    {
+        for (int f = 0, b = 0; f < frames; f++, b += ch)
+        {
+            float lv = 0;
+            for (int c = 0; c < ch; c++) { float a = buf[b + c]; if (a < 0) a = -a; if (a > lv) lv = a; }
+            if (lv >= gateOpenLin) { gateOpen = true; gateHold = gateHoldFrames; }
+            else if (gateOpen)
+            {
+                if (lv >= gateCloseLin) gateHold = gateHoldFrames;
+                else if (--gateHold <= 0) gateOpen = false;
+            }
+            if (gateOpen) gateG += (1f - gateG) * gateAtk;
+            else { gateG += (gateFloor - gateG) * gateRel; if (gateG < gateFloor) gateG = gateFloor; }
+            if (gateG < 1f) for (int c = 0; c < ch; c++) buf[b + c] *= gateG;
+        }
+    }
+
     private void ResetStates()
     {
         foreach (var b in eqAll) { Array.Clear(b.Z1); Array.Clear(b.Z2); }
-        echo = null; combs = null; allpasses = null; echoWasOn = revWasOn = eqWasOn = false;
+        echo = null; combs = null; allpasses = null; echoWasOn = revWasOn = eqWasOn = false; gateWasOn = false; gateOpen = true; gateG = 1f;
     }
 
     // ------------------------------------------------------------ 設定の反映
 
     private void Rebuild(EffectSetting s)
     {
+        // ノイズゲート
+        gateOn = s.GateOn;
+        if (s.GateOn)
+        {
+            gateOpenLin = (float)Math.Pow(10, s.GateThresholdDb / 20.0);
+            gateCloseLin = (float)Math.Pow(10, (s.GateThresholdDb - 4) / 20.0);
+            gateFloor = (float)Math.Pow(10, -s.GateReductionDb / 20.0);
+            gateRel = (float)(1.0 - Math.Exp(-1.0 / (s.GateReleaseMs * 0.001 * sr / 4.6)));   // 戻り時間でおよそ -40dB 下がる速さ
+            gateAtk = (float)(1.0 - Math.Exp(-1.0 / (0.003 * sr / 4.6)));
+            gateHoldFrames = (int)(0.06 * sr);
+            if (!gateWasOn) { gateOpen = true; gateG = 1f; gateHold = gateHoldFrames; }
+        }
+        gateWasOn = s.GateOn;
+
         // イコライザ(ローカット / グラフィック / パラメトリックは、それぞれ独立にオン・オフできる)
         bool hpfOn = s.HpfHz >= 20;
         eqOnNow = s.EqOn || hpfOn || s.ParamOn;

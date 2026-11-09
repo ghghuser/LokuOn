@@ -315,6 +315,7 @@ RoutingTests.Run(new CheckFn(Check), Section);
 OutputTests.Run(new CheckFn(Check), Section);
 EffectTests.Run(new CheckFn(Check), Section);
 OutputFxTests.Run(new CheckFn(Check), Section);
+GateTests.Run(new CheckFn(Check), Section);
 
 // ---------------------------------------------------------------- 録音エンジン(実際にffmpegで書き出す)
 if (ffmpeg == null)

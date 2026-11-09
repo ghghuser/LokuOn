@@ -24,7 +24,14 @@ public partial class MainWindow
 
     private void InitOutputUi()
     {
-        BtnOutput.Click += (s, e) => ShowOutputMenu();
+        // クリック=メニュー、ダブルクリック=出力ウィンドウ。メニューは、ダブルクリックでないと分かるまで少し(0.3秒)待ってから出す
+        var dblTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+        dblTimer.Tick += (s, e) => { dblTimer.Stop(); ShowOutputMenu(); };
+        BtnOutput.Click += (s, e) =>
+        {
+            if (dblTimer.IsEnabled) { dblTimer.Stop(); OpenOutputWindow(); }
+            else dblTimer.Start();
+        };
 
         // 入力の名前: ダブルクリックまたは右クリックで変更
         for (int i = 0; i < Preset.SourceSlots; i++)
@@ -185,7 +192,7 @@ public partial class MainWindow
         BtnOutput.Margin = new Thickness(0, 4, 46, 0);
         if (running) BtnOutput.Foreground = new SolidColorBrush(Color.FromRgb(0x3F, 0xB9, 0x50));
         else BtnOutput.ClearValue(Control.ForegroundProperty);
-        BtnOutput.ToolTip = running ? "出力中です。クリックで、出力ごとのオン/オフ・すべて停止/再開・出力ウィンドウを開く" : "出力: クリックで、出力ごとのオン/オフ・すべて再開・出力ウィンドウを開く(録音とは独立)";
+        BtnOutput.ToolTip = running ? "出力中です。クリックで、出力ごとのオン/オフ・すべて停止/再開・出力ウィンドウを開く(ダブルクリックで出力ウィンドウ)" : "出力: クリックで、出力ごとのオン/オフ・すべて再開・出力ウィンドウを開く(ダブルクリックで出力ウィンドウ。録音とは独立)";
         SetTray(ctl.IsRecording ? "録音中" : null);
     }
 }

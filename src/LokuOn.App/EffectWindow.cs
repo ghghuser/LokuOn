@@ -28,7 +28,7 @@ public sealed class EffectWindow : Window
     private readonly ComboBox presetBox = new() { MinWidth = 180 };
     private readonly Controls.GraphicEqControl eqView = new();
     private CheckBox? eqCheck;
-    private readonly TabItem eqTab = new(), fxTab = new();
+    private readonly TabItem eqTab = new(), gateTab = new(), fxTab = new();
     private bool loading;
     private int slot;
 
@@ -68,8 +68,9 @@ public sealed class EffectWindow : Window
         var mainTabs = new TabControl { Margin = new Thickness(0, 4, 0, 0), Padding = new Thickness(2, 2, 2, 2) };
         var eqPanel = new StackPanel();
         var fxPanel = new StackPanel();
-        eqTab.Content = eqPanel; fxTab.Content = fxPanel;
-        mainTabs.Items.Add(eqTab); mainTabs.Items.Add(fxTab);
+        var gatePanel = new StackPanel();
+        eqTab.Content = eqPanel; gateTab.Content = gatePanel; fxTab.Content = fxPanel;
+        mainTabs.Items.Add(eqTab); mainTabs.Items.Add(gateTab); mainTabs.Items.Add(fxTab);
         root.Children.Add(mainTabs);
 
         // グラフィックEQ(曲線は常に見える。ローカット・パラメトリックの効果もこの曲線に合成される)
@@ -109,6 +110,17 @@ public sealed class EffectWindow : Window
         refreshers.Add(() => eqView.SetHpf(Cur.HpfHz));
 
         BuildParametric(eqPanel);
+
+        // ノイズゲート(いちばん最初にかかる)
+        var gate = Section(gatePanel, "ノイズゲート(小さい音=ノイズを自動で下げる)", c => c.GateOn, (c, v) => c.GateOn = v);
+        AddSlider(gate, "しきい値", -70, -10, 1, c => c.GateThresholdDb, (c, v) => c.GateThresholdDb = v, v => $"{v:0} dB", -45);
+        AddSlider(gate, "戻り時間", 20, 1000, 10, c => c.GateReleaseMs, (c, v) => c.GateReleaseMs = v, v => $"{v:0} ms", 200);
+        AddSlider(gate, "下げる量", 6, 80, 1, c => c.GateReductionDb, (c, v) => c.GateReductionDb = v, v => $"{v:0} dB", 40);
+        gatePanel.Children.Add(new TextBlock
+        {
+            Text = "しきい値より大きい音のときだけ通し、小さい音(ハム・息・部屋のノイズ)のときは「下げる量」だけ下げます。しきい値は、ノイズだけのときのメーターの位置より少し上に合わせます。声の語尾が切れるときは、しきい値を下げるか戻り時間を長くします。ノイズゲートは、かける順番でいちばん最初(EQより前)です。",
+            TextWrapping = TextWrapping.Wrap, Opacity = 0.65, FontSize = 11.5, Margin = new Thickness(2, 6, 2, 2),
+        });
 
         // エコー
         var echo = Section(fxPanel, "エコー", c => c.EchoOn, (c, v) => c.EchoOn = v);
@@ -289,6 +301,7 @@ public sealed class EffectWindow : Window
         var c = Cur;
         string Join(params (bool on, string name)[] a) { var l = a.Where(x => x.on).Select(x => x.name).ToList(); return l.Count == 0 ? "" : (c.Bypass ? "  ○ バイパス中: " : "  ● ") + string.Join("・", l); }
         eqTab.Header = "イコライザ" + Join((c.EqOn, "グラフィック"), (c.HpfHz >= 20, "ローカット"), (c.ParamOn, "パラメトリック"));
+        gateTab.Header = "ノイズゲート" + Join((c.GateOn, "オン"));
         fxTab.Header = "エコー・リバーブ" + Join((c.EchoOn, "エコー"), (c.ReverbOn, "リバーブ"));
     }
 

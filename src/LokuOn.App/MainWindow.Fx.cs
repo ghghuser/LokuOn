@@ -93,7 +93,7 @@ public partial class MainWindow
             {
                 b.ClearValue(Control.ForegroundProperty); b.FontWeight = FontWeights.Normal;
                 b.Opacity = f.HasAny ? 0.6 : 1;
-                b.ToolTip = f.HasAny ? "エフェクトはバイパス中です(クリックで開く)" : "エフェクト(イコライザ・エコー・リバーブ)。右クリックでメニュー";
+                b.ToolTip = f.HasAny ? "エフェクトはバイパス中です(クリックで開く)" : "エフェクト(ノイズゲート・イコライザ・エコー・リバーブ)。右クリックでメニュー";
             }
         }
     }
