@@ -1,0 +1,74 @@
+name: SonarQube
+
+# SonarQube Cloud(sonarcloud.io)でコードを解析する。リリース用の build.yml とは別のファイルにしてある
+# (build.yml は ZIP の作成・Releases への公開までするので、PR のたびに動かさないため)。
+# 前提: リポジトリの Settings → Secrets and variables → Actions に SONAR_TOKEN を登録しておくこと。
+#       未登録のあいだは解析を飛ばして警告だけ出す(Actions が赤くならないように)。
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '**.txt'
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build:
+    name: Build and analyze
+    runs-on: windows-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - name: SONAR_TOKEN の確認
+        if: env.SONAR_TOKEN == ''
+        shell: pwsh
+        run: Write-Host '::warning::SONAR_TOKEN が未設定のため、SonarQube の解析を行いません(Settings → Secrets and variables → Actions に登録してください)'
+
+      - name: Set up JDK 21
+        if: env.SONAR_TOKEN != ''
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
+        with:
+          java-version: 21
+          distribution: 'zulu' # Alternative distribution options are available.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        if: env.SONAR_TOKEN != ''
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - name: .NET 9 をセットアップ
+        if: env.SONAR_TOKEN != ''
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - name: Cache SonarQube Cloud packages
+        if: env.SONAR_TOKEN != ''
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~\sonar\cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - name: Cache SonarQube Cloud scanner
+        if: env.SONAR_TOKEN != ''
+        id: cache-sonar-scanner
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ runner.temp }}\scanner
+          key: ${{ runner.os }}-sonar-scanner
+          restore-keys: ${{ runner.os }}-sonar-scanner
+      - name: Install SonarQube Cloud scanner
+        if: env.SONAR_TOKEN != '' && steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+        shell: powershell
+        run: |
+          New-Item -Path ${{ runner.temp }}\scanner -ItemType Directory
+          dotnet tool update dotnet-sonarscanner --tool-path ${{ runner.temp }}\scanner
+      - name: Build and analyze
+        if: env.SONAR_TOKEN != ''
+        shell: powershell
+        run: |
+          ${{ runner.temp }}\scanner\dotnet-sonarscanner begin /k:"ghghuser_LokuOn" /o:"ghghuser" /d:sonar.token="$env:SONAR_TOKEN"
+          # このリポジトリには .sln が無いので、プロジェクトを指定してビルドする(アプリ本体は Core / Audio も一緒にビルドされる)
+          dotnet build src/LokuOn.App/LokuOn.App.csproj -c Release
+          dotnet build tests/LokuOn.SelfTest/LokuOn.SelfTest.csproj -c Release
+          ${{ runner.temp }}\scanner\dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
