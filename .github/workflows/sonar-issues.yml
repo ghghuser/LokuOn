@@ -1,0 +1,46 @@
+name: SonarQube issues(一覧の取得)
+
+# SonarQube Cloud の未解決 Issues を重大度順に、Actions のログへ1行ずつ出す(手動実行のみ)。
+# SONAR_TOKEN(Secrets)を使う。取得結果は Artifact(sonar-issues.json)にも保存される。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      KEY: ghghuser_LokuOn
+    steps:
+      - name: Issues を取得して表示
+        run: |
+          set -e
+          : > all.jsonl
+          p=1
+          while :; do
+            curl -sS -f -u "$SONAR_TOKEN:" "https://sonarcloud.io/api/issues/search?componentKeys=$KEY&resolved=false&ps=500&p=$p" -o page.json
+            jq -c '.issues[]' page.json >> all.jsonl
+            total=$(jq '.total' page.json)
+            [ $((p*500)) -ge "$total" ] && break
+            p=$((p+1))
+          done
+          jq -s '.' all.jsonl > sonar-issues.json
+          echo "合計: $(jq length sonar-issues.json) 件"
+          echo "--- 重大度別 ---"
+          jq -r 'group_by(.impacts[0].severity // .severity) | map("\(.[0].impacts[0].severity // .[0].severity): \(length)") | .[]' sonar-issues.json
+          echo "--- ルール別(多い順) ---"
+          jq -r 'group_by(.rule) | map({r:.[0].rule, n:length, s:(.[0].impacts[0].severity // .[0].severity)}) | sort_by(-.n) | .[] | "\(.n)\t\(.s)\t\(.r)"' sonar-issues.json
+          echo "--- 一覧(重大度順) 重大度|種別|ルール|ファイル:行|メッセージ ---"
+          jq -r 'def rank: {"BLOCKER":0,"HIGH":0,"CRITICAL":1,"MEDIUM":2,"MAJOR":2,"LOW":3,"MINOR":3,"INFO":4}[.] // 5;
+                 sort_by([((.impacts[0].severity // .severity)|rank), .component, (.line // 0)]) | .[]
+                 | "\(.impacts[0].severity // .severity)|\(.type)|\(.rule)|\(.component|sub("^[^:]*:";"")):\(.line // "-")|\(.message|.[0:160])"' sonar-issues.json
+          echo "--- Security Hotspots ---"
+          curl -sS -u "$SONAR_TOKEN:" "https://sonarcloud.io/api/hotspots/search?projectKey=$KEY&status=TO_REVIEW&ps=500" \
+            | jq -r '.hotspots[]? | "\(.vulnerabilityProbability)|\(.ruleKey)|\(.component|sub("^[^:]*:";"")):\(.line // "-")|\(.message|.[0:160])"'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sonar-issues
+          path: sonar-issues.json
