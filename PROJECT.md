@@ -1,6 +1,21 @@
 # LokuOn 引き継ぎメモ（Claude用・新しいチャットはまずこれだけ読む）
 
-最終更新: 2026-11-09 / 最新コミット: 録音開始・終了での出力の途切れ修正+docs改訂(`git log -3` で確認) / Actionsビルド成功、自己テスト310件成功。
+最終更新: 2026-11-24 / 最新コミットは `git log -3` で確認 / Actionsビルド成功、自己テスト315件成功、SonarQube Cloud の Issues は 0 件(167件から)。
+
+## 0-A. 最重要ルール(2026-11-24 ユーザー指示。必ず守る)
+- **GitHub Codespaces は使わない**(今月の無料枠を100%超過)。新規作成・起動はしない。必要になりそうなら作業前にユーザーへ知らせる。ビルド・テストは GitHub Actions、編集はリポジトリへの直接コミット(またはPR)。ユーザーがローカルで何か実行する必要があるときは、初心者向けに1ステップずつ書く。ユーザーは Codespaces を自分で作ったことがなく、プログラミングは全て Claude に任せている。残っている Codespace に気づいたら、停止・削除を提案する(このセッションからは `gh codespace list` が使えず確認できなかった)。来月以降に使う場合: 最小の2コア、終わったら停止、不要なら削除(削除前にブランチへpush)、Prebuild禁止、重いビルド/テストは Actions へ。
+- **トークンの節約**: ユーザーは他のAIも使っていてトークンに限りがある。作業は一度にまとめ、ログは必要な部分だけ読み、不要な確認や長い説明は避ける。
+- **PR運用は採らない(2026-11-24 決定。ユーザーは「任せる・節約できる形で」)**: 通常どおり main へ直接 push。PRのたびに Greptile/CodeRabbit が走ると消費が増えるため。ユーザーが明示したときだけPRを作る。CodeRabbit はGitHub連携済みだが、PRを作ったときだけ動く(mainへの直接pushでは動かない)。Greptile も連携済み(ユーザーが開発の参考として導入)。
+
+## 0-B. 2026-11-24 時点の作業のまとめ(SonarQube対応)
+- `.github/workflows/sonar.yml`(SonarQube Cloud の解析。キー ghghuser_LokuOn / 組織 ghghuser。Secrets の SONAR_TOKEN 使用。mainへのpushとPRで動く。ビルド失敗は失敗扱い)。`.github/workflows/sonar-issues.yml`(手動実行。未解決 Issues・ルール別件数・最後の解析のコミット・メトリクス・Hotspots を Actions のログに出し、`sonar-issues.json` を Artifact に保存)。
+- Issues の確認手順(SonarCloud はこのコンテナから直接見られない): `gh api -X POST repos/ghghuser/LokuOn/actions/workflows/sonar-issues.yml/dispatches -f ref=main` → 40秒ほど待つ → `gh run list --workflow sonar-issues.yml --limit 1` で id を得て `gh run view <id> --log` を読む。(`gh workflow run` は GraphQL が塞がれていて失敗する。REST の `gh api` を使う。)
+- 167件(BLOCKER1/HIGH2/MEDIUM156/LOW8)を 0 件にした。真の指摘は直した: Routing.Process の引数を `IReadOnlyList<float[]>` に(S2368)、単一起動のハッシュを SHA256 に(S4790)、`RescanFiles` を `async Task` に(S3168)、build.yml の softprops/action-gh-release を SHA 固定(S7637)、Fp.Eq(src/LokuOn.Core/Fp.cs)で小数の比較(S1244)、P/Invoke を `LibraryImport` に(partial化、App/Audio の csproj に AllowUnsafeBlocks)、正規表現を `GeneratedRegex`(タイムアウト付き)に、Array.Empty・static readonly 配列・Substring→Span・explorer.exe の絶対パス・テストを名前空間 `LokuOn.SelfTest` に ほか。
+- **誤検知として除外**(sonar.yml の `sonar.issue.ignore.multicriteria`): e1 S1244 を tests/**(正確な値の一致を確かめるテスト)、e2 S2245 を tests/**(種固定の乱数)、e3 S6549 を FfmpegTools.cs(設定画面で本人が指定したffmpegパスを調べるだけ)。新しい指摘が増えたら、まず真の問題か誤検知かを見分ける。
+- **実機未確認(Windowsのみで動く部分)**: LibraryImport化した呼び出し(ホットキー登録/解除・タイトルバーの明暗とMica/アクリル・スリープ防止・トレイアイコンの破棄)、単一起動のハッシュ変更(旧版と新版の同時起動は一度だけ検出されない)、一覧の読み込み(RescanFiles)、小数の比較(Fp.Eq。1e-9以内で同じ扱い)。コンパイルとCoreの自己テストは通っている。
+- 11/9〜11/18 に追加: ニューモーフィズム・ダーク(テーマ `softdark`、Themes/SoftDark.xaml)、一覧の絞り込み欄、PCM変換の高速化、ファイル名・日付フォルダ名の「？」ウィンドウ(VariableEditorWindow/VariableHelp)、ホットキー欄のキー入力(HotkeyCapture)、一時停止ホットキー(既定 Ctrl+Alt+F11)、ツールチップ、FFmpeg取得の再試行と6形式の実エンコード検査(n8.1 LGPL → master LGPL → gyan GPL)。**これらも実機未確認**(見た目・操作感)。
+- 比較用の別リポジトリ: ghghuser/LokuOnX(ユーザーの別アプローチ版、公開。出力・エフェクトは無し)。互いの良い点を取り入れてよいとの指示。見送り: 履歴/フォルダのタブ、インジケーター(常時)=「入力確認」と同じ。未決(ユーザーに預けたまま): CIの自己テストを失敗でビルドを止めるか(今は continue-on-error)、`ffmpeg\LICENSE.txt` を同梱するか。
+- 環境のメモ: Core のテストは Linux で `apt-get install -y dotnet-sdk-8.0` のあと、オフライン用の空のNuGet設定(`<packageSources><clear/></packageSources>`)で `dotnet restore`、`dotnet run --project tests/LokuOn.SelfTest -c Release`(ffmpeg がPATHに必要)。WPF/Audio はActionsだけ。コンテナが消えたらやり直し。
 
 ## 0. いまの状態と、続きの着手方法(最初にここを読む)
 - **追加機能(出力・ルーティング・エフェクト)の計画は、段階1〜6まで全部終了**(段階6=VSTは調査のみで、実装は保留)。ユーザーが次に何を言うかで着手する。自分から新機能を始めない。
@@ -35,8 +50,8 @@
 - `src/LokuOn.Audio`(net8.0-windows): DeviceCatalog, CaptureSource, RecorderController(入力の開閉・出力スロット・録音/モニター), OutputDevice(WASAPI出力), FilePlayer。
 - `src/LokuOn.App`(net9.0-windows, WPF): MainWindow.xaml + .xaml.cs/.Settings.cs/.Files.cs/.Tray.cs, AppInfoWindow(⚙), ThemeHelper, WindowEffects(Mica/Acrylic), PromptWindow, Controls/。
 - 追加機能のCore(`src/LokuOn.Core`): Routing.cs(MixBus), OutputRenderer.cs, SourceBuffer.cs(タップ), Resampler.cs(Trim), Effects.cs(EffectSetting/EffectChain/EqBands/ParamBand/EqMath/ノイズゲート), OutputFx.cs(OutputFxSetting/Limiter/OutputFxChain), SourceReuse.cs(入力の引き継ぎ判定), Waveform.cs。App側: OutputWindow.cs, OutputFxWindow.cs, EffectWindow.cs, MainWindow.Output.cs, MainWindow.Fx.cs, Controls/GraphicEqControl.cs, Controls/LevelMeter.cs。
-- `tests/LokuOn.SelfTest`: コンソール自己テスト(現在310件。147件から増加)。ffmpegで実エンコードまで検証。
-- `.github/workflows/build.yml`: windows-latest。FFmpeg取得(BtbN LGPL→gyan)＋エンコーダー確認、自己テスト、単一exe publish、`publish/LokuOn/`を Artifact `LokuOn-win-x64` に。`v*`タグでRelease。
+- `tests/LokuOn.SelfTest`: コンソール自己テスト(現在315件)。ffmpegで実エンコードまで検証。
+- `.github/workflows/build.yml`: windows-latest。FFmpeg取得(n8.1 LGPL→master LGPL→gyan。再試行つき)＋6形式の実エンコード確認、自己テスト、単一exe publish、`publish/LokuOn/`を Artifact `LokuOn-win-x64` に。`v*`タグでRelease。
 
 ## 4. 作業のやり方（トークン節約）
 - 最初から全ファイルを読まない。**変更に関係するファイルだけ grep/Read の部分読み**。MainWindow.Settings.cs(約900行)は特に範囲指定で読む。
