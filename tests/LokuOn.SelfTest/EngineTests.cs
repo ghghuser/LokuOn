@@ -1,10 +1,21 @@
 using System.Diagnostics;
 using LokuOn.Core;
 
+namespace LokuOn.SelfTest;
+
 delegate void CheckFn(bool ok, string name, string detail = "");
 
-static class EngineTests
+static partial class EngineTests
 {
+    [System.Text.RegularExpressions.GeneratedRegex(@"max_volume:\s*(-?[0-9.]+)\s*dB", System.Text.RegularExpressions.RegexOptions.None, 2000)]
+    private static partial System.Text.RegularExpressions.Regex MaxVolumeRx();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"(?i)track\s*:\s*1", System.Text.RegularExpressions.RegexOptions.None, 2000)]
+    private static partial System.Text.RegularExpressions.Regex Track1Rx();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"(?i)track\s*:\s*2", System.Text.RegularExpressions.RegexOptions.None, 2000)]
+    private static partial System.Text.RegularExpressions.Regex Track2Rx();
+
     /// <summary>実時間で音を流し込む疑似デバイス(指定のサンプルレートで届く)。</summary>
     sealed class FakeDevice : IDisposable
     {
@@ -55,7 +66,7 @@ static class EngineTests
         using var pr = Process.Start(psi)!;
         string err = pr.StandardError.ReadToEnd();
         pr.WaitForExit();
-        var m = System.Text.RegularExpressions.Regex.Match(err, @"max_volume:\s*(-?[0-9.]+)\s*dB");
+        var m = MaxVolumeRx().Match(err);
         return m.Success ? double.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture) : 0;
     }
 
@@ -96,8 +107,8 @@ static class EngineTests
                 var (_, meta) = FfmpegTools.Run(ffmpeg, new[] { "-hide_banner", "-i", files[0] });
                 check(meta.Contains("日本語タイトル") && meta.Contains("アーティスト♪"), "日本語タグ", "");
                 check(meta.Contains("No917-1") || meta.Contains("No917-"), "タグ内の変数", "");
-                check(System.Text.RegularExpressions.Regex.IsMatch(meta, @"(?i)track\s*:\s*1"), "1個目にもトラック番号が追記された", "");
-                check(System.Text.RegularExpressions.Regex.IsMatch(FfmpegTools.Run(ffmpeg, new[] { "-hide_banner", "-i", files[1] }).Stderr, @"(?i)track\s*:\s*2"), "2個目のトラック番号", "");
+                check(Track1Rx().IsMatch(meta), "1個目にもトラック番号が追記された", "");
+                check(Track2Rx().IsMatch(FfmpegTools.Run(ffmpeg, new[] { "-hide_banner", "-i", files[1] }).Stderr), "2個目のトラック番号", "");
             }
             check(finished.Count == 2, "FileFinished が2回", finished.Count.ToString());
             check(!File.Exists(Path.Combine(dir, "j.journal")), "記録ファイルは正常終了で消える");

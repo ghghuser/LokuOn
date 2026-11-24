@@ -101,8 +101,9 @@ public partial class MainWindow
         catch { return MakeDot(System.Drawing.Color.FromArgb(235, 60, 50)); }
     }
 
-    [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "DestroyIcon")]
-    private static extern bool DestroyIconNative(IntPtr handle);
+    [System.Runtime.InteropServices.LibraryImport("user32.dll", EntryPoint = "DestroyIcon")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static partial bool DestroyIconNative(IntPtr handle);
 
     private void EnsureTray()
     {

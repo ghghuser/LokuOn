@@ -19,7 +19,7 @@ public sealed class OutputDevice : IDisposable
         private readonly OutputRenderer r;
         private readonly int ch, bits;
         private readonly bool isFloat;
-        private float[] scratch = new float[0];
+        private float[] scratch = Array.Empty<float>();
         public RenderProvider(OutputRenderer r, WaveFormat fmt)
         {
             this.r = r; ch = fmt.Channels; WaveFormat = fmt; bits = fmt.BitsPerSample;

@@ -1,5 +1,7 @@
 using LokuOn.Core;
 
+namespace LokuOn.SelfTest;
+
 /// <summary>ミキサー(MixBus)のテスト。録音のミックスが、これまでの計算とビット単位で同じことを確かめる。</summary>
 static class RoutingTests
 {

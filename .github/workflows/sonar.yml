@@ -67,7 +67,15 @@ jobs:
         if: env.SONAR_TOKEN != ''
         shell: powershell
         run: |
-          ${{ runner.temp }}\scanner\dotnet-sonarscanner begin /k:"ghghuser_LokuOn" /o:"ghghuser" /d:sonar.token="$env:SONAR_TOKEN"
+          # 誤検知として除外するもの(理由):
+          #  e1 S1244 テスト: 値が「ちょうど同じ」であることを確かめるのがテストの目的
+          #  e2 S2245 テスト: 種(seed)を固定した乱数で、毎回同じデータを作るため(安全性に関係しない)
+          #  e3 S6549 FfmpegTools: 設定画面で本人が指定した ffmpeg のパスを調べるだけ(自分のPC上のデスクトップアプリ)
+          ${{ runner.temp }}\scanner\dotnet-sonarscanner begin /k:"ghghuser_LokuOn" /o:"ghghuser" /d:sonar.token="$env:SONAR_TOKEN" `
+            /d:sonar.issue.ignore.multicriteria=e1,e2,e3 `
+            /d:sonar.issue.ignore.multicriteria.e1.ruleKey=csharpsquid:S1244 /d:sonar.issue.ignore.multicriteria.e1.resourceKey="tests/**" `
+            /d:sonar.issue.ignore.multicriteria.e2.ruleKey=csharpsquid:S2245 /d:sonar.issue.ignore.multicriteria.e2.resourceKey="tests/**" `
+            /d:sonar.issue.ignore.multicriteria.e3.ruleKey=roslyn.sonaranalyzer.security.cs:S6549 /d:sonar.issue.ignore.multicriteria.e3.resourceKey="src/LokuOn.Core/FfmpegTools.cs"
           # このリポジトリには .sln が無いので、プロジェクトを指定してビルドする(アプリ本体は Core / Audio も一緒にビルドされる)
           dotnet build src/LokuOn.App/LokuOn.App.csproj -c Release
           dotnet build tests/LokuOn.SelfTest/LokuOn.SelfTest.csproj -c Release

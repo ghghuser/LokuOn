@@ -1,5 +1,7 @@
 using LokuOn.Core;
 
+namespace LokuOn.SelfTest;
+
 /// <summary>ノイズゲートのテスト。</summary>
 static class GateTests
 {
@@ -44,7 +46,7 @@ static class GateTests
                     b[f] = (float)(a * Math.Sin(2 * Math.PI * 440 * t / SR));
                 }
                 c2.Process(b, 480);
-                if (blk > 100) for (int f = 0; f < 480; f++) min = Math.Min(min, Math.Abs(b[f]) / 0.0079 + (Math.Abs(b[f]) > 0 ? 0 : 0));
+                if (blk > 100) for (int f = 0; f < 480; f++) min = Math.Min(min, Math.Abs(b[f]) / 0.0079);
             }
             double peakLate = 0; for (int f = 0; f < 480; f++) peakLate = Math.Max(peakLate, Math.Abs(b[f]));
             check(Math.Abs(peakLate - 0.0079) < 0.0002, "いったん開いたら、閾値より少し低い音では閉じない(バタつき防止)", $"{peakLate:F5}");

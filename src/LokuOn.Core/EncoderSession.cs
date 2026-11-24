@@ -6,6 +6,8 @@ namespace LokuOn.Core;
 
 public sealed class EncoderSpec
 {
+    private static readonly string[] Fmt24 = { "-sample_fmt", "s32", "-bits_per_raw_sample", "24" };
+    private static readonly string[] Fmt16 = { "-sample_fmt", "s16" };
     public AudioFormat Format { get; set; } = AudioFormat.Flac;
     public int SampleRate { get; set; } = 48000;
     public int Channels { get; set; } = 2;
@@ -45,8 +47,8 @@ public sealed class EncoderSpec
         {
             case AudioFormat.Flac:
                 a.AddRange(new[] { "-c:a", "flac", "-compression_level", Level(5, 12).ToString() });
-                if (BitDepth >= 24) a.AddRange(new[] { "-sample_fmt", "s32", "-bits_per_raw_sample", "24" });
-                else a.AddRange(new[] { "-sample_fmt", "s16" });
+                if (BitDepth >= 24) a.AddRange(Fmt24);
+                else a.AddRange(Fmt16);
                 break;
             case AudioFormat.Mp3:
                 a.AddRange(new[] { "-c:a", "libmp3lame", "-b:a", BitrateKbps + "k", "-compression_level", Level(2, 9).ToString(), "-id3v2_version", "3", "-write_id3v1", "0" });

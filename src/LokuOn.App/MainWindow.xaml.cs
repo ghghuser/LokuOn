@@ -50,8 +50,8 @@ public partial class MainWindow : Window
         loading = true;
         SetupStaticCombos();
         WireEvents();
-        MasterMeter.Configure(new[] { "L", "R" });
-        SourceMeter.Configure(new[] { "入力1", "入力2", "入力3", "入力4" });
+        MasterMeter.Configure(MasterLabels);
+        SourceMeter.Configure(SourceLabels);
         InitOutputUi();
         InitFxUi();
         LogList.ItemsSource = logItems;
@@ -90,7 +90,7 @@ public partial class MainWindow : Window
         }
         AddLog("起動しました");
 
-        RescanFiles();
+        _ = RescanFiles();
         _ = RecoverPendingAsync();
         if (ctl.Settings.MonitorInput) StartMonitorSafe();
         timer.Start();

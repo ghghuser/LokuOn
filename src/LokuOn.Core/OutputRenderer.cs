@@ -32,8 +32,8 @@ public sealed class OutputRenderer
     private readonly IReadOnlyList<SourceBuffer?> taps;
     private readonly int devRate, devCh;
     private readonly Chan[] chans;
-    private float[][] inputs = new float[0][];
-    private float[] mix = new float[0];
+    private float[][] inputs = Array.Empty<float[]>();
+    private float[] mix = Array.Empty<float>();
 
     public MixBus Bus { get; }
 

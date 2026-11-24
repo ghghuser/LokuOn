@@ -12,7 +12,7 @@ namespace LokuOn.Audio;
 /// ただし Message / FileFinished / EngineStopped イベントはエンジン側のスレッドから発生するので、
 /// 受け取る側で UI スレッドへ切り替えること。
 /// </summary>
-public sealed class RecorderController : IDisposable
+public sealed partial class RecorderController : IDisposable
 {
     private sealed class ActiveSource
     {
@@ -94,7 +94,7 @@ public sealed class RecorderController : IDisposable
     {
         try
         {
-            string probe = Path.Combine(appDir, ".lokuon_write_test_" + Guid.NewGuid().ToString("N").Substring(0, 6));
+            string probe = Path.Combine(appDir, ".lokuon_write_test_" + Guid.NewGuid().ToString("N")[..6]);
             File.WriteAllText(probe, "x");
             File.Delete(probe);
             return appDir;
@@ -127,7 +127,7 @@ public sealed class RecorderController : IDisposable
         if (t.StartsWith(DeviceCatalog.SpeakerIcon)) return "PC内部音 " + t.Substring(DeviceCatalog.SpeakerIcon.Length).Trim();
         if (t.StartsWith(DeviceCatalog.MicIcon)) return "マイク " + t.Substring(DeviceCatalog.MicIcon.Length).Trim();
         int i = t.IndexOf("] ", StringComparison.Ordinal);
-        if (t.StartsWith("[") && i > 0) return t.Substring(1, i - 1) + " " + t.Substring(i + 2);
+        if (t.StartsWith('[') && i > 0) return string.Concat(t.AsSpan(1, i - 1), " ", t.AsSpan(i + 2));
         return string.IsNullOrWhiteSpace(t) ? deviceId : t;
     }
 
@@ -728,16 +728,16 @@ public sealed class RecorderController : IDisposable
     [Flags]
     private enum ExecutionState : uint { Continuous = 0x80000000, SystemRequired = 0x00000001, AwayMode = 0x00000040 }
 
-    [DllImport("kernel32.dll")]
-    private static extern uint SetThreadExecutionState(uint flags);
+    [LibraryImport("kernel32.dll")]
+    private static partial uint SetThreadExecutionState(uint flags);
 
     private void SetSleepLock(bool on)
     {
         if (!OperatingSystem.IsWindows()) return;
         try
         {
-            if (on) { SetThreadExecutionState((uint)(ExecutionState.Continuous | ExecutionState.SystemRequired)); sleepLocked = true; }
-            else if (sleepLocked) { SetThreadExecutionState((uint)ExecutionState.Continuous); sleepLocked = false; }
+            if (on) { _ = SetThreadExecutionState((uint)(ExecutionState.Continuous | ExecutionState.SystemRequired)); sleepLocked = true; }
+            else if (sleepLocked) { _ = SetThreadExecutionState((uint)ExecutionState.Continuous); sleepLocked = false; }
         }
         catch { }
     }

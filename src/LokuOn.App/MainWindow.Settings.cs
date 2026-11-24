@@ -11,6 +11,8 @@ namespace LokuOn.App;
 // 画面の設定 ⇔ Preset / AppSettings の受け渡し、プリセットの管理
 public partial class MainWindow
 {
+    private static readonly double[] SpeedSteps = { 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0 };
+
     private readonly Dictionary<string, string> missingDeviceNames = new();
     private ComboBox[] DevCombos => new[] { DevCombo1, DevCombo2, DevCombo3, DevCombo4 };
     private Slider[] Gains => new[] { Gain1, Gain2, Gain3, Gain4 };
@@ -47,7 +49,7 @@ public partial class MainWindow
             new("戻るまで待機(一時停止)", DeviceLostPolicy.Wait),
             new("戻ったら別ファイルに分割", DeviceLostPolicy.SplitOnReturn),
         };
-        SpeedCombo.ItemsSource = new[] { 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0 }
+        SpeedCombo.ItemsSource = SpeedSteps
             .Select(v => new Choice<double>(v.ToString("0.##", CultureInfo.InvariantCulture) + "x", v)).ToList();
         SpeedCombo.SelectedIndex = 2;
         RateCombo.ItemsSource = AllRates.Select(RateChoice).ToList();
@@ -152,7 +154,7 @@ public partial class MainWindow
                      NoBox, TrackBox, DiskWarnBox, DiskStopBox })
             tb.LostFocus += (s, e) => NormalizeNumbers();
         // 保存先を書き換えたときだけ一覧を読み直す(そのままなら無駄な読み込みと選択の解除を避ける。手動は「保存先から読み込み」ボタン)
-        FolderBox.LostFocus += (s, e) => { if (FolderBox.Text.Trim() != lastScanRoot) RescanFiles(); };
+        FolderBox.LostFocus += (s, e) => { if (FolderBox.Text.Trim() != lastScanRoot) _ = RescanFiles(); };
 
         foreach (var ck in new[] { UseDateFolderCheck, SilenceSplitCheck, AutoStartCheck, AutoResumeCheck, WriteTrackTagCheck })
             ck.Click += (s, e) => OnSettingChanged();
@@ -161,7 +163,7 @@ public partial class MainWindow
         {
             var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "録音の保存先フォルダを選んでください" };
             if (Directory.Exists(FolderBox.Text)) dlg.InitialDirectory = FolderBox.Text;
-            if (dlg.ShowDialog(this) == true) { FolderBox.Text = dlg.FolderName; RescanFiles(); }
+            if (dlg.ShowDialog(this) == true) { FolderBox.Text = dlg.FolderName; _ = RescanFiles(); }
         };
         BtnOpenFolder.Click += (s, e) =>
         {

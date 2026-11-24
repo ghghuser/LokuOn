@@ -1,12 +1,13 @@
 using LokuOn.Core;
 
+namespace LokuOn.SelfTest;
+
 /// <summary>出力デバイス用の音づくり(OutputRenderer)のテスト。時計のずれを仮想の時間で再現する。</summary>
 static class OutputTests
 {
     sealed class Sim
     {
         public long Underruns, Overflows; public double MinFill = 1e9, MaxFill; public double MaxJump; public int Glitches;
-        public double RmsErr; public double FreqRatio;
     }
 
     /// <summary>入力(srcRate, srcCh)を ppm だけ速く/遅く送り、デバイス(devRate)が 480 フレームずつ引く。</summary>
@@ -25,7 +26,6 @@ static class OutputTests
         float prev = 0; bool havePrev = false;
         long blocks = (long)(seconds * devRate / block);
         long warmBlocks = (long)(warm * devRate / block);
-        double errSum = 0; long errN = 0;
         for (long b = 0; b < blocks; b++)
         {
             t = (double)b * block / devRate;

@@ -18,7 +18,7 @@ public sealed class CaptureSource : IDisposable
     private AsioOut? asio;
     private string? currentEndpointId;      // 「既定」追従用
     private volatile bool disposed;
-    private float[] asioBuf = new float[0];
+    private float[] asioBuf = Array.Empty<float>();
 
     public string DisplayName { get; }
     public string LastError { get; private set; } = "";
@@ -125,7 +125,7 @@ public sealed class CaptureSource : IDisposable
         string rest = EndpointPart;                    // ドライバ名|先頭チャンネル
         int bar = rest.LastIndexOf('|');
         string driver = bar >= 0 ? rest.Substring(0, bar) : rest;
-        int offset = bar >= 0 && int.TryParse(rest.Substring(bar + 1), out var o) ? o : 0;
+        int offset = bar >= 0 && int.TryParse(rest.AsSpan(bar + 1), out var o) ? o : 0;
 
         var a = new AsioOut(driver);
         try

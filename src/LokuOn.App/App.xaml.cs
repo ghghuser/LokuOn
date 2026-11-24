@@ -16,7 +16,7 @@ public partial class App : Application
 
         // 多重起動の判定は「同じフォルダのexe」だけ(別のフォルダにコピーした LokuOn は同時に起動できる)
         string dirKey = Path.GetFullPath(AppContext.BaseDirectory).TrimEnd('\\', '/').ToLowerInvariant();
-        string hash = Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(Encoding.UTF8.GetBytes(dirKey)))[..16];
+        string hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(dirKey)))[..16];
         singleInstance = new Mutex(true, "LokuOn.SingleInstance." + hash, out bool createdNew);
         if (!createdNew)
         {

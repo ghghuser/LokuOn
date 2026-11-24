@@ -46,6 +46,7 @@ public sealed class SourceSetting
 /// <summary>出力デバイス1つ(画面では「カード」1枚)の設定。</summary>
 public sealed class OutputSetting
 {
+    private static readonly bool[] DefaultSend = { true, true, true, true };
     public const int NameMax = 12;
     public string Name { get; set; } = "";
     /// <summary>出力先の再生デバイスID(wasapi-out:...)。空=未選択。</summary>
@@ -67,7 +68,7 @@ public sealed class OutputSetting
     public OutputSetting Clone()
     {
         var c = (OutputSetting)MemberwiseClone();
-        c.SendOn = (bool[])(SendOn ?? new[] { true, true, true, true }).Clone();
+        c.SendOn = (bool[])(SendOn ?? DefaultSend).Clone();
         c.SendGainDb = (double[])(SendGainDb ?? new double[Preset.SourceSlots]).Clone();
         c.Fx = (Fx ?? new OutputFxSetting()).Clone();
         return c;

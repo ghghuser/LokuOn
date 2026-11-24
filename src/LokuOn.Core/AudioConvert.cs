@@ -108,10 +108,10 @@ public sealed class SourceFeeder
     private readonly int inRate, inCh, bits;
     private readonly bool isFloat;
     private readonly StreamResampler resampler;
-    private float[] floats = new float[0];
-    private float[] mapped = new float[0];
+    private float[] floats = Array.Empty<float>();
+    private float[] mapped = Array.Empty<float>();
     private readonly List<float> resampled = new();
-    private float[] outArr = new float[0];
+    private float[] outArr = Array.Empty<float>();
 
     public SourceFeeder(SourceBuffer target, int inRate, int inChannels, int bitsPerSample, bool isFloat)
     {

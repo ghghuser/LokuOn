@@ -133,7 +133,7 @@ public sealed class OutputWindow : Window
 
     // ---------------------------------------------------------------- 組み立て
 
-    private string UsedKey(Preset p) => string.Join("|", Enumerable.Range(0, Preset.SourceSlots)
+    private static string UsedKey(Preset p) => string.Join("|", Enumerable.Range(0, Preset.SourceSlots)
         .Select(i => (string.IsNullOrWhiteSpace(p.Sources[i].DeviceId) ? "-" : p.Sources[i].DeviceName) + ":" + p.InputName(i)));
 
     private void Build()
@@ -149,7 +149,7 @@ public sealed class OutputWindow : Window
         addBtn.Visibility = cards.Count < Preset.MaxOutputs ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private UIElement BuildCard(OutputSetting card, Preset p)
+    private Border BuildCard(OutputSetting card, Preset p)
     {
         var v = new CardView { Card = card };
         views.Add(v);
@@ -283,7 +283,7 @@ public sealed class OutputWindow : Window
 
     private static string DbText(double db) => (db >= 0 ? "+" : "") + db.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " dB";
 
-    private void UpdateFold(CardView v)
+    private static void UpdateFold(CardView v)
     {
         var card = v.Card;
         int total = v.Rows.Count, on = v.Rows.Count(r => card.SendOn[r.Slot]);
@@ -377,7 +377,7 @@ public sealed class OutputWindow : Window
         Build();
     }
 
-    private void UpdateFxButton(CardView v)
+    private static void UpdateFxButton(CardView v)
     {
         var fx = v.Card.Fx;
         bool any = fx != null && fx.HasAny;

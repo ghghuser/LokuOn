@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using LokuOn.Core;
+using LokuOn.SelfTest;
 
 // 簡易セルフテスト(外部のテストライブラリ不要)。 dotnet run --project tests/LokuOn.SelfTest -- [ffmpegパス]
 int fails = 0, passes = 0;
@@ -77,23 +78,23 @@ Check(back.Current.Format == AudioFormat.Mp3 && back.Current.SampleRate == 44100
 Check(back.Current.SaveFolder == @"D:\録音\テスト" && back.Current.Tags.Title == "日本語タイトル ♪ ＡＢＣ", "日本語の往復");
 Check(back.Current.Sources[0].GainDb == -3.5 && back.Current.Sources[0].DeviceName == "スピーカー (Realtek)", "デバイス設定の往復");
 Check(back.Presets.Count == 1 && back.Presets[0].Name == "ライブ録音" && back.Presets[0].MixMode == MixMode.Separate, "プリセットの往復");
-string iniText = File.ReadAllText(ini);
+string iniText = await File.ReadAllTextAsync(ini);
 Check(!iniText.Contains("[Preset:") && iniText.Contains("FileNameTemplate="), "プリセットはiniに入れない");
 Check(File.Exists(Path.Combine(tmp, "Presets", "ライブ録音.json")), "Presets\\名前.json に保存");
-string pj = File.ReadAllText(Path.Combine(tmp, "Presets", "ライブ録音.json"));
+string pj = await File.ReadAllTextAsync(Path.Combine(tmp, "Presets", "ライブ録音.json"));
 Check(!pj.Contains("SaveFolder") && !pj.Contains("E:\\"), "プリセットに保存先を含めない");
 Check(back.Presets[0].CompressionLevel == 8 && back.Presets[0].AutoSplitSeconds == 5430, "プリセットの圧縮率・自動分割(秒)");
 // 旧形式([Preset:名前] in ini)からの移行
 {
     string old = Path.Combine(tmp, "old", "settings.ini");
     Directory.CreateDirectory(Path.GetDirectoryName(old)!);
-    File.WriteAllText(old, "[App]\nDiskWarnGB=5\nDiskStopGB=0.5\n[Preset:旧プリセット]\nFormat=Mp3\nAutoSplitMinutes=30\nSource1Device=wasapi-loop:default\n");
+    await File.WriteAllTextAsync(old, "[App]\nDiskWarnGB=5\nDiskStopGB=0.5\n[Preset:旧プリセット]\nFormat=Mp3\nAutoSplitMinutes=30\nSource1Device=wasapi-loop:default\n");
     var mig = SettingsStore.Load(old);
     Check(mig.Presets.Count == 1 && mig.Presets[0].Name == "旧プリセット" && mig.Presets[0].Format == AudioFormat.Mp3
         && mig.Presets[0].AutoSplitSeconds == 1800, "旧iniのプリセットをPresetsへ移行(分→秒)");
     Check(File.Exists(Path.Combine(tmp, "old", "Presets", "旧プリセット.json")), "移行したjsonが作られる");
     Check(mig.DiskWarnGB == 1 && mig.DiskStopGB == 0.1, "旧い既定のディスク閾値は新既定(1GB/100MB)へ");
-    File.WriteAllText(Path.Combine(tmp, "old", "Presets", "壊れ.json"), "{ not json");
+    await File.WriteAllTextAsync(Path.Combine(tmp, "old", "Presets", "壊れ.json"), "{ not json");
     var mig2 = SettingsStore.Load(old);
     Check(mig2.Presets.Count == 1 && mig2.PresetProblems.Count == 1, "壊れたプリセットは飛ばして報告");
 }
@@ -131,18 +132,18 @@ Check(Preset.SourceSlots == 4 && Preset.GainMaxDb == 20 && Preset.GainMinDb == -
     Check(lp.Outputs.Count == 2 && lp.Outputs[1].Name == "相手" && lp.InputName(0) == "アプリ1", "出力・入力名がプリセットのJSONに入る");
     var cl = lp.Clone(); cl.Outputs[1].SendOn[0] = false; cl.InputNames[0] = "x";
     Check(lp.Outputs[1].SendOn[0] && lp.InputNames[0] == "アプリ1", "Cloneは出力・入力名も別物にコピーする");
-    File.WriteAllText(Path.Combine(dir, "旧.json"), "{ \"Format\": \"Mp3\" }");
+    await File.WriteAllTextAsync(Path.Combine(dir, "旧.json"), "{ \"Format\": \"Mp3\" }");
     var oldp = PresetStore.LoadAll(dir, out _).First(x => x.Name == "旧");
     Check(oldp.Format == AudioFormat.Mp3 && oldp.Outputs.Count == 1 && oldp.Outputs[0].Name == "ミックス1" && oldp.InputName(1) == "入力2", "出力の項目がない旧プリセットは既定(1枚)で読める");
-    File.WriteAllText(Path.Combine(dir, "ゼロ.json"), "{ \"Outputs\": [] }");
+    await File.WriteAllTextAsync(Path.Combine(dir, "ゼロ.json"), "{ \"Outputs\": [] }");
     Check(PresetStore.LoadAll(dir, out _).First(x => x.Name == "ゼロ").Outputs.Count == 0, "出力0枚も保存できる");
     var many = new Preset(); for (int i = 0; i < 9; i++) many.Outputs.Add(new OutputSetting()); many.Normalize();
     Check(many.Outputs.Count == 4, "出力は最大4枚");
 }
 string json = Path.Combine(tmp, "presets.json");
 PresetJson.Export(back.Presets, json);
-Check(File.ReadAllText(json).Contains("ライブ録音") && PresetJson.Import(json)[0].MixMode == MixMode.Separate, "JSON書き出し/読み込み");
-File.WriteAllText(ini, "[App]\nNo=abc\n[Current]\nFormat=Nonsense\nSampleRate=-5\n");
+Check((await File.ReadAllTextAsync(json)).Contains("ライブ録音") && PresetJson.Import(json)[0].MixMode == MixMode.Separate, "JSON書き出し/読み込み");
+await File.WriteAllTextAsync(ini, "[App]\nNo=abc\n[Current]\nFormat=Nonsense\nSampleRate=-5\n");
 var bad = SettingsStore.Load(ini);
 Check(bad.No == 1 && bad.Current.Format == AudioFormat.Flac && bad.Current.SampleRate == 48000, "壊れた値は既定値へ");
 
@@ -166,7 +167,7 @@ Section("テンプレート保存・初期値");
 Section("名前の重複判定・設定の追加項目");
 {
     string ud = Path.Combine(tmp, "uniq"); Directory.CreateDirectory(ud);
-    string f1 = Path.Combine(ud, "a (No.1).mp3"); File.WriteAllText(f1, "x");
+    string f1 = Path.Combine(ud, "a (No.1).mp3"); await File.WriteAllTextAsync(f1, "x");
     Check(NameTemplate.UniquePath(ud, "a (No.1)", "mp3").EndsWith("a (No.1) (2).mp3"), "他のファイルと重複したら(2)");
     Check(NameTemplate.UniquePath(ud, "a (No.1)", "mp3", f1) == f1, "自分自身とは重複とみなさない");
     Check(NameTemplate.UniquePath(ud, "A (NO.1)", ".MP3", f1) == Path.Combine(ud, "A (NO.1).MP3"), "大文字小文字だけ違う自分の名前も重複としない");
@@ -175,10 +176,11 @@ Section("名前の重複判定・設定の追加項目");
     string ap = Path.Combine(tmp, "app2.ini");
     SettingsStore.Save(ap, a0);
     var a1 = SettingsStore.Load(ap);
-    Check(a1.MinimizeToTray && a1.Backdrop == "acrylic" && a1.HiddenTemplates.SequenceEqual(new[] { "日時形式" }), "最小化の動作・背景効果・非表示テンプレートの保存");
+    var oneHidden = new[] { "日時形式" };
+    Check(a1.MinimizeToTray && a1.Backdrop == "acrylic" && a1.HiddenTemplates.SequenceEqual(oneHidden), "最小化の動作・背景効果・非表示テンプレートの保存");
     Check(!new AppSettings().MinimizeToTray && new AppSettings().Backdrop == "none", "最小化はタスクバーに残す・背景効果なしが初期値");
     string old = Path.Combine(tmp, "old.ini");
-    File.WriteAllText(old, "[App]\nMinimizeToTray=true\n");
+    await File.WriteAllTextAsync(old, "[App]\nMinimizeToTray=true\n");
     Check(!SettingsStore.Load(old).MinimizeToTray, "古い設定の MinimizeToTray は引き継がず、新しい初期値(タスクバー)になる");
 }
 
@@ -196,7 +198,7 @@ Section("背景の効果のルール");
     var b1 = SettingsStore.Load(bp);
     Check(b1.Backdrop == "acrylic" && b1.BackdropStrength == 55, "背景の効果と濃さの保存");
     Check(new AppSettings().BackdropStrength == 80, "濃さの初期値は80");
-    File.WriteAllText(Path.Combine(tmp, "bd2.ini"), "[App]\nBackdropStrength=5\n");
+    await File.WriteAllTextAsync(Path.Combine(tmp, "bd2.ini"), "[App]\nBackdropStrength=5\n");
     Check(SettingsStore.Load(Path.Combine(tmp, "bd2.ini")).BackdropStrength == 30, "範囲外の濃さは30に直る");
 }
 
@@ -240,7 +242,8 @@ Section("チャンネル変換・PCM変換");
     ChannelMapper.Convert(src, 2, 2, 1, mono);
     Check(Math.Abs(mono[0]) < 1e-6 && Math.Abs(mono[1] - 0.5f) < 1e-6, "2→1");
     var st2 = new float[4];
-    ChannelMapper.Convert(new float[] { 0.25f, 0.75f }, 2, 1, 2, st2);
+    float[] twoSamples = { 0.25f, 0.75f };
+    ChannelMapper.Convert(twoSamples, 2, 1, 2, st2);
     Check(st2[0] == 0.25f && st2[1] == 0.25f && st2[2] == 0.75f && st2[3] == 0.75f, "1→2");
     var f = new float[4];
     PcmConverter.ToFloat(new byte[] { 0x00, 0x40, 0x00, 0xC0 }, 4, 16, false, f);

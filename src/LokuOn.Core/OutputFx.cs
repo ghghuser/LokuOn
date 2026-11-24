@@ -54,8 +54,8 @@ public sealed class OutputFxSetting
 
     public bool SameSound(OutputFxSetting o)
     {
-        if (Bypass != o.Bypass || EqOn != o.EqOn || HpfHz != o.HpfHz || ParamOn != o.ParamOn || LimiterOn != o.LimiterOn || CeilingDb != o.CeilingDb || ReleaseMs != o.ReleaseMs) return false;
-        for (int i = 0; i < EqBands.Count; i++) if ((Bands?[i] ?? 0) != (o.Bands?[i] ?? 0)) return false;
+        if (Bypass != o.Bypass || EqOn != o.EqOn || !Fp.Eq(HpfHz, o.HpfHz) || ParamOn != o.ParamOn || LimiterOn != o.LimiterOn || !Fp.Eq(CeilingDb, o.CeilingDb) || !Fp.Eq(ReleaseMs, o.ReleaseMs)) return false;
+        for (int i = 0; i < EqBands.Count; i++) if (!Fp.Eq(Bands?[i] ?? 0, o.Bands?[i] ?? 0)) return false;
         for (int i = 0; i < ParamBand.Count; i++) if (!Params[i].Same(o.Params[i])) return false;
         return true;
     }

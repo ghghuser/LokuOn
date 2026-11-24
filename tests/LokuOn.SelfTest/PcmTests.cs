@@ -1,6 +1,8 @@
 using System.Buffers.Binary;
 using LokuOn.Core;
 
+namespace LokuOn.SelfTest;
+
 /// <summary>PCM(16/24/32bit整数・float)→float の変換が、1サンプルずつ読む素直な計算と一致することを確かめる。</summary>
 static class PcmTests
 {

@@ -7,8 +7,8 @@ namespace LokuOn.App.Controls;
 /// <summary>録音中(または入力確認中)の直近の波形を流れるように表示する。</summary>
 public sealed class WaveformView : FrameworkElement
 {
-    private float[] mins = new float[0];
-    private float[] maxs = new float[0];
+    private float[] mins = Array.Empty<float>();
+    private float[] maxs = Array.Empty<float>();
     private int bucketCount;
     private double secondsShown;
 

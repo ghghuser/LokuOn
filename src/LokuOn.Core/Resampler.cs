@@ -16,7 +16,7 @@ public sealed class StreamResampler
     private readonly double tableScale;
     private readonly float[] weights;       // 出力1フレーム分のタップの重み(全チャンネルで共通なので1回だけ計算する)
 
-    private float[] buf = new float[0];     // 入力フレームのバッファ(インターリーブ)
+    private float[] buf = Array.Empty<float>();     // 入力フレームのバッファ(インターリーブ)
     private int bufFrames;
     private long baseIndex;                 // buf[0] の絶対入力フレーム番号
     private double pos;                     // 次に出力するサンプルの絶対入力位置

@@ -119,7 +119,7 @@ public sealed class LevelMeter : FrameworkElement
 
     private void EnsureText(double dpi)
     {
-        if (textDpi == dpi && ReferenceEquals(textBrushUsed, TextBrush) && labelText.Length == labels.Length) return;
+        if (LokuOn.Core.Fp.Eq(textDpi, dpi) && ReferenceEquals(textBrushUsed, TextBrush) && labelText.Length == labels.Length) return;
         var brush = TextBrush;
         labelText = new FormattedText[labels.Length];
         for (int i = 0; i < labels.Length; i++)

@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace LokuOn.Core;
 
-public static class FfmpegTools
+public static partial class FfmpegTools
 {
     /// <summary>ffmpeg.exe を探す。指定パス → アプリ隣の ffmpeg フォルダ → アプリと同じフォルダ → PATH の順。</summary>
     public static string? Locate(string? customPath, string appDir)
@@ -53,14 +53,17 @@ public static class FfmpegTools
         lock (err) return (proc.ExitCode, err.ToString());
     }
 
-    private static readonly Regex DurationRx = new(@"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", RegexOptions.Compiled);
-    private static readonly Regex TimeRx = new(@"time=(\d+):(\d+):(\d+(?:\.\d+)?)", RegexOptions.Compiled);
+    [GeneratedRegex(@"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", RegexOptions.None, 2000)]
+    private static partial Regex DurationRx();
+
+    [GeneratedRegex(@"time=(\d+):(\d+):(\d+(?:\.\d+)?)", RegexOptions.None, 2000)]
+    private static partial Regex TimeRx();
 
     /// <summary>音声ファイルの長さ(秒)。失敗時は null。コンテナ情報が無ければ全体をデコードして測る。</summary>
     public static double? ProbeDuration(string ffmpeg, string file)
     {
         var (_, err1) = Run(ffmpeg, new[] { "-hide_banner", "-nostdin", "-i", file }, 120_000);
-        var m = DurationRx.Match(err1);
+        var m = DurationRx().Match(err1);
         if (m.Success)
         {
             double d = ToSeconds(m);
@@ -68,7 +71,7 @@ public static class FfmpegTools
         }
         var (_, err2) = Run(ffmpeg, new[] { "-hide_banner", "-nostdin", "-i", file, "-vn", "-f", "null", "-" }, 3_600_000);
         double? last = null;
-        foreach (Match t in TimeRx.Matches(err2)) last = ToSeconds(t);
+        foreach (Match t in TimeRx().Matches(err2)) last = ToSeconds(t);
         return last;
     }
 
@@ -84,7 +87,7 @@ public static class FfmpegTools
     {
         string ext = Path.GetExtension(path);
         string dir = Path.GetDirectoryName(path) ?? ".";
-        string tmp = Path.Combine(dir, "~lokuon_tmp_" + Guid.NewGuid().ToString("N").Substring(0, 8) + ext);
+        string tmp = Path.Combine(dir, "~lokuon_tmp_" + Guid.NewGuid().ToString("N")[..8] + ext);
         var args = new List<string> { "-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-i", path, "-map", "0", "-c", "copy" };
         if (faststart && ext.Equals(".m4a", StringComparison.OrdinalIgnoreCase)) { args.Add("-movflags"); args.Add("+faststart"); }
         if (ext.Equals(".mp3", StringComparison.OrdinalIgnoreCase)) { args.Add("-id3v2_version"); args.Add("3"); args.Add("-write_id3v1"); args.Add("0"); }

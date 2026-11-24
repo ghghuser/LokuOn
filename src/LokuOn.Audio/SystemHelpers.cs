@@ -67,15 +67,17 @@ public static class HotkeyParser
 }
 
 /// <summary>グローバルホットキー(他のアプリを使っていても反応する)の登録。</summary>
-public static class GlobalHotkeys
+public static partial class GlobalHotkeys
 {
     public const int WmHotkey = 0x0312;
 
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
 
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool UnregisterHotKey(IntPtr hWnd, int id);
 
     public static bool Register(IntPtr hwnd, int id, string text)
     {
@@ -104,7 +106,7 @@ public static class FileOps
     public static void RevealInExplorer(string filePath)
     {
         if (File.Exists(filePath))
-            Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + filePath + "\"") { UseShellExecute = true });
+            Process.Start(new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), "/select,\"" + filePath + "\"") { UseShellExecute = true });
         else
         {
             string? dir = Path.GetDirectoryName(filePath);
@@ -114,7 +116,7 @@ public static class FileOps
 
     public static void OpenFolder(string dir)
     {
-        Process.Start(new ProcessStartInfo("explorer.exe", "\"" + dir + "\"") { UseShellExecute = true });
+        Process.Start(new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), "\"" + dir + "\"") { UseShellExecute = true });
     }
 
     public static readonly string[] AudioExtensions = { ".flac", ".mp3", ".m4a", ".aac", ".wav", ".opus", ".ogg" };
@@ -132,7 +134,7 @@ public static class FileOps
             var opt = new EnumerationOptions { RecurseSubdirectories = true, MaxRecursionDepth = 2, IgnoreInaccessible = true };
             foreach (var f in new DirectoryInfo(root).EnumerateFiles("*", opt))
             {
-                if (f.Name.StartsWith("~") || f.Name.Contains(LokuOn.Core.NameTemplate.ProvisionalText)) continue;
+                if (f.Name.StartsWith('~') || f.Name.Contains(LokuOn.Core.NameTemplate.ProvisionalText)) continue;
                 if (IsAudio(f.FullName)) list.Add(f);
             }
         }

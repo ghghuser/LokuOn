@@ -554,7 +554,7 @@ public sealed class RecorderEngine : IDisposable
     private sealed record Closing(EncoderSession Enc, string ProvPath, long StartFrames, long Frames, int Track, int FileIndex,
         DateTime StartTime, string Label, bool HadSplit);
 
-    private Closing Snapshot(Output o) => new(o.Enc!, o.ProvPath, o.FileStartFrames, o.FileFrames, o.Track, o.FilesOpened - 1,
+    private static Closing Snapshot(Output o) => new(o.Enc!, o.ProvPath, o.FileStartFrames, o.FileFrames, o.Track, o.FilesOpened - 1,
         o.FileStartTime, o.Label, o.HasSplit);
 
     private void StartFinalize(Closing c)

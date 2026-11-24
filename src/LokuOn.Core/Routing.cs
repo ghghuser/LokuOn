@@ -49,17 +49,17 @@ public sealed class MixBus
     /// 全体音量をかけたあと、先頭の2チャンネル(モノラルは1チャンネル)だけ±1に切り詰める。
     /// mono を渡すと、(L+R)/2 を frames 個書く(波形表示用)。post を渡すと、全体音量のあと・切り詰めの前に呼ぶ(出力ごとのEQ・リミッター用)。
     /// </summary>
-    public MixStats Process(float[][] inputs, int frames, int ch, float[] dest, float[]? mono = null, Action<float[], int>? post = null)
+    public MixStats Process(IReadOnlyList<float[]> inputs, int frames, int ch, float[] dest, float[]? mono = null, Action<float[], int>? post = null)
     {
         int samples = frames * ch;
         Array.Clear(dest, 0, samples);
-        int count = Math.Min(inputs.Length, InputCount);
+        int count = Math.Min(inputs.Count, InputCount);
         for (int i = 0; i < count; i++)
         {
             if (!on[i]) continue;
             var b = inputs[i];
             float g = gain[i];
-            if (g == 1f) { for (int j = 0; j < samples; j++) dest[j] += b[j]; }
+            if (Fp.Eq(g, 1f)) { for (int j = 0; j < samples; j++) dest[j] += b[j]; }
             else if (g != 0f) { for (int j = 0; j < samples; j++) dest[j] += b[j] * g; }
         }
 
@@ -67,7 +67,7 @@ public sealed class MixBus
         if (post != null)
         {
             // 全体音量をかけたあと、切り詰める前にエフェクト(EQ・リミッター)を通す
-            if (gm != 1f) for (int j = 0; j < samples; j++) dest[j] *= gm;
+            if (!Fp.Eq(gm, 1f)) for (int j = 0; j < samples; j++) dest[j] *= gm;
             post(dest, frames);
             gm = 1f;
         }

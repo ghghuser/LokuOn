@@ -1,5 +1,7 @@
 using LokuOn.Core;
 
+namespace LokuOn.SelfTest;
+
 /// <summary>録音開始・終了のとき、開いている入力を開き直さずに引き継げるかの判定と、バッファの扱いのテスト。</summary>
 static class ReuseTests
 {

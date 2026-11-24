@@ -230,6 +230,6 @@ public static class NameTemplate
             string candidate = Path.Combine(dir, baseName + " (" + n + ")" + ext);
             if (!Taken(candidate)) return candidate;
         }
-        return Path.Combine(dir, baseName + "_" + Guid.NewGuid().ToString("N").Substring(0, 8) + ext);
+        return Path.Combine(dir, baseName + "_" + Guid.NewGuid().ToString("N")[..8] + ext);
     }
 }

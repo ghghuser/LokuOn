@@ -1,5 +1,7 @@
 using LokuOn.Core;
 
+namespace LokuOn.SelfTest;
+
 /// <summary>出力ごとのエフェクト(ローカット・EQ・リミッター)のテスト。</summary>
 static class OutputFxTests
 {

@@ -58,7 +58,7 @@ public partial class MainWindow
     }
 
     /// <summary>保存先フォルダ(日付フォルダの中も)から、最近のファイルを読み込み直す。</summary>
-    private async void RescanFiles()
+    private async Task RescanFiles()
     {
         try
         {
@@ -123,7 +123,7 @@ public partial class MainWindow
         BtnReveal.Click += (s, e) => RevealSelected();
         BtnRename.Click += (s, e) => RenameSelected();
         BtnTrash.Click += (s, e) => TrashSelected();
-        BtnRescan.Click += (s, e) => RescanFiles();
+        BtnRescan.Click += (s, e) => _ = RescanFiles();
         FileFilterBox.TextChanged += (s, e) => ApplyFileFilter();
 
         FileList.SelectionChanged += (s, e) => UpdateFileCount();

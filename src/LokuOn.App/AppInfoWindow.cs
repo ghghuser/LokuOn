@@ -178,7 +178,7 @@ public sealed class AppInfoWindow : Window
         Text = text, FontWeight = FontWeights.SemiBold, FontSize = 13, Margin = new Thickness(0, 10, 0, 4),
     };
 
-    private static UIElement Row(string label, UIElement control)
+    private static Grid Row(string label, UIElement control)
     {
         var g = new Grid { Margin = new Thickness(0, 0, 0, 4) };
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
@@ -213,6 +213,6 @@ public sealed class AppInfoWindow : Window
 
     private static void OpenFolder(string dir)
     {
-        try { if (Directory.Exists(dir)) Process.Start(new ProcessStartInfo("explorer.exe", "\"" + dir + "\"") { UseShellExecute = true }); } catch { }
+        try { if (Directory.Exists(dir)) Process.Start(new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), "\"" + dir + "\"") { UseShellExecute = true }); } catch { }
     }
 }

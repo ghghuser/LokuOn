@@ -157,7 +157,7 @@ public sealed class GraphicEqControl : Control
     private void SetFromMouse(int band, double y)
     {
         double v = DbOf(y);
-        if (bands[band] == v) return;
+        if (LokuOn.Core.Fp.Eq(bands[band], v)) return;
         bands[band] = v;
         InvalidateVisual();
         BandsChanged?.Invoke();

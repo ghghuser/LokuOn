@@ -1,5 +1,7 @@
 using LokuOn.Core;
 
+namespace LokuOn.SelfTest;
+
 /// <summary>エフェクト(イコライザ・エコー・リバーブ)の計算のテスト。</summary>
 static class EffectTestsExt { }
 

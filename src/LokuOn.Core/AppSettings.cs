@@ -51,11 +51,13 @@ public static class TemplateLibrary
 
     public static bool IsBuiltIn(string name) => BuiltIn.Any(b => string.Equals(b.Name, name, StringComparison.Ordinal));
 
+    private static readonly System.Buffers.SearchValues<char> BadNameChars = System.Buffers.SearchValues.Create("[]\r\n\t");
+
     /// <summary>テンプレート名として使えるか(使えないときは理由を返す)。</summary>
     public static string? ValidateName(string name)
     {
         if (string.IsNullOrWhiteSpace(name)) return "名前を入力してください。";
-        if (name.IndexOfAny(new[] { '[', ']', '\r', '\n', '\t' }) >= 0) return "名前に [ ] や改行は使えません。";
+        if (name.AsSpan().IndexOfAny(BadNameChars) >= 0) return "名前に [ ] や改行は使えません。";
         if (IsBuiltIn(name.Trim())) return "最初から入っているテンプレートの名前は使えません。";
         return null;
     }
@@ -149,7 +151,7 @@ public static class SettingsStore
             s.DiskWarnGB = a.GetDouble("DiskWarnGB", d.DiskWarnGB);
             s.DiskStopGB = a.GetDouble("DiskStopGB", d.DiskStopGB);
             // 旧版の既定値(5GB/0.5GB)のままなら新しい既定値(1GB/100MB)にする
-            if (s.DiskWarnGB == 5 && s.DiskStopGB == 0.5) { s.DiskWarnGB = d.DiskWarnGB; s.DiskStopGB = d.DiskStopGB; }
+            if (Fp.Eq(s.DiskWarnGB, 5) && Fp.Eq(s.DiskStopGB, 0.5)) { s.DiskWarnGB = d.DiskWarnGB; s.DiskStopGB = d.DiskStopGB; }
             s.FfmpegPath = a.GetString("FfmpegPath");
         }
         var sc = doc.Find("Schedule");

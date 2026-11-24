@@ -121,7 +121,7 @@ public sealed class EffectSetting
     {
         if (Bands == null || o.Bands == null) return Bands == o.Bands;
         if (Bands.Length != o.Bands.Length) return false;
-        for (int i = 0; i < Bands.Length; i++) if (Bands[i] != o.Bands[i]) return false;
+        for (int i = 0; i < Bands.Length; i++) if (!Fp.Eq(Bands[i], o.Bands[i])) return false;
         return true;
     }
 
@@ -135,8 +135,8 @@ public sealed class EffectSetting
 
     /// <summary>効果の中身(オン/オフと数値)が同じか。録音・出力への反映先の設定は比べない。</summary>
     public bool SameSound(EffectSetting o) =>
-        Bypass == o.Bypass && GateOn == o.GateOn && GateThresholdDb == o.GateThresholdDb && GateReleaseMs == o.GateReleaseMs && GateReductionDb == o.GateReductionDb && EqOn == o.EqOn && HpfHz == o.HpfHz && SameBands(o) && ParamOn == o.ParamOn && SameParams(o) && EchoOn == o.EchoOn && EchoMs == o.EchoMs && EchoFeedback == o.EchoFeedback
-        && EchoMix == o.EchoMix && ReverbOn == o.ReverbOn && ReverbRoom == o.ReverbRoom && ReverbDamp == o.ReverbDamp && ReverbMix == o.ReverbMix;
+        Bypass == o.Bypass && GateOn == o.GateOn && Fp.Eq(GateThresholdDb, o.GateThresholdDb) && Fp.Eq(GateReleaseMs, o.GateReleaseMs) && Fp.Eq(GateReductionDb, o.GateReductionDb) && EqOn == o.EqOn && Fp.Eq(HpfHz, o.HpfHz) && SameBands(o) && ParamOn == o.ParamOn && SameParams(o) && EchoOn == o.EchoOn && Fp.Eq(EchoMs, o.EchoMs) && Fp.Eq(EchoFeedback, o.EchoFeedback)
+        && Fp.Eq(EchoMix, o.EchoMix) && ReverbOn == o.ReverbOn && Fp.Eq(ReverbRoom, o.ReverbRoom) && Fp.Eq(ReverbDamp, o.ReverbDamp) && Fp.Eq(ReverbMix, o.ReverbMix);
 }
 
 /// <summary>
@@ -428,7 +428,7 @@ public sealed class ParamBand
 
     public static ParamBand[] Defaults() => Enumerable.Range(0, Count).Select(i => new ParamBand { Freq = DefaultFreqs[i] }).ToArray();
     public ParamBand Clone() => new() { Freq = Freq, Db = Db, Q = Q };
-    public bool Same(ParamBand o) => Freq == o.Freq && Db == o.Db && Q == o.Q;
+    public bool Same(ParamBand o) => Fp.Eq(Freq, o.Freq) && Fp.Eq(Db, o.Db) && Fp.Eq(Q, o.Q);
 
     public void Normalize(int i)
     {
