@@ -37,6 +37,9 @@ jobs:
           jq -r 'def rank: {"BLOCKER":0,"HIGH":0,"CRITICAL":1,"MEDIUM":2,"MAJOR":2,"LOW":3,"MINOR":3,"INFO":4}[.] // 5;
                  sort_by([((.impacts[0].severity // .severity)|rank), .component, (.line // 0)]) | .[]
                  | "\(.impacts[0].severity // .severity)|\(.type)|\(.rule)|\(.component|sub("^[^:]*:";"")):\(.line // "-")|\(.message|.[0:160])"' sonar-issues.json
+          echo "--- 最後の解析(日時・コミット) ---"
+          curl -sS -u "$SONAR_TOKEN:" "https://sonarcloud.io/api/project_analyses/search?project=$KEY&ps=1" | jq -r '.analyses[0] | "\(.date) \(.revision)"'
+          curl -sS -u "$SONAR_TOKEN:" "https://sonarcloud.io/api/measures/component?component=$KEY&metricKeys=ncloc,bugs,vulnerabilities,code_smells" | jq -r '.component.measures[] | "\(.metric)=\(.value)"'
           echo "--- Security Hotspots ---"
           curl -sS -u "$SONAR_TOKEN:" "https://sonarcloud.io/api/hotspots/search?projectKey=$KEY&status=TO_REVIEW&ps=500" \
             | jq -r '.hotspots[]? | "\(.vulnerabilityProbability)|\(.ruleKey)|\(.component|sub("^[^:]*:";"")):\(.line // "-")|\(.message|.[0:160])"'
