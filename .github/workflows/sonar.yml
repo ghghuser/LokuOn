@@ -78,5 +78,7 @@ jobs:
             /d:sonar.issue.ignore.multicriteria.e3.ruleKey=roslyn.sonaranalyzer.security.cs:S6549 /d:sonar.issue.ignore.multicriteria.e3.resourceKey="src/LokuOn.Core/FfmpegTools.cs"
           # このリポジトリには .sln が無いので、プロジェクトを指定してビルドする(アプリ本体は Core / Audio も一緒にビルドされる)
           dotnet build src/LokuOn.App/LokuOn.App.csproj -c Release
+          if ($LASTEXITCODE -ne 0) { exit 1 }
           dotnet build tests/LokuOn.SelfTest/LokuOn.SelfTest.csproj -c Release
+          if ($LASTEXITCODE -ne 0) { exit 1 }   # ビルドに失敗したら、解析を成功扱いにしない
           ${{ runner.temp }}\scanner\dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"

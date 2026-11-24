@@ -14,6 +14,8 @@ namespace LokuOn.App;
 
 public partial class MainWindow : Window
 {
+    private static readonly string[] MasterLabels = { "L", "R" };
+    private static readonly string[] SourceLabels = { "入力1", "入力2", "入力3", "入力4" };
     private readonly RecorderController ctl;
     private readonly DispatcherTimer timer;
     private readonly ObservableCollection<string> logItems = new();
