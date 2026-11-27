@@ -323,6 +323,7 @@ GateTests.Run(new CheckFn(Check), Section);
 ReuseTests.Run(new CheckFn(Check), Section);
 PcmTests.Run(new CheckFn(Check), Section);
 BackupTests.Run(tmp, new CheckFn(Check), Section);
+LocTests.Run(tmp, new CheckFn(Check), Section);
 
 // ---------------------------------------------------------------- 録音エンジン(実際にffmpegで書き出す)
 if (ffmpeg == null)

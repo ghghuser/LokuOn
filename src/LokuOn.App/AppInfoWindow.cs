@@ -29,16 +29,16 @@ public sealed class AppInfoWindow : Window
     {
         Opacity = 0.65, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8),
     };
-    private readonly RadioButton taskbarRadio = new() { Content = "タスクバーに残す(初期値)", GroupName = "min", Margin = new Thickness(0, 2, 0, 2) };
-    private readonly RadioButton trayRadio = new() { Content = "タスクトレイにしまう", GroupName = "min", Margin = new Thickness(0, 2, 0, 2) };
-    private readonly CheckBox sleepCheck = new() { Content = "録音中はPCをスリープさせない(初期値: オン)", Margin = new Thickness(0, 2, 0, 2) };
+    private readonly RadioButton taskbarRadio = new() { Content = Loc.Get("info.min.taskbar"), GroupName = "min", Margin = new Thickness(0, 2, 0, 2) };
+    private readonly RadioButton trayRadio = new() { Content = Loc.Get("info.min.tray"), GroupName = "min", Margin = new Thickness(0, 2, 0, 2) };
+    private readonly CheckBox sleepCheck = new() { Content = Loc.Get("info.sleep"), Margin = new Thickness(0, 2, 0, 2) };
     private bool loading = true;
 
     public AppInfoWindow(AppSettings settings, string appDir, Action changed)
     {
         this.settings = settings;
         this.changed = changed;
-        Title = "LokuOn - 設定と情報";
+        Title = Loc.Get("info.title");
         Width = 560;
         SizeToContent = SizeToContent.Height;
         ResizeMode = ResizeMode.NoResize;
@@ -53,17 +53,17 @@ public sealed class AppInfoWindow : Window
 
         var panel = new StackPanel { Margin = new Thickness(16) };
 
-        panel.Children.Add(Header("表示"));
+        panel.Children.Add(Header(Loc.Get("info.sec.display")));
         themeBox.ItemsSource = new List<Choice<string>>
         {
-            new("自動(システムに合わせる)", "system"), new("ダーク", "dark"), new("ニューモーフィズム・ダーク", "softdark"), new("ライト", "light"),
+            new(Loc.Get("info.theme.system"), "system"), new(Loc.Get("info.theme.dark"), "dark"), new(Loc.Get("info.theme.softdark"), "softdark"), new(Loc.Get("info.theme.light"), "light"),
         };
-        panel.Children.Add(Row("テーマ", themeBox));
+        panel.Children.Add(Row(Loc.Get("info.row.theme"), themeBox));
         backdropBox.ItemsSource = new List<Choice<string>>
         {
-            new("なし(通常の背景)", "none"), new("Mica(壁紙がうっすら透ける)", "mica"), new("アクリル(後ろがぼやけて透ける)", "acrylic"),
+            new(Loc.Get("info.backdrop.none"), "none"), new(Loc.Get("info.backdrop.mica"), "mica"), new(Loc.Get("info.backdrop.acrylic"), "acrylic"),
         };
-        panel.Children.Add(Row("背景の効果", backdropBox));
+        panel.Children.Add(Row(Loc.Get("info.row.backdrop"), backdropBox));
 
         var strengthRow = new Grid();
         strengthRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -71,45 +71,39 @@ public sealed class AppInfoWindow : Window
         Grid.SetColumn(strengthText, 1);
         strengthRow.Children.Add(strengthSlider);
         strengthRow.Children.Add(strengthText);
-        panel.Children.Add(Row("背景の濃さ", strengthRow));
+        panel.Children.Add(Row(Loc.Get("info.row.strength"), strengthRow));
         panel.Children.Add(backdropNote);
 
-        panel.Children.Add(Header("録音中"));
+        panel.Children.Add(Header(Loc.Get("info.sec.recording")));
         panel.Children.Add(sleepCheck);
 
-        panel.Children.Add(Header("ウィンドウを最小化したとき"));
+        panel.Children.Add(Header(Loc.Get("info.sec.minimize")));
         panel.Children.Add(taskbarRadio);
         panel.Children.Add(trayRadio);
 
-        panel.Children.Add(Header("このアプリについて"));
+        panel.Children.Add(Header(Loc.Get("info.sec.about")));
         string ver = typeof(AppInfoWindow).Assembly.GetName().Version?.ToString(4) ?? "1.0.0.0";
-        panel.Children.Add(new TextBlock { Text = $"LokuOn  バージョン {ver}", FontWeight = FontWeights.SemiBold });
+        panel.Children.Add(new TextBlock { Text = Loc.Get("info.version", ver), FontWeight = FontWeights.SemiBold });
         panel.Children.Add(new TextBlock { Text = GitHubUrl, Opacity = 0.8, Margin = new Thickness(0, 2, 0, 2) });
-        panel.Children.Add(new TextBlock { Text = "個人利用のみ可。商用利用・再配布は禁止(LICENSE.txt)。", Opacity = 0.8, Margin = new Thickness(0, 0, 0, 6), TextWrapping = TextWrapping.Wrap });
+        panel.Children.Add(new TextBlock { Text = Loc.Get("info.license"), Opacity = 0.8, Margin = new Thickness(0, 0, 0, 6), TextWrapping = TextWrapping.Wrap });
         var links = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-        links.Children.Add(MakeButton("GitHub を開く", () => OpenUrl(GitHubUrl)));
-        links.Children.Add(MakeButton("設定ファイルのフォルダを開く", () => OpenFolder(appDir)));
+        links.Children.Add(MakeButton(Loc.Get("info.btn.github"), () => OpenUrl(GitHubUrl)));
+        links.Children.Add(MakeButton(Loc.Get("info.btn.openfolder"), () => OpenFolder(appDir)));
         panel.Children.Add(links);
         var backupRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
         var backupMsg = new TextBlock { Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed };
-        backupRow.Children.Add(MakeButton("設定をバックアップ(ZIP)", () => BackupSettings(appDir, backupMsg)));
+        backupRow.Children.Add(MakeButton(Loc.Get("info.btn.backup"), () => BackupSettings(appDir, backupMsg)));
         panel.Children.Add(backupRow);
         panel.Children.Add(backupMsg);
 
-        panel.Children.Add(Header("ヘルプ(かんたんな使い方)"));
+        panel.Children.Add(Header(Loc.Get("info.sec.help")));
         panel.Children.Add(new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
-            Text =
-                "・入力デバイス: 🎤=マイク、🔊=スピーカーの音(PC内部音)。＊は Windows の既定のデバイスです。\n" +
-                "・録音: ●録音開始 → ■停止で保存。❚❚一時停止・✂分割も使えます。\n" +
-                "・ファイル名: テンプレートの変数 {Date} {Time} {No} {Track} {Start} {End} {Length} などで決まります。\n" +
-                "・設定は LokuOn.exe と同じフォルダの settings.ini、プリセットは Presets フォルダの「名前.json」に保存されます。\n" +
-                "・バックアップ: 「設定をバックアップ(ZIP)」で保存。復元は、LokuOn を終了してから ZIP を展開し、settings.ini と Presets を LokuOn.exe と同じフォルダへ上書きコピーします。\n" +
-                "・困ったとき: 同じフォルダの lokuon-crash.log と lokuon.log を確認してください。",
+            Text = Loc.Get("info.help.body"),
         });
 
-        var close = new Button { Content = "閉じる", Width = 96, MinHeight = 28, IsDefault = true, IsCancel = true,
+        var close = new Button { Content = Loc.Get("info.btn.close"), Width = 96, MinHeight = 28, IsDefault = true, IsCancel = true,
             HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
         close.Click += (s, e) => Close();
         panel.Children.Add(close);
@@ -171,11 +165,7 @@ public sealed class AppInfoWindow : Window
             strengthText.Text = (int)Math.Round(strengthSlider.Value) + "%";
             strengthSlider.IsEnabled = on;
 
-            backdropNote.Text = soft
-                ? "ニューモーフィズム・ダークでは、ボタンの影を見せるため、背景の効果は「なし」に固定されます。"
-                : !dark
-                ? "ライトテーマでは、背景の効果は「なし」に固定されます。"
-                : "背景の効果は Windows 11 のダークテーマで使えます。濃さを上げると無地に近づき、背景の模様が目立たなくなります(アクリルは同じ濃さでも Mica より透けます)。壁紙しか後ろにないときは、Mica とアクリルは似て見えます。";
+            backdropNote.Text = Loc.Get(soft ? "info.note.soft" : !dark ? "info.note.light" : "info.note.dark");
         }
         finally { loading = prev; }
     }
@@ -202,8 +192,8 @@ public sealed class AppInfoWindow : Window
     {
         var dlg = new Microsoft.Win32.SaveFileDialog
         {
-            Title = "設定のバックアップ",
-            Filter = "ZIP ファイル (*.zip)|*.zip",
+            Title = Loc.Get("info.backup.title"),
+            Filter = Loc.Get("info.backup.filter"),
             FileName = $"LokuOn-backup-{DateTime.Now:yyyyMMdd-HHmmss}.zip",
             InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
         };
@@ -212,12 +202,12 @@ public sealed class AppInfoWindow : Window
         {
             int n = SettingsBackup.Create(Path.Combine(appDir, "settings.ini"), dlg.FileName);
             msg.Foreground = n > 0 ? System.Windows.Media.Brushes.SeaGreen : System.Windows.Media.Brushes.DarkGoldenrod;
-            msg.Text = n > 0 ? $"バックアップを保存しました({n} 件): {dlg.FileName}" : "保存できる設定がまだありませんでした(空のZIPを保存)。";
+            msg.Text = n > 0 ? Loc.Get("info.backup.ok", n, dlg.FileName) : Loc.Get("info.backup.empty");
         }
         catch (Exception ex)
         {
             msg.Foreground = System.Windows.Media.Brushes.Crimson;
-            msg.Text = "バックアップに失敗しました: " + ex.Message;
+            msg.Text = Loc.Get("info.backup.fail", ex.Message);
         }
         msg.Visibility = Visibility.Visible;
     }

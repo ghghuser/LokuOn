@@ -9,4 +9,9 @@
     <AssemblyName>LokuOn.Core</AssemblyName>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- 画面の文言(既定)。exe に埋め込む -->
+    <EmbeddedResource Include="Lang\ja.ini" />
+  </ItemGroup>
+
 </Project>
