@@ -232,7 +232,8 @@ public partial class MainWindow : Window
 
     private static string Hms(double sec)
     {
-        long t = (long)Math.Max(0, sec);
+        // 録音中の経過時間も、録音ファイルの長さ(一覧・{Length})と同じ四捨五入で表示する(切り捨てだと、停止後の一覧と1秒ずれる)
+        long t = LokuOn.Core.TimeText.ToWholeSeconds(sec);
         return string.Create(CultureInfo.InvariantCulture, $"{t / 3600}:{(t % 3600) / 60:00}:{t % 60:00}");
     }
 
