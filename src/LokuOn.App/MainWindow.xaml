@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:c="clr-namespace:LokuOn.App.Controls"
+        xmlns:ui="clr-namespace:LokuOn.App"
         Title="LokuOn" Width="1280" Height="880" MinWidth="1040" MinHeight="660"
         FontFamily="Yu Gothic UI, Meiryo UI, Segoe UI" FontSize="12"
         UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
@@ -15,18 +16,18 @@
         <!-- ===== プリセット ===== -->
         <Button x:Name="BtnSettings" Grid.Row="0" Content="⚙" FontSize="16" Width="34" Height="30" Padding="0"
                 HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,8,0" Panel.ZIndex="5"
-                ToolTip="歯車: 画面の色・スリープ防止・最小化の動作・ヘルプ・バージョン情報・GitHub"/>
+                ToolTip="{ui:T main.btnSettings.tip}"/>
         <Button x:Name="BtnOutput" Grid.Row="0" Content="🔊" FontSize="14" Width="34" Height="30" Padding="0"
                 HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,46,0" Panel.ZIndex="5"
-                ToolTip="出力: クリックで、出力ごとのオン/オフ・すべて再開・出力ウィンドウを開く(録音とは独立)"/>
+                ToolTip="{ui:T main.btnOutput.tip}"/>
         <WrapPanel Grid.Row="0" Margin="8,6,90,2" VerticalAlignment="Center">
-            <TextBlock Text="プリセット" VerticalAlignment="Center" Margin="0,0,6,0"/>
+            <TextBlock Text="{ui:T main.top.01}" VerticalAlignment="Center" Margin="0,0,6,0"/>
             <ComboBox x:Name="PresetCombo" Width="240" Margin="0,0,6,0"/>
-            <Button x:Name="BtnPresetSave" Content="上書き保存" Padding="10,2" Margin="0,0,4,0"/>
-            <Button x:Name="BtnPresetSaveAs" Content="名前を付けて保存" Padding="10,2" Margin="0,0,4,0"/>
-            <Button x:Name="BtnPresetDelete" Content="削除" Padding="10,2" Margin="0,0,16,0"/>
-            <Button x:Name="BtnPresetFolder" Content="Presetsフォルダを開く" Padding="10,2" Margin="0,0,16,0"
-                    ToolTip="プリセットは「名前.json」として自動保存されます。ファイルをコピーして共有したり、削除したりできます。"/>
+            <Button x:Name="BtnPresetSave" Content="{ui:T main.btnPresetSave}" Padding="10,2" Margin="0,0,4,0"/>
+            <Button x:Name="BtnPresetSaveAs" Content="{ui:T main.btnPresetSaveAs}" Padding="10,2" Margin="0,0,4,0"/>
+            <Button x:Name="BtnPresetDelete" Content="{ui:T main.btnPresetDelete}" Padding="10,2" Margin="0,0,16,0"/>
+            <Button x:Name="BtnPresetFolder" Content="{ui:T main.btnPresetFolder}" Padding="10,2" Margin="0,0,16,0"
+                    ToolTip="{ui:T main.btnPresetFolder.tip}"/>
             <TextBlock x:Name="PresetHint" VerticalAlignment="Center" Opacity="0.7"/>
             <TextBlock x:Name="PresetError" VerticalAlignment="Center" Foreground="#E5484D" FontWeight="SemiBold" Visibility="Collapsed" Margin="8,0,0,0"/>
         </WrapPanel>
@@ -42,14 +43,14 @@
             <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
                 <StackPanel x:Name="LockPanel">
 
-                    <GroupBox Header="入力デバイス(最大4台。PC内部音 / マイク / ASIO)" Margin="0,0,0,6" Padding="6,4">
+                    <GroupBox Header="{ui:T main.input.01}" Margin="0,0,0,6" Padding="6,4">
                         <StackPanel>
                             <Grid Margin="0,0,0,3">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" MinWidth="44"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock x:Name="InName1" Text="入力1" VerticalAlignment="Center" Margin="0,0,6,0" MaxWidth="100" TextTrimming="CharacterEllipsis" ToolTip="ダブルクリックで名前を変更"/>
+                                <TextBlock x:Name="InName1" Text="{ui:T main.inName1}" VerticalAlignment="Center" Margin="0,0,6,0" MaxWidth="100" TextTrimming="CharacterEllipsis" ToolTip="{ui:T main.inName1.tip}"/>
                                 <ComboBox x:Name="DevCombo1" Grid.Column="1"/>
                             </Grid>
                             <Grid Margin="0,0,0,3">
@@ -57,7 +58,7 @@
                                     <ColumnDefinition Width="Auto" MinWidth="44"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock x:Name="InName2" Text="入力2" VerticalAlignment="Center" Margin="0,0,6,0" MaxWidth="100" TextTrimming="CharacterEllipsis" ToolTip="ダブルクリックで名前を変更"/>
+                                <TextBlock x:Name="InName2" Text="{ui:T main.inName2}" VerticalAlignment="Center" Margin="0,0,6,0" MaxWidth="100" TextTrimming="CharacterEllipsis" ToolTip="{ui:T main.inName1.tip}"/>
                                 <ComboBox x:Name="DevCombo2" Grid.Column="1"/>
                             </Grid>
                             <Grid Margin="0,0,0,3">
@@ -65,7 +66,7 @@
                                     <ColumnDefinition Width="Auto" MinWidth="44"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock x:Name="InName3" Text="入力3" VerticalAlignment="Center" Margin="0,0,6,0" MaxWidth="100" TextTrimming="CharacterEllipsis" ToolTip="ダブルクリックで名前を変更"/>
+                                <TextBlock x:Name="InName3" Text="{ui:T main.inName3}" VerticalAlignment="Center" Margin="0,0,6,0" MaxWidth="100" TextTrimming="CharacterEllipsis" ToolTip="{ui:T main.inName1.tip}"/>
                                 <ComboBox x:Name="DevCombo3" Grid.Column="1"/>
                             </Grid>
                             <Grid Margin="0,0,0,3">
@@ -73,42 +74,42 @@
                                     <ColumnDefinition Width="Auto" MinWidth="44"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock x:Name="InName4" Text="入力4" VerticalAlignment="Center" Margin="0,0,6,0" MaxWidth="100" TextTrimming="CharacterEllipsis" ToolTip="ダブルクリックで名前を変更"/>
+                                <TextBlock x:Name="InName4" Text="{ui:T main.inName4}" VerticalAlignment="Center" Margin="0,0,6,0" MaxWidth="100" TextTrimming="CharacterEllipsis" ToolTip="{ui:T main.inName1.tip}"/>
                                 <ComboBox x:Name="DevCombo4" Grid.Column="1"/>
                             </Grid>
                             <WrapPanel Margin="0,2,0,0">
-                                <TextBlock Text="複数のとき:" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <RadioButton x:Name="MixModeMix" Content="ミックスして1ファイル" GroupName="Mix" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
-                                <RadioButton x:Name="MixModeSep" Content="デバイスごとに別ファイル" GroupName="Mix" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
-                                <Button x:Name="BtnRefreshDevices" Content="デバイス再取得" Padding="8,2"/>
+                                <TextBlock Text="{ui:T main.input.02}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <RadioButton x:Name="MixModeMix" Content="{ui:T main.mixModeMix}" GroupName="Mix" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
+                                <RadioButton x:Name="MixModeSep" Content="{ui:T main.mixModeSep}" GroupName="Mix" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
+                                <Button x:Name="BtnRefreshDevices" Content="{ui:T main.btnRefreshDevices}" Padding="8,2"/>
                             </WrapPanel>
                         </StackPanel>
                     </GroupBox>
 
-                    <GroupBox Header="音質・形式" Margin="0,0,0,6" Padding="6,4">
+                    <GroupBox Header="{ui:T main.format.01}" Margin="0,0,0,6" Padding="6,4">
                         <StackPanel>
                             <WrapPanel>
-                                <TextBlock Text="形式" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBlock Text="{ui:T main.format.02}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 <ComboBox x:Name="FormatCombo" Width="130" Margin="0,0,12,3"/>
-                                <TextBlock Text="サンプリング" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBlock Text="{ui:T main.format.03}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 <ComboBox x:Name="RateCombo" Width="100" Margin="0,0,12,3"/>
-                                <TextBlock Text="チャンネル" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBlock Text="{ui:T main.format.04}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 <ComboBox x:Name="ChannelsCombo" Width="100" Margin="0,0,12,3"/>
                             </WrapPanel>
                             <WrapPanel>
-                                <TextBlock x:Name="BitrateLabel" Text="ビットレート" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBlock x:Name="BitrateLabel" Text="{ui:T main.bitrateLabel}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 <ComboBox x:Name="BitrateCombo" Width="110" Margin="0,0,12,3"/>
-                                <TextBlock x:Name="BitDepthLabel" Text="ビット深度" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBlock x:Name="BitDepthLabel" Text="{ui:T main.bitDepthLabel}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 <ComboBox x:Name="BitDepthCombo" Width="110" Margin="0,0,12,3"/>
-                                <TextBlock x:Name="CompressionLabel" Text="圧縮率" VerticalAlignment="Center" Margin="0,0,4,0"
-                                           ToolTip="大きいほどファイルが小さくなりますが、処理が重くなります(音質は変わりません)。Ogg(Vorbis)には設定がありません。"/>
+                                <TextBlock x:Name="CompressionLabel" Text="{ui:T main.compressionLabel}" VerticalAlignment="Center" Margin="0,0,4,0"
+                                           ToolTip="{ui:T main.compressionLabel.tip}"/>
                                 <ComboBox x:Name="CompressionCombo" Width="110" Margin="0,0,12,3"/>
                             </WrapPanel>
                             <TextBlock x:Name="QualitySummary" Opacity="0.75" TextWrapping="Wrap"/>
                         </StackPanel>
                     </GroupBox>
 
-                    <GroupBox Header="保存先とファイル名" Margin="0,0,0,6" Padding="6,4">
+                    <GroupBox Header="{ui:T main.save.01}" Margin="0,0,0,6" Padding="6,4">
                         <StackPanel>
                             <Grid Margin="0,0,0,3">
                                 <Grid.ColumnDefinitions>
@@ -117,16 +118,16 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="保存先" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <TextBox x:Name="FolderBox" ToolTip="録音ファイルの保存先です。日付フォルダを作る設定のときは、この中に日付のフォルダができます。" Grid.Column="1" VerticalContentAlignment="Center"/>
-                                <Button x:Name="BtnBrowse" Grid.Column="2" Content="参照…" Padding="8,2" Margin="4,0,0,0"/>
-                                <Button x:Name="BtnOpenFolder" Grid.Column="3" Content="開く" Padding="8,2" Margin="4,0,0,0"/>
+                                <TextBlock Text="{ui:T main.save.02}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBox x:Name="FolderBox" ToolTip="{ui:T main.folderBox.tip}" Grid.Column="1" VerticalContentAlignment="Center"/>
+                                <Button x:Name="BtnBrowse" Grid.Column="2" Content="{ui:T main.btnBrowse}" Padding="8,2" Margin="4,0,0,0"/>
+                                <Button x:Name="BtnOpenFolder" Grid.Column="3" Content="{ui:T main.btnOpenFolder}" Padding="8,2" Margin="4,0,0,0"/>
                             </Grid>
                             <WrapPanel Margin="0,0,0,3">
-                                <CheckBox x:Name="UseDateFolderCheck" ToolTip="保存先の中に、録音を始めた日付のフォルダを作って、その中に保存します。" Content="日付フォルダを作る" VerticalContentAlignment="Center" Margin="0,0,6,0"/>
-                                <TextBox x:Name="DateFormatBox" Width="200" VerticalContentAlignment="Center" ToolTip="例: {yyyy}-{MM}-{dd}（録音を始めた日で固定）"/>
+                                <CheckBox x:Name="UseDateFolderCheck" ToolTip="{ui:T main.useDateFolderCheck.tip}" Content="{ui:T main.useDateFolderCheck}" VerticalContentAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBox x:Name="DateFormatBox" Width="200" VerticalContentAlignment="Center" ToolTip="{ui:T main.dateFormatBox.tip}"/>
                                 <Button x:Name="BtnVarDate" Content="？" Padding="8,2" Margin="4,0,0,0"
-                                        ToolTip="変数の説明を開きます。変数のボタンを押すと、カーソルの位置に入ります(結果のプレビューつき)"/>
+                                        ToolTip="{ui:T main.btnVarDate.tip}"/>
                             </WrapPanel>
                             <Grid Margin="0,0,0,3">
                                 <Grid.ColumnDefinitions>
@@ -134,12 +135,12 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="テンプレート" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <ComboBox x:Name="TemplateCombo" ToolTip="よく使うファイル名の形を、名前を付けて保存しておけます。選ぶと下の「ファイル名」に入ります。" Grid.Column="1"/>
+                                <TextBlock Text="{ui:T main.save.03}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <ComboBox x:Name="TemplateCombo" ToolTip="{ui:T main.templateCombo.tip}" Grid.Column="1"/>
                                 <WrapPanel Grid.Column="2" Margin="4,0,0,0">
-                                    <Button x:Name="BtnTemplateSave" Content="保存" Padding="8,2" Margin="0,0,4,0"/>
-                                    <Button x:Name="BtnTemplateDelete" Content="削除" Padding="8,2" Margin="0,0,4,0"/>
-                                    <Button x:Name="BtnTemplateReset" ToolTip="最初から入っているテンプレートを元に戻します。" Content="初期に戻す" Padding="8,2"/>
+                                    <Button x:Name="BtnTemplateSave" Content="{ui:T main.btnTemplateSave}" Padding="8,2" Margin="0,0,4,0"/>
+                                    <Button x:Name="BtnTemplateDelete" Content="{ui:T main.btnPresetDelete}" Padding="8,2" Margin="0,0,4,0"/>
+                                    <Button x:Name="BtnTemplateReset" ToolTip="{ui:T main.btnTemplateReset.tip}" Content="{ui:T main.btnTemplateReset}" Padding="8,2"/>
                                 </WrapPanel>
                             </Grid>
                             <Grid Margin="0,0,0,2">
@@ -148,69 +149,69 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="ファイル名" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="{ui:T main.save.04}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                 <TextBox x:Name="TemplateBox" Grid.Column="1" VerticalContentAlignment="Center"/>
                                 <Button x:Name="BtnVarTemplate" Grid.Column="2" Content="？" Padding="8,2" Margin="4,0,0,0"
-                                        ToolTip="変数の説明を開きます。変数のボタンを押すと、カーソルの位置に入ります(結果のプレビューつき)"/>
+                                        ToolTip="{ui:T main.btnVarDate.tip}"/>
                             </Grid>
                             <TextBlock x:Name="TemplatePreview" TextWrapping="Wrap" Margin="0,0,0,4" FontWeight="SemiBold"/>
-                            <Expander Header="ファイル名の詳細(変数・時間表記・番号)" Margin="0,2,0,0">
+                            <Expander Header="{ui:T main.savedetail.01}" Margin="0,2,0,0">
                                 <StackPanel Margin="0,4,0,0">
                             <TextBlock x:Name="TemplateHint" TextWrapping="Wrap" Opacity="0.7" Margin="0,0,0,2"
-                                       Text="{}変数は、ファイル名欄の右の「？」ボタンで、説明つきの一覧を開けます(押すとカーソルの位置に入ります)。{End:m} は 125：30 形式、{End:s} は秒数です。"/>
+                                       Text="{ui:T main.templateHint}"/>
                             <WrapPanel Margin="0,0,0,3">
-                                <TextBlock Text="時間表記" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="{ui:T main.savedetail.02}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                 <ComboBox x:Name="TimeStyleCombo" MinWidth="250"/>
                             </WrapPanel>
                             <WrapPanel>
-                                <TextBlock Text="次のNo." VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBlock Text="{ui:T main.savedetail.03}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 <TextBox x:Name="NoBox" Width="56" VerticalContentAlignment="Center" Margin="0,0,12,0"
-                                         ToolTip="録音が終わるたびに+1されます。アプリを閉じても保持されます。"/>
-                                <TextBlock Text="開始Track" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                         ToolTip="{ui:T main.noBox.tip}"/>
+                                <TextBlock Text="{ui:T main.savedetail.04}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 <TextBox x:Name="TrackBox" Width="56" VerticalContentAlignment="Center"
-                                         ToolTip="録音を始めるときのトラック番号。分割するたびに+1されます。"/>
+                                         ToolTip="{ui:T main.trackBox.tip}"/>
                             </WrapPanel>
                                 </StackPanel>
                             </Expander>
                         </StackPanel>
                     </GroupBox>
 
-                    <GroupBox Header="分割・自動操作" Margin="0,0,0,6" Padding="6,4">
+                    <GroupBox Header="{ui:T main.split.01}" Margin="0,0,0,6" Padding="6,4">
                         <StackPanel>
                             <WrapPanel Margin="0,0,0,3">
-                                <TextBlock Text="自動分割" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBlock Text="{ui:T main.split.02}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 <TextBox x:Name="AutoSplitBox" Width="76" VerticalContentAlignment="Center" TextAlignment="Center"
-                                         ToolTip="この間隔ごとに、自動でファイルを分割します。時:分:秒 で指定(00:00:00 = 自動分割しない)。24:00:00 まで。"/>
-                                <TextBlock Text="ごと(時:分:秒、00:00:00=しない)" VerticalAlignment="Center" Margin="4,0,14,0"/>
-                                <TextBlock Text="安全上限" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                         ToolTip="{ui:T main.autoSplitBox.tip}"/>
+                                <TextBlock Text="{ui:T main.split.03}" VerticalAlignment="Center" Margin="4,0,14,0"/>
+                                <TextBlock Text="{ui:T main.split.04}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 <TextBox x:Name="MaxHoursBox" Width="40" VerticalContentAlignment="Center"
-                                         ToolTip="1つのファイルがこの時間を超えないように、必ず分割します(安全のための上限。初期値24時間)。"/>
-                                <TextBlock Text="時間" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                         ToolTip="{ui:T main.maxHoursBox.tip}"/>
+                                <TextBlock Text="{ui:T main.split.05}" VerticalAlignment="Center" Margin="4,0,0,0"/>
                             </WrapPanel>
                             <TextBlock x:Name="SplitHint" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,4"/>
                             <TextBlock x:Name="SplitError" Foreground="#E5484D" FontWeight="SemiBold" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,0,0,4"/>
-                            <Expander Header="オプション(無音で分割・音で録音開始・デバイス切断時の動作)" Margin="0,2,0,0">
+                            <Expander Header="{ui:T main.splitopt.01}" Margin="0,2,0,0">
                                 <StackPanel Margin="0,4,0,0">
                             <WrapPanel Margin="0,0,0,3">
-                                <CheckBox x:Name="SilenceSplitCheck" ToolTip="入力が無音(しきい値以下)のまま指定の秒数たつと、次のファイルへ分割します。判定には、エフェクトをかける前の音を使います。" Content="無音で分割" VerticalContentAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox x:Name="SilenceDbBox" ToolTip="この音量(dB)以下を無音とみなします。0に近いほど、大きめの音まで無音とみなします。" Width="46" VerticalContentAlignment="Center"/>
-                                <TextBlock Text="dB以下が" VerticalAlignment="Center" Margin="4,0,4,0"/>
-                                <TextBox x:Name="SilenceSecBox" ToolTip="無音がこの秒数続いたら分割します。" Width="40" VerticalContentAlignment="Center"/>
-                                <TextBlock Text="秒続いたら(1曲最短" VerticalAlignment="Center" Margin="4,0,4,0"/>
-                                <TextBox x:Name="MinTrackBox" ToolTip="無音で分割するとき、これより短いファイルは作りません(秒)。" Width="40" VerticalContentAlignment="Center"/>
-                                <TextBlock Text="秒)" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                <CheckBox x:Name="SilenceSplitCheck" ToolTip="{ui:T main.silenceSplitCheck.tip}" Content="{ui:T main.silenceSplitCheck}" VerticalContentAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox x:Name="SilenceDbBox" ToolTip="{ui:T main.silenceDbBox.tip}" Width="46" VerticalContentAlignment="Center"/>
+                                <TextBlock Text="{ui:T main.splitopt.02}" VerticalAlignment="Center" Margin="4,0,4,0"/>
+                                <TextBox x:Name="SilenceSecBox" ToolTip="{ui:T main.silenceSecBox.tip}" Width="40" VerticalContentAlignment="Center"/>
+                                <TextBlock Text="{ui:T main.splitopt.03}" VerticalAlignment="Center" Margin="4,0,4,0"/>
+                                <TextBox x:Name="MinTrackBox" ToolTip="{ui:T main.minTrackBox.tip}" Width="40" VerticalContentAlignment="Center"/>
+                                <TextBlock Text="{ui:T main.splitopt.04}" VerticalAlignment="Center" Margin="4,0,0,0"/>
                             </WrapPanel>
                             <WrapPanel Margin="0,0,0,3">
-                                <CheckBox x:Name="AutoStartCheck" ToolTip="ONにすると、録音ボタンを押しても音が出るまでファイルを作らず待機し、音が出たら録音を始めます。" Content="音が出たら録音開始" VerticalContentAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox x:Name="AutoStartDbBox" ToolTip="この音量(dB)以上の音が入ったら録音を始めます。" Width="46" VerticalContentAlignment="Center"/>
-                                <TextBlock Text="dB以上" VerticalAlignment="Center" Margin="4,0,14,0"/>
-                                <TextBlock Text="無音で自動停止" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                <TextBox x:Name="AutoStopBox" ToolTip="無音がこの秒数続いたら、録音を止めて保存します(0=止めない)。" Width="44" VerticalContentAlignment="Center"/>
-                                <TextBlock Text="秒(0=しない)" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                <CheckBox x:Name="AutoStartCheck" ToolTip="{ui:T main.autoStartCheck.tip}" Content="{ui:T main.autoStartCheck}" VerticalContentAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox x:Name="AutoStartDbBox" ToolTip="{ui:T main.autoStartDbBox.tip}" Width="46" VerticalContentAlignment="Center"/>
+                                <TextBlock Text="{ui:T main.splitopt.05}" VerticalAlignment="Center" Margin="4,0,14,0"/>
+                                <TextBlock Text="{ui:T main.splitopt.06}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBox x:Name="AutoStopBox" ToolTip="{ui:T main.autoStopBox.tip}" Width="44" VerticalContentAlignment="Center"/>
+                                <TextBlock Text="{ui:T main.splitopt.07}" VerticalAlignment="Center" Margin="4,0,0,0"/>
                             </WrapPanel>
                             <WrapPanel>
-                                <CheckBox x:Name="AutoResumeCheck" ToolTip="デバイスが外れたり変わったりしても、録音を自動で続けます。外れている間の扱いは右の選択で決まります。" Content="デバイス切断時に自動再開" VerticalContentAlignment="Center" Margin="0,0,8,0"/>
-                                <ComboBox x:Name="LostPolicyCombo" ToolTip="デバイスが外れたときの扱いです。同じファイルで続ける=外れている間は無音を入れて続けます。戻るまで待機=一時停止して、戻ったら再開します。戻ったら別ファイルに分割=戻った時点で次のファイルにします。" Width="230"/>
+                                <CheckBox x:Name="AutoResumeCheck" ToolTip="{ui:T main.autoResumeCheck.tip}" Content="{ui:T main.autoResumeCheck}" VerticalContentAlignment="Center" Margin="0,0,8,0"/>
+                                <ComboBox x:Name="LostPolicyCombo" ToolTip="{ui:T main.lostPolicyCombo.tip}" Width="230"/>
                             </WrapPanel>
                                 </StackPanel>
                             </Expander>
@@ -245,7 +246,7 @@
                         <WrapPanel Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">
                             <TextBlock x:Name="ElapsedText" Text="0:00:00" FontSize="34" FontWeight="SemiBold" Margin="0,0,16,0" FontFamily="Consolas, Yu Gothic UI"/>
                             <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
-                                <TextBlock x:Name="StateText" Text="待機中" FontSize="14" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="StateText" Text="{ui:T main.stateText}" FontSize="14" FontWeight="SemiBold"/>
                                 <TextBlock x:Name="TrackInfoText" Text="" Opacity="0.8"/>
                             </StackPanel>
                             <StackPanel VerticalAlignment="Center">
@@ -256,10 +257,10 @@
 
                         <!-- ボタン -->
                         <StackPanel Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Top">
-                            <Button x:Name="BtnRecord" Content="●  録音開始" Width="150" Height="46" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                            <Button x:Name="BtnPauseRec" ToolTip="録音を一時停止します。もう一度押すと再開します。" Content="❚❚  一時停止" Width="150" Height="38" FontSize="14" IsEnabled="False" Margin="0,0,0,6"/>
-                            <Button x:Name="BtnSplit" ToolTip="録音を止めずに、ここで次のファイルへ切り替えます。" Content="✂  分割" Width="150" Height="38" FontSize="14" IsEnabled="False" Margin="0,0,0,6"/>
-                            <CheckBox x:Name="MonitorCheck" ToolTip="録音していないあいだも、選んだ入力の音量をメーターと波形に出します(ファイルには何も書きません)。オフにすると、録音を始めるまで入力デバイスを開きません(出力が動いている間は開いたままです)。" Content="入力確認(待機中も表示)" Margin="0,2,0,0"/>
+                            <Button x:Name="BtnRecord" Content="{ui:T main.btnRecord}" Width="150" Height="46" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                            <Button x:Name="BtnPauseRec" ToolTip="{ui:T main.btnPauseRec.tip}" Content="{ui:T main.btnPauseRec}" Width="150" Height="38" FontSize="14" IsEnabled="False" Margin="0,0,0,6"/>
+                            <Button x:Name="BtnSplit" ToolTip="{ui:T main.btnSplit.tip}" Content="{ui:T main.btnSplit}" Width="150" Height="38" FontSize="14" IsEnabled="False" Margin="0,0,0,6"/>
+                            <CheckBox x:Name="MonitorCheck" ToolTip="{ui:T main.monitorCheck.tip}" Content="{ui:T main.monitorCheck}" Margin="0,2,0,0"/>
                         </StackPanel>
 
                         <!-- 波形 -->
@@ -275,20 +276,20 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="出力レベル(dB)" Opacity="0.7" Margin="0,0,0,2"/>
+                                <TextBlock Text="{ui:T main.rec.01}" Opacity="0.7" Margin="0,0,0,2"/>
                                 <c:LevelMeter x:Name="MasterMeter" Margin="0,0,0,6"/>
-                                <TextBlock Text="入力ごとのレベル" Opacity="0.7" Margin="0,0,0,2"/>
+                                <TextBlock Text="{ui:T main.rec.02}" Opacity="0.7" Margin="0,0,0,2"/>
                                 <c:LevelMeter x:Name="SourceMeter"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="ゲイン(録音中も調整できます / ダブルクリックで0dB)" Opacity="0.7" Margin="0,0,0,2"/>
+                                <TextBlock Text="{ui:T main.rec.03}" Opacity="0.7" Margin="0,0,0,2"/>
                                 <Grid Margin="0,0,0,2">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="44"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="62"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="全体" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{ui:T main.rec.04}" VerticalAlignment="Center"/>
                                     <Slider x:Name="MasterGain" Grid.Column="1" Minimum="-30" Maximum="30" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="MasterGainText" Grid.Column="2" Text="+0.0 dB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </Grid>
@@ -299,10 +300,10 @@
                                         <ColumnDefinition Width="62"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock x:Name="GName1" Text="入力1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="GName1" Text="{ui:T main.inName1}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                     <Slider x:Name="Gain1" Grid.Column="1" Minimum="-30" Maximum="20" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="Gain1Text" Grid.Column="2" Text="+0.0 dB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                    <Button x:Name="FxBtn1" Grid.Column="3" Content="FX" Padding="6,0" Margin="6,0,0,0" MinWidth="30" FontSize="11" ToolTip="エフェクト(イコライザ・エコー・リバーブ)。右クリックでメニュー"/>
+                                    <Button x:Name="FxBtn1" Grid.Column="3" Content="FX" Padding="6,0" Margin="6,0,0,0" MinWidth="30" FontSize="11" ToolTip="{ui:T main.fxBtn1.tip}"/>
                                 </Grid>
                                 <Grid Margin="0,0,0,2">
                                     <Grid.ColumnDefinitions>
@@ -311,10 +312,10 @@
                                         <ColumnDefinition Width="62"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock x:Name="GName2" Text="入力2" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="GName2" Text="{ui:T main.inName2}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                     <Slider x:Name="Gain2" Grid.Column="1" Minimum="-30" Maximum="20" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="Gain2Text" Grid.Column="2" Text="+0.0 dB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                    <Button x:Name="FxBtn2" Grid.Column="3" Content="FX" Padding="6,0" Margin="6,0,0,0" MinWidth="30" FontSize="11" ToolTip="エフェクト(イコライザ・エコー・リバーブ)。右クリックでメニュー"/>
+                                    <Button x:Name="FxBtn2" Grid.Column="3" Content="FX" Padding="6,0" Margin="6,0,0,0" MinWidth="30" FontSize="11" ToolTip="{ui:T main.fxBtn1.tip}"/>
                                 </Grid>
                                 <Grid Margin="0,0,0,2">
                                     <Grid.ColumnDefinitions>
@@ -323,10 +324,10 @@
                                         <ColumnDefinition Width="62"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock x:Name="GName3" Text="入力3" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="GName3" Text="{ui:T main.inName3}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                     <Slider x:Name="Gain3" Grid.Column="1" Minimum="-30" Maximum="20" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="Gain3Text" Grid.Column="2" Text="+0.0 dB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                    <Button x:Name="FxBtn3" Grid.Column="3" Content="FX" Padding="6,0" Margin="6,0,0,0" MinWidth="30" FontSize="11" ToolTip="エフェクト(イコライザ・エコー・リバーブ)。右クリックでメニュー"/>
+                                    <Button x:Name="FxBtn3" Grid.Column="3" Content="FX" Padding="6,0" Margin="6,0,0,0" MinWidth="30" FontSize="11" ToolTip="{ui:T main.fxBtn1.tip}"/>
                                 </Grid>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -335,10 +336,10 @@
                                         <ColumnDefinition Width="62"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock x:Name="GName4" Text="入力4" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="GName4" Text="{ui:T main.inName4}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                     <Slider x:Name="Gain4" Grid.Column="1" Minimum="-30" Maximum="20" Value="0" SmallChange="0.5" LargeChange="3" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="Gain4Text" Grid.Column="2" Text="+0.0 dB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                    <Button x:Name="FxBtn4" Grid.Column="3" Content="FX" Padding="6,0" Margin="6,0,0,0" MinWidth="30" FontSize="11" ToolTip="エフェクト(イコライザ・エコー・リバーブ)。右クリックでメニュー"/>
+                                    <Button x:Name="FxBtn4" Grid.Column="3" Content="FX" Padding="6,0" Margin="6,0,0,0" MinWidth="30" FontSize="11" ToolTip="{ui:T main.fxBtn1.tip}"/>
                                 </Grid>
                             </StackPanel>
                         </Grid>
@@ -352,7 +353,7 @@
                 </Border>
 
                 <TabControl x:Name="Tabs" Grid.Row="1">
-                    <TabItem Header="録音ファイル">
+                    <TabItem Header="{ui:T main.files.01}">
                         <Grid Margin="6">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -370,16 +371,16 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <Button x:Name="BtnPlay" Grid.Column="0" Content="▶ 再生" Width="72" Margin="0,0,4,0"/>
+                                <Button x:Name="BtnPlay" Grid.Column="0" Content="{ui:T main.btnPlay}" Width="72" Margin="0,0,4,0"/>
                                 <Button x:Name="BtnStopPlay" Grid.Column="1" Content="■" Width="36" Margin="0,0,8,0"/>
                                 <Slider x:Name="SeekSlider" Grid.Column="2" Minimum="0" Maximum="1" VerticalAlignment="Center" IsMoveToPointEnabled="True"/>
                                 <TextBlock x:Name="PlayPosText" Grid.Column="3" Text="0:00 / 0:00" Margin="8,0,8,0" VerticalAlignment="Center" MinWidth="96" TextAlignment="Center"/>
                                 <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="0,0,8,0">
-                                    <TextBlock Text="速度" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBlock Text="{ui:T main.files.02}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                     <ComboBox x:Name="SpeedCombo" Width="78"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="5" Orientation="Horizontal">
-                                    <TextBlock Text="音量" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBlock Text="{ui:T main.files.03}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                     <Slider x:Name="VolumeSlider" Width="80" Minimum="0" Maximum="1" Value="0.8" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Grid>
@@ -397,10 +398,10 @@
                                         <ColumnDefinition Width="76"/>
                                         <ColumnDefinition Width="100"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="ファイル名"/>
-                                    <TextBlock Grid.Column="1" Text="長さ" TextAlignment="Right" Margin="0,0,10,0"/>
-                                    <TextBlock Grid.Column="2" Text="サイズ" TextAlignment="Right" Margin="0,0,10,0"/>
-                                    <TextBlock Grid.Column="3" Text="日時"/>
+                                    <TextBlock Text="{ui:T main.save.04}"/>
+                                    <TextBlock Grid.Column="1" Text="{ui:T main.files.04}" TextAlignment="Right" Margin="0,0,10,0"/>
+                                    <TextBlock Grid.Column="2" Text="{ui:T main.files.05}" TextAlignment="Right" Margin="0,0,10,0"/>
+                                    <TextBlock Grid.Column="3" Text="{ui:T main.files.06}"/>
                                 </Grid>
                                 <ListView x:Name="FileList" Grid.Row="1" SelectionMode="Extended">
                                     <ListView.ItemTemplate>
@@ -423,23 +424,23 @@
                             </Grid>
 
                             <WrapPanel Grid.Row="2" Margin="0,6,0,0">
-                                <Button x:Name="BtnReveal" Content="フォルダを開く" Padding="10,2" Margin="0,0,6,0"/>
-                                <Button x:Name="BtnRename" Content="名前を変更" Padding="10,2" Margin="0,0,6,0"/>
-                                <Button x:Name="BtnTrash" Content="ごみ箱へ" Padding="10,2" Margin="0,0,6,0"/>
-                                <Button x:Name="BtnRescan" Content="保存先から読み込み" Padding="10,2" Margin="0,0,12,0"/>
-                                <TextBlock Text="絞り込み" VerticalAlignment="Center" Margin="0,0,6,0" Opacity="0.8"/>
+                                <Button x:Name="BtnReveal" Content="{ui:T main.btnReveal}" Padding="10,2" Margin="0,0,6,0"/>
+                                <Button x:Name="BtnRename" Content="{ui:T main.btnRename}" Padding="10,2" Margin="0,0,6,0"/>
+                                <Button x:Name="BtnTrash" Content="{ui:T main.btnTrash}" Padding="10,2" Margin="0,0,6,0"/>
+                                <Button x:Name="BtnRescan" Content="{ui:T main.btnRescan}" Padding="10,2" Margin="0,0,12,0"/>
+                                <TextBlock Text="{ui:T main.files.07}" VerticalAlignment="Center" Margin="0,0,6,0" Opacity="0.8"/>
                                 <TextBox x:Name="FileFilterBox" Width="130" Margin="0,0,10,0" VerticalContentAlignment="Center"
-                                         ToolTip="ファイル名(と日付フォルダ名)に含まれる文字で絞り込みます。大文字・小文字は区別しません。例: 2026-11 ＝ 2026年11月のフォルダ"/>
+                                         ToolTip="{ui:T main.fileFilterBox.tip}"/>
                                 <TextBlock x:Name="FileCountText" VerticalAlignment="Center" Opacity="0.7"/>
                                 <TextBlock x:Name="FileError" VerticalAlignment="Center" Foreground="#E5484D" FontWeight="SemiBold" Visibility="Collapsed" Margin="12,0,0,0"/>
                             </WrapPanel>
                         </Grid>
                     </TabItem>
 
-                    <TabItem Header="タグ(メタデータ)">
+                    <TabItem Header="{ui:T main.tags.01}">
                         <StackPanel Margin="10">
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
-                                       Text="{}空欄のものは書き込みません。{No} {Track} {Date} などの変数も使えます。日本語はUTF-8で正しく保存されます。"/>
+                                       Text="{ui:T main.tags.02}"/>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="90"/>
@@ -454,48 +455,48 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="タイトル" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{ui:T main.tags.03}" VerticalAlignment="Center"/>
                                 <TextBox x:Name="TagTitle" Grid.Row="0" Grid.Column="1" Margin="0,0,0,4"/>
-                                <TextBlock Grid.Row="0" Grid.Column="3" Text="アーティスト" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="0" Grid.Column="3" Text="{ui:T main.tags.04}" VerticalAlignment="Center"/>
                                 <TextBox x:Name="TagArtist" Grid.Row="0" Grid.Column="4" Margin="0,0,0,4"/>
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="アルバム" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{ui:T main.tags.05}" VerticalAlignment="Center"/>
                                 <TextBox x:Name="TagAlbum" Grid.Row="1" Grid.Column="1" Margin="0,0,0,4"/>
-                                <TextBlock Grid.Row="1" Grid.Column="3" Text="アルバムアーティスト" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                <TextBlock Grid.Row="1" Grid.Column="3" Text="{ui:T main.tags.06}" VerticalAlignment="Center" TextWrapping="Wrap"/>
                                 <TextBox x:Name="TagAlbumArtist" Grid.Row="1" Grid.Column="4" Margin="0,0,0,4"/>
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="ジャンル" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="{ui:T main.tags.07}" VerticalAlignment="Center"/>
                                 <TextBox x:Name="TagGenre" Grid.Row="2" Grid.Column="1" Margin="0,0,0,4"/>
-                                <TextBlock Grid.Row="2" Grid.Column="3" Text="年" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="2" Grid.Column="3" Text="{ui:T main.tags.08}" VerticalAlignment="Center"/>
                                 <TextBox x:Name="TagYear" Grid.Row="2" Grid.Column="4" Margin="0,0,0,4"/>
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="コメント" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="{ui:T main.tags.09}" VerticalAlignment="Center"/>
                                 <TextBox x:Name="TagComment" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="4" Margin="0,0,0,4"/>
                             </Grid>
                             <CheckBox x:Name="WriteTrackTagCheck" Margin="0,8,0,0"
-                                      Content="分割したときだけ、トラック番号タグを付ける(分割しない録音には付けません)"/>
+                                      Content="{ui:T main.writeTrackTagCheck}"/>
                         </StackPanel>
                     </TabItem>
 
-                    <TabItem Header="アプリ設定">
+                    <TabItem Header="{ui:T main.app.01}">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel Margin="10">
-                                <TextBlock Text="画面の色・スリープ防止・最小化の動作・ヘルプ・バージョン情報は、右上の ⚙ ボタンから変更できます。" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,6"/>
-                                <CheckBox x:Name="ConfirmCloseCheck" Content="録音中にアプリを閉じようとしたら警告する" Margin="0,0,0,8"/>
+                                <TextBlock Text="{ui:T main.app.02}" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                <CheckBox x:Name="ConfirmCloseCheck" Content="{ui:T main.confirmCloseCheck}" Margin="0,0,0,8"/>
                                 <WrapPanel Margin="0,0,0,4">
-                                    <CheckBox x:Name="HotkeysCheck" Content="グローバルホットキーを使う" Margin="0,0,12,0" VerticalContentAlignment="Center"/>
-                                    <TextBlock Text="録音開始/停止" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <CheckBox x:Name="HotkeysCheck" Content="{ui:T main.hotkeysCheck}" Margin="0,0,12,0" VerticalContentAlignment="Center"/>
+                                    <TextBlock Text="{ui:T main.app.03}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                     <TextBox x:Name="HotkeyStartBox" Width="120" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
-                                    <TextBlock Text="一時停止/再開" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBlock Text="{ui:T main.app.04}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                     <TextBox x:Name="HotkeyPauseBox" Width="120" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
-                                    <TextBlock Text="分割" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBlock Text="{ui:T main.app.05}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                     <TextBox x:Name="HotkeySplitBox" Width="120" VerticalContentAlignment="Center"/>
                                 </WrapPanel>
                                 <TextBlock x:Name="HotkeyStatus" Opacity="0.75" Margin="0,0,0,8" TextWrapping="Wrap"
-                                           Text="欄をクリックして、割り当てたいキーを押します(Ctrl・Alt・Shift・Win のどれかと一緒に)。Delete か BackSpace で未設定にします。例: Ctrl+Alt+F9"/>
+                                           Text="{ui:T main.hotkeyStatus}"/>
                                 <WrapPanel Margin="0,0,0,8">
-                                    <TextBlock Text="ディスク空き容量: 警告" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBlock Text="{ui:T main.app.06}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                     <TextBox x:Name="DiskWarnBox" Width="46" VerticalContentAlignment="Center"/>
-                                    <TextBlock Text="GB未満 / 自動停止して保存" VerticalAlignment="Center" Margin="4,0,4,0"/>
+                                    <TextBlock Text="{ui:T main.app.07}" VerticalAlignment="Center" Margin="4,0,4,0"/>
                                     <TextBox x:Name="DiskStopBox" Width="46" VerticalContentAlignment="Center"/>
-                                    <TextBlock Text="GB未満" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                    <TextBlock Text="{ui:T main.app.08}" VerticalAlignment="Center" Margin="4,0,0,0"/>
                                 </WrapPanel>
                                 <Grid Margin="0,0,0,4">
                                     <Grid.ColumnDefinitions>
@@ -503,9 +504,9 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="ffmpeg.exe の場所" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                    <TextBox x:Name="FfmpegBox" Grid.Column="1" VerticalContentAlignment="Center" ToolTip="空欄なら ffmpeg フォルダ内を自動で探します"/>
-                                    <Button x:Name="BtnFfmpegBrowse" Grid.Column="2" Content="参照…" Padding="8,2" Margin="4,0,0,0"/>
+                                    <TextBlock Text="{ui:T main.app.09}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBox x:Name="FfmpegBox" Grid.Column="1" VerticalContentAlignment="Center" ToolTip="{ui:T main.ffmpegBox.tip}"/>
+                                    <Button x:Name="BtnFfmpegBrowse" Grid.Column="2" Content="{ui:T main.btnBrowse}" Padding="8,2" Margin="4,0,0,0"/>
                                 </Grid>
                                 <TextBlock x:Name="FfmpegStatus" Opacity="0.8" TextWrapping="Wrap" Margin="0,0,0,10"/>
                                 <TextBlock x:Name="DataDirText" Opacity="0.7" TextWrapping="Wrap"/>
@@ -513,22 +514,22 @@
                         </ScrollViewer>
                     </TabItem>
 
-                    <TabItem Header="予約録音">
+                    <TabItem Header="{ui:T main.schedule.01}">
                         <StackPanel Margin="10">
-                            <CheckBox x:Name="ScheduleCheck" Content="予約録音を有効にする(アプリを起動しておく必要があります)" Margin="0,0,0,8"/>
+                            <CheckBox x:Name="ScheduleCheck" Content="{ui:T main.scheduleCheck}" Margin="0,0,0,8"/>
                             <WrapPanel Margin="0,0,0,6">
-                                <TextBlock Text="開始日" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBlock Text="{ui:T main.schedule.02}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 <DatePicker x:Name="ScheduleDate" Width="140" Margin="0,0,12,0"/>
-                                <TextBlock Text="開始時刻(24時間表記)" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                <TextBox x:Name="ScheduleTimeBox" Width="60" VerticalContentAlignment="Center" Margin="0,0,12,0" ToolTip="例: 21:30"/>
-                                <TextBlock Text="録音時間" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBlock Text="{ui:T main.schedule.03}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBox x:Name="ScheduleTimeBox" Width="60" VerticalContentAlignment="Center" Margin="0,0,12,0" ToolTip="{ui:T main.scheduleTimeBox.tip}"/>
+                                <TextBlock Text="{ui:T main.schedule.04}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 <TextBox x:Name="ScheduleMinutesBox" Width="60" VerticalContentAlignment="Center"/>
-                                <TextBlock Text="分" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                <TextBlock Text="{ui:T main.schedule.05}" VerticalAlignment="Center" Margin="4,0,0,0"/>
                             </WrapPanel>
-                            <CheckBox x:Name="ScheduleDailyCheck" Content="毎日くり返す" Margin="0,0,0,8"/>
+                            <CheckBox x:Name="ScheduleDailyCheck" Content="{ui:T main.scheduleDailyCheck}" Margin="0,0,0,8"/>
                             <TextBlock x:Name="ScheduleStatus" Opacity="0.8" TextWrapping="Wrap"/>
                             <TextBlock Opacity="0.7" TextWrapping="Wrap" Margin="0,8,0,0"
-                                       Text="予約の時刻になると、そのときの画面の設定で録音を始め、指定の時間で自動的に止めます。"/>
+                                       Text="{ui:T main.schedule.06}"/>
                         </StackPanel>
                     </TabItem>
                 </TabControl>

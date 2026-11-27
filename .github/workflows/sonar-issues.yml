@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: write      # 古い成果物を削除するため
 
 jobs:
   list:
@@ -47,3 +48,16 @@ jobs:
         with:
           name: sonar-issues
           path: sonar-issues.json
+          retention-days: 1
+
+      # 成果物は直近2件だけ残す(build.yml と同じ運用)。失敗してもジョブは成功のまま。名前が違う成果物には触らない。
+      - name: 古い成果物を整理(直近2件だけ残す)
+        if: success()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          repo='${{ github.repository }}'
+          gh api "repos/$repo/actions/artifacts?name=sonar-issues&per_page=100" \
+            --jq '[.artifacts[] | select(.expired | not)] | sort_by(.created_at) | reverse | .[2:][] | .id' \
+            | while read -r id; do gh api -X DELETE "repos/$repo/actions/artifacts/$id" >/dev/null && echo "削除: $id"; done
