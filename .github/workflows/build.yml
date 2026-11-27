@@ -109,13 +109,19 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          # バージョン: ビルド番号(github.run_number)から 1.0.(番号÷100の商).(余り) を作る(例: #1001 → 1.0.10.1)
+          $n = [int]'${{ github.run_number }}'
+          $ver = '1.0.{0}.{1}' -f [math]::Floor($n / 100), ($n % 100)
+          Write-Host "バージョン: $ver (ビルド番号 #$n)"
           dotnet publish src/LokuOn.App/LokuOn.App.csproj -c Release -r win-x64 --self-contained true `
+            -p:Version=$ver -p:AssemblyVersion=$ver -p:FileVersion=$ver -p:InformationalVersion=$ver `
             -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
             -p:DebugType=none -p:DebugSymbols=false -o publish-tmp
           # 配布フォルダには LokuOn.exe と ffmpeg だけを置く(設定ファイルは初回起動時に自動で作られる)
           New-Item -ItemType Directory -Force -Path publish/LokuOn/ffmpeg | Out-Null
           Copy-Item publish-tmp/LokuOn.exe publish/LokuOn/LokuOn.exe -Force
           Copy-Item ffmpeg-dl/bin/ffmpeg.exe publish/LokuOn/ffmpeg/ffmpeg.exe -Force
+          Copy-Item LICENSE publish/LokuOn/LICENSE.txt -Force
           Write-Host '--- 配布フォルダの中身 ---'
           Get-ChildItem publish -Recurse -File | ForEach-Object { '{0}  {1:N1} MB' -f $_.FullName.Substring((Get-Location).Path.Length + 1), ($_.Length / 1MB) }
 

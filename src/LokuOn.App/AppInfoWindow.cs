@@ -82,9 +82,10 @@ public sealed class AppInfoWindow : Window
         panel.Children.Add(trayRadio);
 
         panel.Children.Add(Header("このアプリについて"));
-        string ver = typeof(AppInfoWindow).Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
+        string ver = typeof(AppInfoWindow).Assembly.GetName().Version?.ToString(4) ?? "1.0.0.0";
         panel.Children.Add(new TextBlock { Text = $"LokuOn  バージョン {ver}", FontWeight = FontWeights.SemiBold });
-        panel.Children.Add(new TextBlock { Text = GitHubUrl, Opacity = 0.8, Margin = new Thickness(0, 2, 0, 6) });
+        panel.Children.Add(new TextBlock { Text = GitHubUrl, Opacity = 0.8, Margin = new Thickness(0, 2, 0, 2) });
+        panel.Children.Add(new TextBlock { Text = "個人利用のみ可。商用利用・再配布は禁止(LICENSE.txt)。", Opacity = 0.8, Margin = new Thickness(0, 0, 0, 6), TextWrapping = TextWrapping.Wrap });
         var links = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
         links.Children.Add(MakeButton("GitHub を開く", () => OpenUrl(GitHubUrl)));
         links.Children.Add(MakeButton("設定ファイルのフォルダを開く", () => OpenFolder(appDir)));

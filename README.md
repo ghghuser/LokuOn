@@ -90,5 +90,7 @@ ZIP の中は `LokuOn\LokuOn.exe` と `LokuOn\ffmpeg\ffmpeg.exe` だけです（
 
 ## ライセンスについて
 
+- LokuOn 本体は、個人利用のみ可です。商用利用・再配布は禁止です（詳細はリポジトリの `LICENSE`、配布物の `LICENSE.txt`）。
+- 以下の第三者部品は、各自のライセンスのままです（本体の制限は適用されません）。
 - NAudio（MIT）を使用しています。
 - FFmpeg は、同梱時に LGPL 版を優先してダウンロードします（取得できない場合は GPL 版）。公開する場合は FFmpeg のライセンス表記を確認してください。
