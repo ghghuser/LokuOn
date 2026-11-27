@@ -25,7 +25,7 @@ public static class PresetStore
             try
             {
                 var p = JsonSerializer.Deserialize<Preset>(File.ReadAllText(f, System.Text.Encoding.UTF8), PresetJson.Options);
-                if (p == null) throw new InvalidDataException("空のファイルです");
+                if (p == null) throw new InvalidDataException(Loc.Get("eng.30"));
                 p.Name = Path.GetFileNameWithoutExtension(f);
                 p.Normalize();
                 list.Add(p);

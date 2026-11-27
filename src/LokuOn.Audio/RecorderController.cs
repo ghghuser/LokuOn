@@ -121,11 +121,11 @@ public sealed partial class RecorderController : IDisposable
     public static string ShortLabel(string deviceId, string display)
     {
         if (deviceId.EndsWith(":default", StringComparison.OrdinalIgnoreCase))
-            return deviceId.StartsWith("wasapi-loop", StringComparison.OrdinalIgnoreCase) ? "PC内部音" : "マイク";
+            return deviceId.StartsWith("wasapi-loop", StringComparison.OrdinalIgnoreCase) ? Loc.Get("ctl.01") : Loc.Get("ctl.02");
         string t = (display ?? "").Trim();
         if (t.EndsWith(DeviceCatalog.DefaultMark)) t = t.Substring(0, t.Length - DeviceCatalog.DefaultMark.Length).TrimEnd();
-        if (t.StartsWith(DeviceCatalog.SpeakerIcon)) return "PC内部音 " + t.Substring(DeviceCatalog.SpeakerIcon.Length).Trim();
-        if (t.StartsWith(DeviceCatalog.MicIcon)) return "マイク " + t.Substring(DeviceCatalog.MicIcon.Length).Trim();
+        if (t.StartsWith(DeviceCatalog.SpeakerIcon)) return Loc.Get("ctl.03") + t.Substring(DeviceCatalog.SpeakerIcon.Length).Trim();
+        if (t.StartsWith(DeviceCatalog.MicIcon)) return Loc.Get("ctl.04") + t.Substring(DeviceCatalog.MicIcon.Length).Trim();
         int i = t.IndexOf("] ", StringComparison.Ordinal);
         if (t.StartsWith('[') && i > 0) return string.Concat(t.AsSpan(1, i - 1), " ", t.AsSpan(i + 2));
         return string.IsNullOrWhiteSpace(t) ? deviceId : t;
@@ -134,7 +134,7 @@ public sealed partial class RecorderController : IDisposable
     public void SaveSettings()
     {
         try { SettingsStore.Save(SettingsPath, Settings); }
-        catch (Exception ex) { Log("設定の保存に失敗: " + ex.Message); Message?.Invoke("設定ファイルを保存できませんでした: " + ex.Message); }
+        catch (Exception ex) { Log(Loc.Get("ctl.05") + ex.Message); Message?.Invoke(Loc.Get("ctl.06") + ex.Message); }
     }
 
     public void Log(string text)
@@ -173,7 +173,7 @@ public sealed partial class RecorderController : IDisposable
             var cap = new CaptureSource(s.DeviceId, name, buf);
             active.Add(new ActiveSource { Slot = i, DeviceId = s.DeviceId, Buffer = buf, Capture = cap });
         }
-        if (active.Count == 0) { error = "入力デバイスが選ばれていません"; return false; }
+        if (active.Count == 0) { error = Loc.Get("eng.01"); return false; }
         foreach (var a in active) a.Capture.Start();
         AttachAllOutputs();
         return true;
@@ -228,7 +228,7 @@ public sealed partial class RecorderController : IDisposable
         var parts = new List<string>();
         foreach (var a in active)
             if (!a.Buffer.Connected)
-                parts.Add($"入力{a.Slot + 1}「{a.Capture.DisplayName}」: {(string.IsNullOrEmpty(a.Capture.LastError) ? "接続できません" : a.Capture.LastError)}");
+                parts.Add(Loc.Get("ctl.conn", a.Slot + 1, a.Capture.DisplayName, string.IsNullOrEmpty(a.Capture.LastError) ? Loc.Get("ctl.noconn") : a.Capture.LastError));
         return string.Join(" / ", parts);
     }
 
@@ -286,7 +286,7 @@ public sealed partial class RecorderController : IDisposable
     {
         foreach (var s in p.Sources)
             if (!string.IsNullOrWhiteSpace(s.DeviceId) && DeviceCatalog.IsLoopCombination(s.DeviceId, outputDeviceId))
-                return "このデバイスは入力として取り込み中のため、出力先にできません(音がループします)";
+                return Loc.Get("ctl.07");
         return null;
     }
 
@@ -297,7 +297,7 @@ public sealed partial class RecorderController : IDisposable
     public string? StartOutput(OutputSetting card, Preset p)
     {
         TakeFx(p);
-        if (string.IsNullOrWhiteSpace(card.DeviceId)) return "出力先のデバイスを選んでください";
+        if (string.IsNullOrWhiteSpace(card.DeviceId)) return Loc.Get("ctl.08");
         string? loop = CheckLoop(p, card.DeviceId);
         if (loop != null) return loop;
         if (!outSlots.TryGetValue(card, out var o)) outSlots[card] = o = new OutSlot { Card = card };
@@ -307,7 +307,7 @@ public sealed partial class RecorderController : IDisposable
         else AttachSlot(o);
         if (o.Dev == null || o.Dev.Failed)
         {
-            string err = o.Status.Length > 0 ? o.Status : "出力を開始できませんでした";
+            string err = o.Status.Length > 0 ? o.Status : Loc.Get("ctl.09");
             o.Wanted = false; DetachSlot(o);
             StopMonitorIfUnneeded();
             return err;
@@ -374,7 +374,7 @@ public sealed partial class RecorderController : IDisposable
         {
             foreach (var a in active)
                 if (DeviceCatalog.IsLoopCombination(a.DeviceId, o.Card.DeviceId))
-                { o.Status = "入力と同じデバイスのため出力できません(ループ防止)"; return; }
+                { o.Status = Loc.Get("ctl.10"); return; }
             var taps = new SourceBuffer?[active.Count];
             for (int j = 0; j < active.Count; j++)
             {
@@ -388,15 +388,15 @@ public sealed partial class RecorderController : IDisposable
             if (err != null)
             {
                 DetachTaps(o);
-                o.Status = err; Log($"出力「{o.Card.Name}」: {err}");
+                o.Status = err; Log(Loc.Get("ctl.11", o.Card.Name, err));
                 return;
             }
             o.Dev = dev;
             ApplySends(o);
-            o.Status = "出力中: " + dev.DeviceName;
+            o.Status = Loc.Get("ctl.12") + dev.DeviceName;
             o.Reported = false;
         }
-        catch (Exception ex) { o.Status = "出力エラー: " + ex.Message; Log(o.Status); DetachTaps(o); }
+        catch (Exception ex) { o.Status = Loc.Get("ctl.13") + ex.Message; Log(o.Status); DetachTaps(o); }
     }
 
     private void DetachTaps(OutSlot o)
@@ -423,8 +423,8 @@ public sealed partial class RecorderController : IDisposable
             {
                 string e = o.Dev.LastError;
                 DetachSlot(o);
-                o.Status = "出力が止まりました(再試行します): " + e;
-                if (!o.Reported) { o.Reported = true; Message?.Invoke($"出力「{o.Card.Name}」: {o.Status}"); }
+                o.Status = Loc.Get("ctl.14") + e;
+                if (!o.Reported) { o.Reported = true; Message?.Invoke(Loc.Get("ctl.11", o.Card.Name, o.Status)); }
                 o.RetryAt = DateTime.Now.AddSeconds(5);
             }
             else if (o.Dev == null && active.Count > 0 && DateTime.Now >= o.RetryAt)
@@ -563,9 +563,9 @@ public sealed partial class RecorderController : IDisposable
     public string? StartRecording(Preset preset)
     {
         TakeFx(preset);
-        if (engine != null) return "すでに録音中です";
-        if (FfmpegPath == null) return "ffmpeg が見つかりません。ffmpeg.exe を ffmpeg フォルダ(またはexeと同じ場所)に置いてください。";
-        if (string.IsNullOrWhiteSpace(preset.SaveFolder)) return "保存先フォルダを指定してください";
+        if (engine != null) return Loc.Get("eng.02");
+        if (FfmpegPath == null) return Loc.Get("ctl.15");
+        if (string.IsNullOrWhiteSpace(preset.SaveFolder)) return Loc.Get("ctl.16");
 
         var p = preset.Clone();
         p.Name = preset.Name;
@@ -573,7 +573,7 @@ public sealed partial class RecorderController : IDisposable
         if (active.Count > 0 && TryReuseSources(p, out int discardedMs))
         {
             monitoring = false; monWave = null; monClock = null;
-            string m = $"入力を開き直さず引き継ぎました(録音前にたまっていた音 {discardedMs} ms は破棄)";
+            string m = Loc.Get("ctl.17", discardedMs);
             Log(m); Message?.Invoke(m);
         }
         else
@@ -586,7 +586,7 @@ public sealed partial class RecorderController : IDisposable
         {
             string detail = DescribeSourceProblems();
             CloseSources();
-            return "入力デバイスに接続できません。" + (detail.Length > 0 ? " " + detail : "");
+            return Loc.Get("ctl.18") + (detail.Length > 0 ? " " + detail : "");
         }
 
         RecorderEngine eng;
@@ -612,7 +612,7 @@ public sealed partial class RecorderController : IDisposable
         engine = eng;
         SetSleepLock(Settings.PreventSleep);
         string probs = DescribeSourceProblems();
-        if (probs.Length > 0) Message?.Invoke("つながっていない入力があります(復帰を待ちます): " + probs);
+        if (probs.Length > 0) Message?.Invoke(Loc.Get("ctl.19") + probs);
         SaveSettings();
         RecordingStarted?.Invoke();
         return null;
@@ -625,7 +625,7 @@ public sealed partial class RecorderController : IDisposable
         if (e == null) return;
         scheduledStopAt = null;
         try { await e.StopAsync().ConfigureAwait(true); }
-        catch (Exception ex) { Log("停止処理で例外: " + ex.Message); }
+        catch (Exception ex) { Log(Loc.Get("ctl.20") + ex.Message); }
         FinishRecording();
     }
 
@@ -671,7 +671,7 @@ public sealed partial class RecorderController : IDisposable
             if (scheduledStopAt != null && DateTime.Now >= scheduledStopAt.Value)
             {
                 scheduledStopAt = null;
-                Message?.Invoke("予約録音の終了時刻になりました");
+                Message?.Invoke(Loc.Get("ctl.21"));
                 _ = StopRecordingAsync();
                 return;
             }
@@ -696,21 +696,21 @@ public sealed partial class RecorderController : IDisposable
         if (now >= end)
         {
             // 時間を過ぎてしまった予約
-            if (sc.Daily) { AdvanceDaily(sc, now); Message?.Invoke("予約録音の時間を過ぎていたので、次の日に回しました"); }
-            else { sc.Enabled = false; Message?.Invoke("予約録音の時間を過ぎていたため、実行せず無効にしました"); }
+            if (sc.Daily) { AdvanceDaily(sc, now); Message?.Invoke(Loc.Get("ctl.22")); }
+            else { sc.Enabled = false; Message?.Invoke(Loc.Get("ctl.23")); }
             SaveSettings();
             return;
         }
         string? err = StartRecording(PresetProvider());
         if (err != null)
         {
-            Message?.Invoke("予約録音を開始できませんでした: " + err);
+            Message?.Invoke(Loc.Get("ctl.24") + err);
             if (sc.Daily) AdvanceDaily(sc, now); else sc.Enabled = false;
             SaveSettings();
             return;
         }
         scheduledStopAt = end;
-        Message?.Invoke($"予約録音を開始しました(終了予定 {end:HH:mm})");
+        Message?.Invoke(Loc.Get("ctl.25", end));
         if (sc.Daily) AdvanceDaily(sc, now); else sc.Enabled = false;
         SaveSettings();
     }

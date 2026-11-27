@@ -65,7 +65,7 @@ public static class PcmConverter
                 return bytes;
             }
             default:
-                throw new NotSupportedException($"未対応のビット深度: {bitsPerSample}bit");
+                throw new NotSupportedException(Loc.Get("eng.29", bitsPerSample));
         }
     }
 }

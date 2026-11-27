@@ -115,15 +115,15 @@ public sealed class OutputRenderer
     public string Describe()
     {
         var sb = new System.Text.StringBuilder();
-        sb.Append($"デバイス {devRate}Hz/{devCh}ch 呼出{Interlocked.Read(ref RenderCalls)}回 途切れ{Interlocked.Read(ref Underruns)} 捨て{Interlocked.Read(ref Overflows)}");
+        sb.Append(Loc.Get("eng.31", devRate, devCh, Interlocked.Read(ref RenderCalls), Interlocked.Read(ref Underruns), Interlocked.Read(ref Overflows)));
         for (int i = 0; i < chans.Length; i++)
         {
             var t = taps[i];
-            sb.Append($" | 入力{i + 1}: ");
-            if (t == null) { sb.Append("タップなし"); continue; }
-            sb.Append($"送り{(Bus.IsSendOn(i) ? "オン" : "オフ")} 受信{t.PushedFrames / Math.Max(1, t.SampleRate)}秒分 たまり{t.AvailableFrames * 1000 / Math.Max(1, t.SampleRate)}ms {(chans[i].Primed ? "再生中" : "待機")}");
+            sb.Append(Loc.Get("eng.32", i + 1));
+            if (t == null) { sb.Append(Loc.Get("eng.33")); continue; }
+            sb.Append(Loc.Get("diag.send", Bus.IsSendOn(i) ? Loc.Get("diag.on") : Loc.Get("diag.off"), t.PushedFrames / Math.Max(1, t.SampleRate), t.AvailableFrames * 1000 / Math.Max(1, t.SampleRate), chans[i].Primed ? Loc.Get("diag.playing") : Loc.Get("diag.idle")));
         }
-        if (LastError.Length > 0) sb.Append(" | エラー: " + LastError);
+        if (LastError.Length > 0) sb.Append(Loc.Get("eng.35") + LastError);
         return sb.ToString();
     }
 

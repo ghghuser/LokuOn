@@ -118,7 +118,7 @@ public sealed class EncoderSession : IDisposable
         catch (Exception ex)
         {
             proc.Dispose();
-            throw new InvalidOperationException("ffmpeg を起動できません: " + ex.Message, ex);
+            throw new InvalidOperationException(Loc.Get("eng.21") + ex.Message, ex);
         }
         proc.BeginErrorReadLine();
         proc.BeginOutputReadLine();
@@ -144,7 +144,7 @@ public sealed class EncoderSession : IDisposable
             {
                 if (failed) continue;
                 try { stream.Write(chunk, 0, chunk.Length); }
-                catch (Exception ex) { failed = true; failMessage = "ffmpegへの書き込みに失敗: " + ex.Message; }
+                catch (Exception ex) { failed = true; failMessage = Loc.Get("eng.22") + ex.Message; }
             }
         }
         finally
@@ -163,12 +163,12 @@ public sealed class EncoderSession : IDisposable
         if (!exited)
         {
             try { proc.Kill(true); } catch { }
-            return new EncodeResult { Ok = false, Error = "ffmpegの終了待ちがタイムアウトしました" };
+            return new EncodeResult { Ok = false, Error = Loc.Get("eng.23") };
         }
         proc.WaitForExit();
         string err; lock (stderr) err = stderr.ToString().Trim();
         if (failed) return new EncodeResult { Ok = false, Error = failMessage + (err.Length > 0 ? " / " + err : "") };
-        if (proc.ExitCode != 0) return new EncodeResult { Ok = false, Error = $"ffmpeg終了コード {proc.ExitCode}: {err}" };
+        if (proc.ExitCode != 0) return new EncodeResult { Ok = false, Error = Loc.Get("eng.24", proc.ExitCode, err) };
         return new EncodeResult { Ok = true };
     }
 

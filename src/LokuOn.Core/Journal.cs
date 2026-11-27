@@ -83,9 +83,9 @@ public static class Recovery
         {
             try
             {
-                if (!File.Exists(e.Path) || new FileInfo(e.Path).Length == 0) { log?.Invoke($"空のため破棄: {e.Path}"); continue; }
+                if (!File.Exists(e.Path) || new FileInfo(e.Path).Length == 0) { log?.Invoke(Loc.Get("eng.25", e.Path)); continue; }
                 double? dur = FfmpegTools.ProbeDuration(ffmpeg, e.Path);
-                if (dur == null) { log?.Invoke($"長さを取得できませんでした(そのまま残します): {e.Path}"); continue; }
+                if (dur == null) { log?.Invoke(Loc.Get("eng.26", e.Path)); continue; }
                 string dir = System.IO.Path.GetDirectoryName(e.Path) ?? ".";
                 string ext = System.IO.Path.GetExtension(e.Path);
                 var ctx = new NameContext
@@ -100,9 +100,9 @@ public static class Recovery
                 if (!string.Equals(final, e.Path, StringComparison.Ordinal)) File.Move(e.Path, final);
                 if (ext.Equals(".m4a", StringComparison.OrdinalIgnoreCase)) FfmpegTools.Remux(ffmpeg, final, true, null);
                 result.Add(new RecordedFile { Path = final, Seconds = dur.Value, No = e.No, Track = e.Track, Device = e.Device, Recovered = true });
-                log?.Invoke($"復旧しました: {final}");
+                log?.Invoke(Loc.Get("eng.27", final));
             }
-            catch (Exception ex) { log?.Invoke($"復旧に失敗: {e.Path} ({ex.Message})"); }
+            catch (Exception ex) { log?.Invoke(Loc.Get("eng.28", e.Path, ex.Message)); }
         }
         try { if (File.Exists(journalPath)) File.Delete(journalPath); } catch { }
         return result;

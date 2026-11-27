@@ -96,7 +96,7 @@ public sealed class CaptureSource : IDisposable
         var flow = IsLoopback ? DataFlow.Render : DataFlow.Capture;
         using var dev = FollowsDefault ? en.GetDefaultAudioEndpoint(flow, Role.Multimedia) : en.GetDevice(EndpointPart);
         currentEndpointId = dev.ID;
-        if (dev.State != DeviceState.Active) throw new InvalidOperationException("デバイスが有効ではありません");
+        if (dev.State != DeviceState.Active) throw new InvalidOperationException(Loc.Get("ctl.26"));
 
         WasapiCapture cap = IsLoopback ? new WasapiLoopbackCapture(dev) : new WasapiCapture(dev);
         var wf = cap.WaveFormat;
@@ -111,7 +111,7 @@ public sealed class CaptureSource : IDisposable
             // 録音を止めたのが自分でなければ(デバイスが外れた等)、切断として扱う
             lock (gate)
             {
-                if (ReferenceEquals(wasapi, s)) { target.Connected = false; LastError = e.Exception?.Message ?? "デバイスが停止しました"; }
+                if (ReferenceEquals(wasapi, s)) { target.Connected = false; LastError = e.Exception?.Message ?? Loc.Get("ctl.27"); }
             }
         };
         wasapi = cap;
@@ -132,7 +132,7 @@ public sealed class CaptureSource : IDisposable
         {
             a.InputChannelOffset = offset;
             if (!a.IsSampleRateSupported(target.SampleRate))
-                throw new InvalidOperationException($"ASIOドライバが {target.SampleRate}Hz に対応していません(ドライバ側の設定を確認してください)");
+                throw new InvalidOperationException(Loc.Get("ctl.28", target.SampleRate));
             const int channels = 2;
             a.InitRecordAndPlayback(null, channels, target.SampleRate);
             var feeder = new SourceFeeder(target, target.SampleRate, channels, 32, true);
@@ -150,7 +150,7 @@ public sealed class CaptureSource : IDisposable
             };
             a.DriverResetRequest += (s, e) =>
             {
-                lock (gate) { if (ReferenceEquals(asio, s)) { target.Connected = false; LastError = "ASIOドライバがリセットを要求しました"; } }
+                lock (gate) { if (ReferenceEquals(asio, s)) { target.Connected = false; LastError = Loc.Get("ctl.29"); } }
             };
             a.Play();
             asio = a;

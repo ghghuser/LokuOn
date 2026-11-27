@@ -56,9 +56,9 @@ public static class TemplateLibrary
     /// <summary>テンプレート名として使えるか(使えないときは理由を返す)。</summary>
     public static string? ValidateName(string name)
     {
-        if (string.IsNullOrWhiteSpace(name)) return "名前を入力してください。";
-        if (name.AsSpan().IndexOfAny(BadNameChars) >= 0) return "名前に [ ] や改行は使えません。";
-        if (IsBuiltIn(name.Trim())) return "最初から入っているテンプレートの名前は使えません。";
+        if (string.IsNullOrWhiteSpace(name)) return Loc.Get("core.01");
+        if (name.AsSpan().IndexOfAny(BadNameChars) >= 0) return Loc.Get("core.02");
+        if (IsBuiltIn(name.Trim())) return Loc.Get("core.03");
         return null;
     }
 }

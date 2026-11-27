@@ -63,7 +63,7 @@ public sealed class OutputSetting
     /// <summary>この出力の最終ミックスにかけるエフェクト(ローカット・EQ・リミッター)。</summary>
     public OutputFxSetting Fx { get; set; } = new();
 
-    public static string DefaultName(int index) => "ミックス" + (index + 1);
+    public static string DefaultName(int index) => Loc.Get("core.04") + (index + 1);
 
     public OutputSetting Clone()
     {
@@ -136,7 +136,7 @@ public sealed class Preset
     private static EffectSetting[] NewEffects() { var a = new EffectSetting[SourceSlots]; for (int i = 0; i < a.Length; i++) a[i] = new EffectSetting(); return a; }
 
     public string InputName(int slot)
-        => InputNames != null && (uint)slot < (uint)InputNames.Length && !string.IsNullOrWhiteSpace(InputNames[slot]) ? InputNames[slot] : "入力" + (slot + 1);
+        => InputNames != null && (uint)slot < (uint)InputNames.Length && !string.IsNullOrWhiteSpace(InputNames[slot]) ? InputNames[slot] : Loc.Get("core.05") + (slot + 1);
 
     public MixMode MixMode { get; set; } = MixMode.Mix;
     public double MasterGainDb { get; set; } = 0;
@@ -477,7 +477,7 @@ public static class PresetJson
         if (doc.RootElement.ValueKind == JsonValueKind.Array) arr = doc.RootElement;
         else if (doc.RootElement.ValueKind == JsonValueKind.Object &&
                  doc.RootElement.TryGetProperty("presets", out arr) || doc.RootElement.TryGetProperty("Presets", out arr)) { }
-        else throw new InvalidDataException("プリセットのJSONとして読めません");
+        else throw new InvalidDataException(Loc.Get("core.06"));
 
         foreach (var el in arr.EnumerateArray())
         {

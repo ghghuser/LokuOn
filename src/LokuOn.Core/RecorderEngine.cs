@@ -126,7 +126,7 @@ public sealed class RecorderEngine : IDisposable
         opt = options;
         p = options.Preset;
         sources = sourceBuffers;
-        if (sources.Count == 0) throw new InvalidOperationException("入力デバイスが選ばれていません");
+        if (sources.Count == 0) throw new InvalidOperationException(Loc.Get("eng.01"));
         rate = sources[0].SampleRate;
         ch = sources[0].Channels;
         srcPeakAcc = new float[sources.Count];
@@ -144,11 +144,11 @@ public sealed class RecorderEngine : IDisposable
 
     public void Start()
     {
-        if (state != (int)EngineState.Idle) throw new InvalidOperationException("すでに録音中です");
-        if (string.IsNullOrWhiteSpace(p.SaveFolder)) throw new InvalidOperationException("保存先フォルダが指定されていません");
-        if (!File.Exists(opt.FfmpegPath)) throw new InvalidOperationException("ffmpeg が見つかりません: " + opt.FfmpegPath);
+        if (state != (int)EngineState.Idle) throw new InvalidOperationException(Loc.Get("eng.02"));
+        if (string.IsNullOrWhiteSpace(p.SaveFolder)) throw new InvalidOperationException(Loc.Get("eng.03"));
+        if (!File.Exists(opt.FfmpegPath)) throw new InvalidOperationException(Loc.Get("eng.04") + opt.FfmpegPath);
         try { Directory.CreateDirectory(p.SaveFolder); }
-        catch (Exception ex) { throw new InvalidOperationException("保存先フォルダを作成できません: " + ex.Message, ex); }
+        catch (Exception ex) { throw new InvalidOperationException(Loc.Get("eng.05") + ex.Message, ex); }
 
         outputs.Clear();
         if (p.MixMode == MixMode.Separate && sources.Count > 1)
@@ -242,7 +242,7 @@ public sealed class RecorderEngine : IDisposable
                 if (target - clock < chunk) { Thread.Sleep(4); continue; }
                 if (target - clock > 5L * rate)
                 {
-                    Message?.Invoke("処理の遅れを検出したため時刻を補正しました(PCのスリープ等)");
+                    Message?.Invoke(Loc.Get("eng.06"));
                     clock = target - chunk;
                 }
                 int guard = 0;
@@ -260,12 +260,12 @@ public sealed class RecorderEngine : IDisposable
         }
         catch (Exception ex)
         {
-            stopReason = "エンジンエラー: " + ex.Message;
+            stopReason = Loc.Get("eng.07") + ex.Message;
         }
         finally
         {
             state = (int)EngineState.Stopping;
-            try { foreach (var o in outputs) CloseOutput(o); } catch (Exception ex) { Message?.Invoke("終了処理エラー: " + ex.Message); }
+            try { foreach (var o in outputs) CloseOutput(o); } catch (Exception ex) { Message?.Invoke(Loc.Get("eng.08") + ex.Message); }
             Task[] pending; lock (finalizers) pending = finalizers.ToArray();
             try { Task.WaitAll(pending, 300_000); } catch { }
             state = (int)EngineState.Idle;
@@ -289,7 +289,7 @@ public sealed class RecorderEngine : IDisposable
             if (conn != lastConnected[i])
             {
                 lastConnected[i] = conn;
-                Message?.Invoke(conn ? $"入力が復帰しました: {sb.Label}" : $"入力が切断されました: {sb.Label}");
+                Message?.Invoke(conn ? Loc.Get("eng.09", sb.Label) : Loc.Get("eng.10", sb.Label));
             }
             float g = DbToLin(sb.GainDb);
             float pk = 0;
@@ -400,7 +400,7 @@ public sealed class RecorderEngine : IDisposable
                 o.LostFrames += n;
                 if (!p.AutoResume)
                 {
-                    if (o.LostFrames > 2L * rate && !stopRequested) { stopReason = "入力デバイスが切断されたため録音を停止しました"; stopRequested = true; }
+                    if (o.LostFrames > 2L * rate && !stopRequested) { stopReason = Loc.Get("eng.11"); stopRequested = true; }
                 }
                 else if (p.DeviceLostPolicy != DeviceLostPolicy.Continue)
                 {
@@ -446,16 +446,16 @@ public sealed class RecorderEngine : IDisposable
                     o.PreRollFrames = 0;
                 }
                 state = (int)EngineState.Recording;
-                Message?.Invoke("音を検出したため録音を開始しました");
+                Message?.Invoke(Loc.Get("eng.12"));
             }
-            catch (Exception ex) { stopReason = "録音を開始できません: " + ex.Message; stopRequested = true; }
+            catch (Exception ex) { stopReason = Loc.Get("eng.13") + ex.Message; stopRequested = true; }
         }
 
         if (recording && p.AutoStopSilenceSeconds > 0)
         {
             if (allPeak < silThr) allSilent += n; else allSilent = 0;
             if (allSilent >= (long)(p.AutoStopSilenceSeconds * rate) && !stopRequested)
-            { stopReason = "無音が続いたため録音を停止しました"; stopRequested = true; }
+            { stopReason = Loc.Get("eng.14"); stopRequested = true; }
         }
     }
 
@@ -537,8 +537,8 @@ public sealed class RecorderEngine : IDisposable
         try { OpenFile(o); }   // 先に次のファイルを開く(入力はキューに入るので途切れない)
         catch (Exception ex)
         {
-            Message?.Invoke("分割に失敗: " + ex.Message);
-            stopReason = "分割に失敗したため録音を停止しました"; stopRequested = true;
+            Message?.Invoke(Loc.Get("eng.15") + ex.Message);
+            stopReason = Loc.Get("eng.16"); stopRequested = true;
         }
         StartFinalize(closing);
     }
@@ -577,7 +577,7 @@ public sealed class RecorderEngine : IDisposable
             }
             if (!res.Ok)
             {
-                Message?.Invoke($"エンコードでエラーが発生しました(ファイル名は次回起動時に整えます): {res.Error}");
+                Message?.Invoke(Loc.Get("eng.17", res.Error));
                 return;     // 記録(journal)を残す
             }
             double startSec = c.StartFrames / (double)rate;
@@ -602,7 +602,7 @@ public sealed class RecorderEngine : IDisposable
         }
         catch (Exception ex)
         {
-            Message?.Invoke("ファイルの保存処理でエラー: " + ex.Message);
+            Message?.Invoke(Loc.Get("eng.18") + ex.Message);
         }
     }
 
@@ -619,13 +619,13 @@ public sealed class RecorderEngine : IDisposable
             double gb = free / 1073741824.0;
             if (gb < opt.DiskStopGB && !stopRequested)
             {
-                stopReason = $"ディスクの空きが少なくなったため録音を停止しました(残り {gb:0.00} GB)";
+                stopReason = Loc.Get("eng.19", gb);
                 stopRequested = true;
             }
             else if (gb < opt.DiskWarnGB && nowSec - lastWarn > 60)
             {
                 lastWarn = nowSec;
-                Message?.Invoke($"ディスクの空き容量が少なくなっています(残り {gb:0.0} GB)");
+                Message?.Invoke(Loc.Get("eng.20", gb));
             }
         }
         catch { /* 取得できない場合は監視しない */ }
