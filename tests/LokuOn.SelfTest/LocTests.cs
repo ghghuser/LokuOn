@@ -4,7 +4,7 @@ using LokuOn.Core;
 namespace LokuOn.SelfTest;
 
 /// <summary>文言(Lang/ja.ini)の仕組みと、ソースが使うキーの整合を確かめる。</summary>
-static class LocTests
+static partial class LocTests
 {
     public static void Run(string tmp, CheckFn check, Action<string> section)
     {
@@ -15,7 +15,7 @@ static class LocTests
         var p = Loc.Parse("; コメント\n[sec]\r\na.b=一行目\\n二行目\\\\\na.b=重複\n#無視\nc=値=等号入り\n", dup);
         check(p.Count == 3 && p[0].Value == "一行目\n二行目\\", "改行・バックスラッシュのエスケープ", p.Count.ToString());
         check(p[2].Key == "c" && p[2].Value == "値=等号入り", "値の中の = はそのまま");
-        check(dup.SequenceEqual(new[] { "a.b" }), "重複キーを検出");
+        check(dup.Count == 1 && dup[0] == "a.b", "重複キーを検出");
 
         // 外部ファイルが優先される(キー単位)。壊れた書式は落ちない
         string ext = Path.Combine(tmp, "loc-ext.ini");
@@ -42,8 +42,8 @@ static class LocTests
 
         // ソースが使うキー(Loc.Get の行の中のキー形式の文字列、XAML の {ui:T キー})
         var used = new HashSet<string>();
-        var keyLit = new Regex("\"([a-z][a-z0-9]*(?:\\.[a-z0-9_]+)+)\"");
-        var xamlKey = new Regex(@"\{ui:T\s+([^\s}]+)\}");
+        var keyLit = KeyLiteral();
+        var xamlKey = XamlKey();
         foreach (var f in Directory.EnumerateFiles(Path.Combine(root, "src"), "*.*", SearchOption.AllDirectories)
                      .Where(f => (f.EndsWith(".cs") || f.EndsWith(".xaml")) && !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")))
         {
@@ -60,9 +60,18 @@ static class LocTests
         check(unused.Count == 0, "ja.ini に未使用のキーがない", string.Join(",", unused));
     }
 
+    [GeneratedRegex("\"([a-z][a-z0-9]*(?:\\.[a-z0-9_]+)+)\"", RegexOptions.None, 2000)]
+    private static partial Regex KeyLiteral();
+
+    [GeneratedRegex(@"\{ui:T\s+([^\s}]+)\}", RegexOptions.None, 2000)]
+    private static partial Regex XamlKey();
+
+    [GeneratedRegex(@"\{(\d+)\}", RegexOptions.None, 2000)]
+    private static partial Regex Placeholder();
+
     private static bool PlaceholdersOk(string v)
     {
-        var idx = Regex.Matches(v, @"\{(\d+)\}").Select(m => int.Parse(m.Groups[1].Value)).Distinct().OrderBy(x => x).ToList();
+        var idx = Placeholder().Matches(v).Select(m => int.Parse(m.Groups[1].Value)).Distinct().OrderBy(x => x).ToList();
         return idx.Select((x, i) => x == i).All(b => b);
     }
 
