@@ -44,9 +44,21 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += (s, ex) => WriteCrashLog("AppDomain: " + ex.ExceptionObject);
         TaskScheduler.UnobservedTaskException += (s, ex) => { WriteCrashLog("Task: " + ex.Exception); ex.SetObserved(); };
 
-        var win = new MainWindow();
-        MainWindow = win;
-        win.Show();
+        try
+        {
+            var win = new MainWindow();
+            MainWindow = win;
+            win.Show();
+        }
+        catch (Exception ex)
+        {
+            // 起動に失敗したときは、記録して、プロセスを残さず終了する(ウィンドウの無いまま常駐させない)
+            WriteCrashLog("起動失敗: " + ex);
+            MessageBox.Show("LokuOn を起動できませんでした。\n\n" + ex.Message +
+                            "\n\n詳細は lokuon-crash.log に記録しました。",
+                "LokuOn", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)

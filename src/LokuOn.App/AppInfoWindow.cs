@@ -90,6 +90,11 @@ public sealed class AppInfoWindow : Window
         links.Children.Add(MakeButton("GitHub を開く", () => OpenUrl(GitHubUrl)));
         links.Children.Add(MakeButton("設定ファイルのフォルダを開く", () => OpenFolder(appDir)));
         panel.Children.Add(links);
+        var backupRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+        var backupMsg = new TextBlock { Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed };
+        backupRow.Children.Add(MakeButton("設定をバックアップ(ZIP)", () => BackupSettings(appDir, backupMsg)));
+        panel.Children.Add(backupRow);
+        panel.Children.Add(backupMsg);
 
         panel.Children.Add(Header("ヘルプ(かんたんな使い方)"));
         panel.Children.Add(new TextBlock
@@ -100,6 +105,7 @@ public sealed class AppInfoWindow : Window
                 "・録音: ●録音開始 → ■停止で保存。❚❚一時停止・✂分割も使えます。\n" +
                 "・ファイル名: テンプレートの変数 {Date} {Time} {No} {Track} {Start} {End} {Length} などで決まります。\n" +
                 "・設定は LokuOn.exe と同じフォルダの settings.ini、プリセットは Presets フォルダの「名前.json」に保存されます。\n" +
+                "・バックアップ: 「設定をバックアップ(ZIP)」で保存。復元は、LokuOn を終了してから ZIP を展開し、settings.ini と Presets を LokuOn.exe と同じフォルダへ上書きコピーします。\n" +
                 "・困ったとき: 同じフォルダの lokuon-crash.log と lokuon.log を確認してください。",
         });
 
@@ -189,6 +195,31 @@ public sealed class AppInfoWindow : Window
         g.Children.Add(t);
         g.Children.Add(control);
         return g;
+    }
+
+    /// <summary>settings.ini と Presets を ZIP にして、選んだ場所へ保存する。結果は、ボタンの下に(成功=緑・失敗=赤)で表示する。</summary>
+    private static void BackupSettings(string appDir, TextBlock msg)
+    {
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "設定のバックアップ",
+            Filter = "ZIP ファイル (*.zip)|*.zip",
+            FileName = $"LokuOn-backup-{DateTime.Now:yyyyMMdd-HHmmss}.zip",
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+        };
+        if (dlg.ShowDialog() != true) return;
+        try
+        {
+            int n = SettingsBackup.Create(Path.Combine(appDir, "settings.ini"), dlg.FileName);
+            msg.Foreground = n > 0 ? System.Windows.Media.Brushes.SeaGreen : System.Windows.Media.Brushes.DarkGoldenrod;
+            msg.Text = n > 0 ? $"バックアップを保存しました({n} 件): {dlg.FileName}" : "保存できる設定がまだありませんでした(空のZIPを保存)。";
+        }
+        catch (Exception ex)
+        {
+            msg.Foreground = System.Windows.Media.Brushes.Crimson;
+            msg.Text = "バックアップに失敗しました: " + ex.Message;
+        }
+        msg.Visibility = Visibility.Visible;
     }
 
     private static Button MakeButton(string text, Action click)
