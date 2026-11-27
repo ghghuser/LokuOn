@@ -32,11 +32,11 @@ public partial class MainWindow
     private ContextMenu BuildFxMenu(int slot)
     {
         var cm = new ContextMenu();
-        var open = new MenuItem { Header = "エフェクトを開く..." };
+        var open = new MenuItem { Header = Loc.Get("mfx.01") };
         open.Click += (s, e) => OpenEffectWindow(slot);
-        var bypass = new MenuItem { Header = "エフェクトをバイパス(一時的に切る)", IsCheckable = true };
+        var bypass = new MenuItem { Header = Loc.Get("mfx.02"), IsCheckable = true };
         bypass.Click += (s, e) => { fxSettings[slot].Bypass = bypass.IsChecked; OnFxChanged(); fxWindow?.Reload(); };
-        var rename = new MenuItem { Header = "入力の名前を変更..." };
+        var rename = new MenuItem { Header = Loc.Get("mfx.03") };
         rename.Click += (s, e) => RenameInput(slot);
         cm.Opened += (s, e) => { bypass.IsChecked = fxSettings[slot].Bypass; bypass.IsEnabled = fxSettings[slot].HasAny; };
         cm.Items.Add(open); cm.Items.Add(bypass); cm.Items.Add(new Separator()); cm.Items.Add(rename);
@@ -86,14 +86,14 @@ public partial class MainWindow
             {
                 b.Foreground = new SolidColorBrush(Color.FromRgb(0x3F, 0xB9, 0x50)); b.FontWeight = FontWeights.Bold; b.Opacity = 1;
                 var parts = new List<string>();
-                if (f.EqOn) parts.Add("イコライザ"); if (f.EchoOn) parts.Add("エコー"); if (f.ReverbOn) parts.Add("リバーブ");
-                b.ToolTip = $"エフェクト: {string.Join("・", parts)}(録音: {(f.ToRecording ? "反映" : "素の音")} / 出力: {(f.ToOutput ? "反映" : "素の音")})\n右クリックでメニュー";
+                if (f.EqOn) parts.Add(Loc.Get("mfx.04")); if (f.EchoOn) parts.Add(Loc.Get("mfx.05")); if (f.ReverbOn) parts.Add(Loc.Get("mfx.06"));
+                b.ToolTip = Loc.Get("mfx.07", string.Join("・", parts), f.ToRecording ? Loc.Get("mfx.08") : Loc.Get("mfx.09"), f.ToOutput ? Loc.Get("mfx.08") : Loc.Get("mfx.09"));
             }
             else
             {
                 b.ClearValue(Control.ForegroundProperty); b.FontWeight = FontWeights.Normal;
                 b.Opacity = f.HasAny ? 0.6 : 1;
-                b.ToolTip = f.HasAny ? "エフェクトはバイパス中です(クリックで開く)" : "エフェクト(ノイズゲート・イコライザ・エコー・リバーブ)。右クリックでメニュー";
+                b.ToolTip = f.HasAny ? Loc.Get("mfx.10") : Loc.Get("mfx.11");
             }
         }
     }

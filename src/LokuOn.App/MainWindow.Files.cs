@@ -30,8 +30,8 @@ public partial class MainWindow
     {
         int sel = FileList.SelectedItems.Count;
         int shown = FileList.Items.Count;
-        string count = shown == files.Count ? $"{files.Count} 件" : $"{shown} / {files.Count} 件";
-        FileCountText.Text = sel > 1 ? $"{count}(選択 {sel} 件)" : count;
+        string count = shown == files.Count ? Loc.Get("files.01", files.Count) : Loc.Get("files.02", shown, files.Count);
+        FileCountText.Text = sel > 1 ? Loc.Get("files.03", count, sel) : count;
     }
 
     // ---- 絞り込み(ファイル名と日付フォルダ名に含まれる文字。件数が多くても探せるように。LokuOnX のアイデア) ----
@@ -54,7 +54,7 @@ public partial class MainWindow
             if (string.Equals(files[i].Path, f.Path, StringComparison.OrdinalIgnoreCase)) files.RemoveAt(i);
         files.Insert(0, FileItem.FromPath(f.Path, f.Seconds));
         UpdateFileCount();
-        AddLog("保存しました: " + System.IO.Path.GetFileName(f.Path));
+        AddLog(Loc.Get("files.04") + System.IO.Path.GetFileName(f.Path));
     }
 
     /// <summary>保存先フォルダ(日付フォルダの中も)から、最近のファイルを読み込み直す。</summary>
@@ -87,11 +87,11 @@ public partial class MainWindow
     private void BuildFileContextMenu()
     {
         var menu = new ContextMenu();
-        var play = new MenuItem { Header = "再生 / 一時停止" };
-        var reveal = new MenuItem { Header = "エクスプローラーでフォルダを開く" };
-        var rename = new MenuItem { Header = "名前を変更…" };
-        var trash = new MenuItem { Header = "ごみ箱へ移動" };
-        var copy = new MenuItem { Header = "ファイルのパスをコピー" };
+        var play = new MenuItem { Header = Loc.Get("files.05") };
+        var reveal = new MenuItem { Header = Loc.Get("files.06") };
+        var rename = new MenuItem { Header = Loc.Get("files.07") };
+        var trash = new MenuItem { Header = Loc.Get("files.08") };
+        var copy = new MenuItem { Header = Loc.Get("files.09") };
         play.Click += (s, e) => PlaySelected();
         reveal.Click += (s, e) => RevealSelected();
         rename.Click += (s, e) => RenameSelected();
@@ -174,16 +174,16 @@ public partial class MainWindow
             {
                 // 複数まとめて開くときは、ウィンドウがたくさん開くので確認する
                 var r = MessageBox.Show(this,
-                    $"選択した {sel.Count} 件のファイルがあるフォルダ({byFolder.Count} か所)を、エクスプローラーで開きます。\n" +
-                    (byFolder.Count > 1 ? $"エクスプローラーのウィンドウが {byFolder.Count} 個開きます。\n" : "") + "\nよろしいですか？",
-                    "LokuOn - フォルダを開く", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
+                    Loc.Get("files.10", sel.Count, byFolder.Count) +
+                    (byFolder.Count > 1 ? Loc.Get("files.11", byFolder.Count) : "") + Loc.Get("files.12"),
+                    Loc.Get("files.13"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
                 if (r != MessageBoxResult.Yes) return;
             }
             foreach (var g in byFolder) FileOps.RevealInExplorer(g.First().Path);
         }
         catch (Exception ex)
         {
-            SetInlineError(FileError, "フォルダを開けませんでした: " + ex.Message);
+            SetInlineError(FileError, Loc.Get("files.14") + ex.Message);
         }
     }
 
@@ -192,7 +192,7 @@ public partial class MainWindow
         var sel = SelectedFiles();
         if (sel.Count == 0) return;
         try { Clipboard.SetText(string.Join(Environment.NewLine, sel.Select(x => x.Path))); }
-        catch (Exception ex) { AddLog("コピーできませんでした: " + ex.Message); }
+        catch (Exception ex) { AddLog(Loc.Get("files.15") + ex.Message); }
     }
 
     private void ReleasePlayerIfUsing(IEnumerable<FileItem> items)
@@ -205,14 +205,14 @@ public partial class MainWindow
     private void RenameSelected()
     {
         var sel = SelectedFiles();
-        if (sel.Count != 1) { if (sel.Count > 1) AddLog("名前の変更は1件ずつ行ってください"); return; }
+        if (sel.Count != 1) { if (sel.Count > 1) AddLog(Loc.Get("files.16")); return; }
         var item = sel[0];
         SetInlineError(FileError, null);
         try
         {
             string ext = System.IO.Path.GetExtension(item.Path);
             string stem = System.IO.Path.GetFileNameWithoutExtension(item.Path);
-            string? input = PromptWindow.Show(this, "名前を変更", "新しいファイル名を入力してください(拡張子 " + ext + " は自動で付きます)。", stem);
+            string? input = PromptWindow.Show(this, Loc.Get("files.17"), Loc.Get("files.18") + ext + Loc.Get("files.19"), stem);
             if (input == null) return;
             string newStem = NameTemplate.Sanitize(input.Trim());
             if (newStem.Length == 0 || newStem == stem) return;
@@ -221,17 +221,17 @@ public partial class MainWindow
             string newPath = System.IO.Path.Combine(dir, newStem + ext);
             if (File.Exists(newPath) || Directory.Exists(newPath))
             {
-                SetInlineError(FileError, "同じ名前のファイルがすでにあります: " + System.IO.Path.GetFileName(newPath));
+                SetInlineError(FileError, Loc.Get("files.20") + System.IO.Path.GetFileName(newPath));
                 return;
             }
             ReleasePlayerIfUsing(sel);
             File.Move(item.Path, newPath);
             item.Path = newPath;
-            AddLog("名前を変更しました: " + System.IO.Path.GetFileName(newPath));
+            AddLog(Loc.Get("files.21") + System.IO.Path.GetFileName(newPath));
         }
         catch (Exception ex)
         {
-            SetInlineError(FileError, "名前を変更できませんでした: " + ex.Message);
+            SetInlineError(FileError, Loc.Get("files.22") + ex.Message);
         }
     }
 
@@ -239,8 +239,8 @@ public partial class MainWindow
     {
         var sel = SelectedFiles();
         if (sel.Count == 0) return;
-        string what = sel.Count == 1 ? "「" + sel[0].Name + "」" : sel.Count + " 件のファイル";
-        var r = MessageBox.Show(this, what + " をごみ箱へ移動しますか？\n(ごみ箱から元に戻せます)", "LokuOn - ごみ箱へ移動",
+        string what = sel.Count == 1 ? "「" + sel[0].Name + "」" : sel.Count + Loc.Get("files.23");
+        var r = MessageBox.Show(this, what + Loc.Get("files.24"), Loc.Get("files.25"),
             MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
         if (r != MessageBoxResult.Yes) return;
 
@@ -258,9 +258,9 @@ public partial class MainWindow
             catch (Exception ex) { failed.Add(it.Name + " (" + ex.Message + ")"); }
         }
         UpdateFileCount();
-        AddLog($"{ok} 件をごみ箱へ移動しました");
+        AddLog(Loc.Get("files.26", ok));
         if (failed.Count > 0)
-            SetInlineError(FileError, "次のファイルは移動できませんでした: " + string.Join(" / ", failed.Take(4)));
+            SetInlineError(FileError, Loc.Get("files.27") + string.Join(" / ", failed.Take(4)));
     }
 
     // ---------------------------------------------------------------- プレイヤー
@@ -271,7 +271,7 @@ public partial class MainWindow
         {
             player = new FilePlayer { Volume = VolumeSlider.Value };
             player.Ended += () => Dispatcher.InvokeAsync(OnPlayerEnded);
-            player.Failed += msg => Dispatcher.InvokeAsync(() => { StopPlayback(true); AddLog("再生できません: " + msg); });
+            player.Failed += msg => Dispatcher.InvokeAsync(() => { StopPlayback(true); AddLog(Loc.Get("files.28") + msg); });
         }
         catch (Exception ex) { App.WriteCrashLog("プレイヤー初期化: " + ex); player = null; }
     }
@@ -297,11 +297,11 @@ public partial class MainWindow
         if (sel.Count != 1)
         {
             if (loadedItem != null) { TogglePause(); return; }
-            if (sel.Count > 1) AddLog("再生するファイルを1つだけ選んでください");
+            if (sel.Count > 1) AddLog(Loc.Get("files.29"));
             return;
         }
         var item = sel[0];
-        if (!File.Exists(item.Path)) { AddLog("ファイルが見つかりません: " + item.Name); return; }
+        if (!File.Exists(item.Path)) { AddLog(Loc.Get("files.30") + item.Name); return; }
 
         if (loadedItem != null && ReferenceEquals(loadedItem, item) && !restartIfSame) { TogglePause(); return; }
         try
@@ -313,13 +313,13 @@ public partial class MainWindow
             OnPlayerOpened();
             player.Play();
             playerIsPlaying = true;
-            BtnPlay.Content = "❚❚ 一時停止";
+            BtnPlay.Content = Loc.Get("files.31");
             PlayPosText.Text = "0:00 / " + FileItem.FormatClock(SeekSlider.Maximum);
             SetSeek(0);
         }
         catch (Exception ex)
         {
-            AddLog("再生できません: " + ex.Message);
+            AddLog(Loc.Get("files.28") + ex.Message);
             StopPlayback(true);
         }
     }
@@ -327,8 +327,8 @@ public partial class MainWindow
     private void TogglePause()
     {
         if (player == null || loadedItem == null) return;
-        if (playerIsPlaying) { player.Pause(); playerIsPlaying = false; BtnPlay.Content = "▶ 再生"; }
-        else { player.SpeedRatio = SelectedSpeed(); player.Play(); playerIsPlaying = true; BtnPlay.Content = "❚❚ 一時停止"; }
+        if (playerIsPlaying) { player.Pause(); playerIsPlaying = false; BtnPlay.Content = Loc.Get("files.32"); }
+        else { player.SpeedRatio = SelectedSpeed(); player.Play(); playerIsPlaying = true; BtnPlay.Content = Loc.Get("files.31"); }
     }
 
     /// <summary>停止。close=true のときはファイルも閉じる(名前変更・削除の前など)。</summary>
@@ -344,7 +344,7 @@ public partial class MainWindow
         catch { }
         playerIsPlaying = false;
         if (close) loadedItem = null;
-        BtnPlay.Content = "▶ 再生";
+        BtnPlay.Content = Loc.Get("files.32");
         SetSeek(0);
         if (loadedItem == null) { SeekSlider.Maximum = 1; PlayPosText.Text = "0:00 / 0:00"; }
     }
@@ -369,7 +369,7 @@ public partial class MainWindow
         // 最後まで再生したら先頭に戻して停止状態にする
         try { if (player != null) player.Stop(); } catch { }
         playerIsPlaying = false;
-        BtnPlay.Content = "▶ 再生";
+        BtnPlay.Content = Loc.Get("files.32");
         SetSeek(0);
     }
 

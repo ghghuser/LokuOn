@@ -41,7 +41,7 @@ public partial class MainWindow
             {
                 tb.MouseLeftButtonDown += (s, e) => { if (e.ClickCount == 2) { RenameInput(slot); e.Handled = true; } };
                 var cm = new ContextMenu();
-                var mi = new MenuItem { Header = "名前を変更..." };
+                var mi = new MenuItem { Header = Loc.Get("mout.01") };
                 mi.Click += (s, e) => RenameInput(slot);
                 cm.Items.Add(mi);
                 tb.ContextMenu = cm;
@@ -63,7 +63,7 @@ public partial class MainWindow
         for (int i = 0; i < Preset.SourceSlots; i++) inputNames[i] = p.InputNames[i] ?? "";
         ApplyInputNames();
         outWindow?.Rebuild();
-        if (wasRunning) AddLog("プリセットを切り替えたので、出力を止めました");
+        if (wasRunning) AddLog(Loc.Get("mout.02"));
         UpdateOutputIndicator();
     }
 
@@ -73,9 +73,9 @@ public partial class MainWindow
         var labels = new string[Preset.SourceSlots];
         for (int i = 0; i < Preset.SourceSlots; i++)
         {
-            string n = string.IsNullOrWhiteSpace(inputNames[i]) ? "入力" + (i + 1) : inputNames[i];
+            string n = string.IsNullOrWhiteSpace(inputNames[i]) ? Loc.Get("mout.03") + (i + 1) : inputNames[i];
             labels[i] = n;
-            InNameLabels[i].Text = n; InNameLabels[i].ToolTip = "ダブルクリックまたは右クリックで名前を変更";
+            InNameLabels[i].Text = n; InNameLabels[i].ToolTip = Loc.Get("mout.04");
             GainNameLabels[i].Text = n; GainNameLabels[i].ToolTip = n;
         }
         try { SourceMeter.Configure(labels); UpdateMeterSlots(); } catch { }
@@ -84,7 +84,7 @@ public partial class MainWindow
     private void RenameInput(int slot)
     {
         string cur = inputNames[slot] ?? "";
-        string? t = PromptWindow.Show(this, "入力の名前", $"入力{slot + 1}の名前(中身を覚えるための目印です。{OutputSetting.NameMax}文字まで。空欄で「入力{slot + 1}」に戻ります)", cur);
+        string? t = PromptWindow.Show(this, Loc.Get("mout.05"), Loc.Get("mout.06", slot + 1, OutputSetting.NameMax), cur);
         if (t == null) return;
         t = t.Trim();
         if (t.Length > OutputSetting.NameMax) t = t.Substring(0, OutputSetting.NameMax);
@@ -100,27 +100,27 @@ public partial class MainWindow
         {
             var cm = new ContextMenu { PlacementTarget = BtnOutput, Placement = PlacementMode.Bottom };
             if (outCards.Count == 0)
-                cm.Items.Add(new MenuItem { Header = "(出力がありません。出力ウィンドウで追加します)", IsEnabled = false });
+                cm.Items.Add(new MenuItem { Header = Loc.Get("mout.07"), IsEnabled = false });
             foreach (var card in outCards)
             {
                 var c = card;
                 bool hasDev = !string.IsNullOrWhiteSpace(c.DeviceId);
                 var mi = new MenuItem
                 {
-                    Header = $"{c.Name}  →  {(hasDev ? (string.IsNullOrWhiteSpace(c.DeviceName) ? "(選択済み)" : c.DeviceName) : "出力先が未選択")}",
+                    Header = $"{c.Name}  →  {(hasDev ? (string.IsNullOrWhiteSpace(c.DeviceName) ? Loc.Get("mout.sel") : c.DeviceName) : Loc.Get("mout.nodev"))}",
                     IsCheckable = true, IsChecked = ctl.IsOutputWanted(c), IsEnabled = hasDev,
                 };
                 mi.Click += (s, e) => ToggleOutput(c, mi.IsChecked);
                 cm.Items.Add(mi);
             }
             cm.Items.Add(new Separator());
-            var stop = new MenuItem { Header = "すべて停止", IsEnabled = outCards.Any(c => ctl.IsOutputWanted(c)) };
+            var stop = new MenuItem { Header = Loc.Get("mout.08"), IsEnabled = outCards.Any(c => ctl.IsOutputWanted(c)) };
             stop.Click += (s, e) => StopAllOutputsKeepResume();
-            var resume = new MenuItem { Header = "すべて再開", IsEnabled = outCards.Any(c => !string.IsNullOrWhiteSpace(c.DeviceId) && !ctl.IsOutputWanted(c)) };
+            var resume = new MenuItem { Header = Loc.Get("mout.09"), IsEnabled = outCards.Any(c => !string.IsNullOrWhiteSpace(c.DeviceId) && !ctl.IsOutputWanted(c)) };
             resume.Click += (s, e) => ResumeOutputs();
             cm.Items.Add(stop); cm.Items.Add(resume);
             cm.Items.Add(new Separator());
-            var open = new MenuItem { Header = "出力ウィンドウを開く..." };
+            var open = new MenuItem { Header = Loc.Get("mout.10") };
             open.Click += (s, e) => OpenOutputWindow();
             cm.Items.Add(open);
             cm.IsOpen = true;
@@ -136,7 +136,7 @@ public partial class MainWindow
             else
             {
                 string? err = ctl.StartOutput(card, ReadPreset());
-                if (err != null) { AddLog($"出力「{card.Name}」: {err}"); MessageBox.Show(this, err, "LokuOn - 出力", MessageBoxButton.OK, MessageBoxImage.Warning); }
+                if (err != null) { AddLog(Loc.Get("mout.11", card.Name, err)); MessageBox.Show(this, err, Loc.Get("mout.12"), MessageBoxButton.OK, MessageBoxImage.Warning); }
             }
         }
         catch (Exception ex) { App.WriteCrashLog("出力切替: " + ex); }
@@ -147,7 +147,7 @@ public partial class MainWindow
     {
         outResume = outCards.Where(c => ctl.IsOutputWanted(c)).ToList();
         foreach (var c in outResume) ctl.StopOutput(c);
-        AddLog("出力をすべて停止しました");
+        AddLog(Loc.Get("mout.13"));
         UpdateOutputIndicator();
     }
 
@@ -162,9 +162,9 @@ public partial class MainWindow
         {
             if (ctl.IsOutputWanted(c)) continue;
             string? err = ctl.StartOutput(c, ReadPreset());
-            if (err != null) { errors.Add($"「{c.Name}」: {err}"); AddLog($"出力「{c.Name}」: {err}"); }
+            if (err != null) { errors.Add($"「{c.Name}」: {err}"); AddLog(Loc.Get("mout.11", c.Name, err)); }
         }
-        if (errors.Count > 0) MessageBox.Show(this, string.Join("\n", errors), "LokuOn - 出力", MessageBoxButton.OK, MessageBoxImage.Warning);
+        if (errors.Count > 0) MessageBox.Show(this, string.Join("\n", errors), Loc.Get("mout.12"), MessageBoxButton.OK, MessageBoxImage.Warning);
         UpdateOutputIndicator();
     }
 
@@ -187,12 +187,12 @@ public partial class MainWindow
         bool running = ctl.AnyOutputRunning;
         if (running == outRunningShown) return;
         outRunningShown = running;
-        BtnOutput.Content = running ? "🔊 出力中" : "🔊";
+        BtnOutput.Content = running ? Loc.Get("mout.14") : "🔊";
         BtnOutput.Width = running ? 82 : 34;
         BtnOutput.Margin = new Thickness(0, 4, 46, 0);
         if (running) BtnOutput.Foreground = new SolidColorBrush(Color.FromRgb(0x3F, 0xB9, 0x50));
         else BtnOutput.ClearValue(Control.ForegroundProperty);
-        BtnOutput.ToolTip = running ? "出力中です。クリックで、出力ごとのオン/オフ・すべて停止/再開・出力ウィンドウを開く(ダブルクリックで出力ウィンドウ)" : "出力: クリックで、出力ごとのオン/オフ・すべて再開・出力ウィンドウを開く(ダブルクリックで出力ウィンドウ。録音とは独立)";
-        SetTray(ctl.IsRecording ? "録音中" : null);
+        BtnOutput.ToolTip = running ? Loc.Get("mout.15") : Loc.Get("mout.16");
+        SetTray(ctl.IsRecording ? Loc.Get("set.37") : null);
     }
 }

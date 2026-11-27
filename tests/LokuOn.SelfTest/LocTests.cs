@@ -66,7 +66,7 @@ static partial class LocTests
     [GeneratedRegex(@"\{ui:T\s+([^\s}]+)\}", RegexOptions.None, 2000)]
     private static partial Regex XamlKey();
 
-    [GeneratedRegex(@"\{(\d+)\}", RegexOptions.None, 2000)]
+    [GeneratedRegex(@"\{(\d+)(?::[^}]*)?\}", RegexOptions.None, 2000)]
     private static partial Regex Placeholder();
 
     private static bool PlaceholdersOk(string v)

@@ -1,3 +1,4 @@
+using LokuOn.Core;
 using System.Windows;
 using System.Windows.Interop;
 using LokuOn.Audio;
@@ -10,7 +11,7 @@ public partial class MainWindow
     private const int HotkeyIdStartStop = 0x5201;
     private const int HotkeyIdSplit = 0x5202;
     private const int HotkeyIdPause = 0x5203;
-    private const string HotkeyHintText = "欄をクリックして、割り当てたいキーを押します(Ctrl・Alt・Shift・Win のどれかと一緒に)。Delete か BackSpace で未設定にします。例: Ctrl+Alt+F9";
+    private static string HotkeyHintText => Loc.Get("tray.01");
 
     private IntPtr hwnd = IntPtr.Zero;
     private HwndSource? hwndSource;
@@ -115,12 +116,12 @@ public partial class MainWindow
             trayIconRec = MakeRecordingIcon(trayIconIdle);
 
             var menu = new System.Windows.Forms.ContextMenuStrip();
-            menu.Items.Add("ウィンドウを表示", null, (s, e) => ShowFromTray());
-            menu.Items.Add("録音の開始 / 停止", null, (s, e) => OnRecordClick(this, new RoutedEventArgs()));
-            menu.Items.Add("一時停止 / 再開", null, (s, e) => { if (ctl.IsRecording) { ctl.TogglePauseRecording(); UpdateButtons(); } });
-            menu.Items.Add("分割", null, (s, e) => { if (ctl.IsRecording) OnSplitClick(this, new RoutedEventArgs()); });
+            menu.Items.Add(Loc.Get("tray.02"), null, (s, e) => ShowFromTray());
+            menu.Items.Add(Loc.Get("tray.03"), null, (s, e) => OnRecordClick(this, new RoutedEventArgs()));
+            menu.Items.Add(Loc.Get("tray.04"), null, (s, e) => { if (ctl.IsRecording) { ctl.TogglePauseRecording(); UpdateButtons(); } });
+            menu.Items.Add(Loc.Get("tray.05"), null, (s, e) => { if (ctl.IsRecording) OnSplitClick(this, new RoutedEventArgs()); });
             menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-            menu.Items.Add("終了", null, (s, e) => { ShowFromTray(); Close(); });
+            menu.Items.Add(Loc.Get("tray.06"), null, (s, e) => { ShowFromTray(); Close(); });
 
             tray = new System.Windows.Forms.NotifyIcon
             {
@@ -150,12 +151,12 @@ public partial class MainWindow
             if (tray == null) return;
             tray.Visible = true;
 
-            string text = "LokuOn  " + (recordingText ?? "待機中") + (ctl.AnyOutputRunning ? " / 出力中" : "");
+            string text = "LokuOn  " + (recordingText ?? Loc.Get("ui.14")) + (ctl.AnyOutputRunning ? Loc.Get("tray.07") : "");
             if (text.Length > 60) text = text.Substring(0, 60);
             if (text == lastTrayText) return;
             lastTrayText = text;
             tray.Text = text;
-            tray.Icon = recordingText != null && recordingText.StartsWith("録音") ? trayIconRec : trayIconIdle;
+            tray.Icon = recordingText != null && recordingText.StartsWith(Loc.Get("tray.08")) ? trayIconRec : trayIconIdle;
         }
         catch { }
     }
@@ -187,10 +188,10 @@ public partial class MainWindow
         pauseRegistered = GlobalHotkeys.Register(hwnd, HotkeyIdPause, s.HotkeyPause);
 
         var parts = new List<string>();
-        parts.Add(startStopRegistered ? $"録音開始/停止 = {s.HotkeyStartStop} (登録しました)" : $"録音開始/停止 = {s.HotkeyStartStop} (登録できません)");
-        parts.Add(splitRegistered ? $"分割 = {s.HotkeySplit} (登録しました)" : $"分割 = {s.HotkeySplit} (登録できません)");
-        parts.Add(pauseRegistered ? $"一時停止/再開 = {s.HotkeyPause} (登録しました)" : $"一時停止/再開 = {s.HotkeyPause} (登録できません)");
-        string note = (startStopRegistered && splitRegistered && pauseRegistered) ? "" : "\n書式が違うか、ほかのアプリがすでに使っているキーの組み合わせです。別のキーにしてください。";
+        parts.Add(startStopRegistered ? Loc.Get("tray.09", s.HotkeyStartStop) : Loc.Get("tray.10", s.HotkeyStartStop));
+        parts.Add(splitRegistered ? Loc.Get("tray.11", s.HotkeySplit) : Loc.Get("tray.12", s.HotkeySplit));
+        parts.Add(pauseRegistered ? Loc.Get("tray.13", s.HotkeyPause) : Loc.Get("tray.14", s.HotkeyPause));
+        string note = (startStopRegistered && splitRegistered && pauseRegistered) ? "" : Loc.Get("tray.15");
         HotkeyStatus.Text = string.Join(" / ", parts) + note;
     }
 

@@ -28,26 +28,26 @@ public partial class MainWindow
     {
         FormatCombo.ItemsSource = new List<Choice<AudioFormat>>
         {
-            new("FLAC (.flac)  可逆圧縮", AudioFormat.Flac),
+            new(Loc.Get("set.01"), AudioFormat.Flac),
             new("MP3 (.mp3)", AudioFormat.Mp3),
             new("AAC (.m4a)", AudioFormat.M4a),
             new("AAC (.aac)  ADTS", AudioFormat.Aac),
-            new("WAV (.wav)  無圧縮", AudioFormat.Wav),
+            new(Loc.Get("set.02"), AudioFormat.Wav),
             new("Ogg Vorbis (.ogg)", AudioFormat.Ogg),
             new("Opus (.opus)", AudioFormat.Opus),
         };
-        ChannelsCombo.ItemsSource = new List<Choice<int>> { new("ステレオ", 2), new("モノラル", 1) };
+        ChannelsCombo.ItemsSource = new List<Choice<int>> { new(Loc.Get("set.03"), 2), new(Loc.Get("set.04"), 1) };
         BitrateCombo.ItemsSource = Bitrates.Select(b => new Choice<int>(b + " kbps", b)).ToList();
         TimeStyleCombo.ItemsSource = new List<Choice<TimeStyle>>
         {
-            new("自動  36：25 / 1：05：30", TimeStyle.Auto),
-            new("分のみ  125：30", TimeStyle.TotalMinutes),
+            new(Loc.Get("set.05"), TimeStyle.Auto),
+            new(Loc.Get("set.06"), TimeStyle.TotalMinutes),
         };
         LostPolicyCombo.ItemsSource = new List<Choice<DeviceLostPolicy>>
         {
-            new("同じファイルで続ける(無音を挿入)", DeviceLostPolicy.Continue),
-            new("戻るまで待機(一時停止)", DeviceLostPolicy.Wait),
-            new("戻ったら別ファイルに分割", DeviceLostPolicy.SplitOnReturn),
+            new(Loc.Get("set.07"), DeviceLostPolicy.Continue),
+            new(Loc.Get("set.08"), DeviceLostPolicy.Wait),
+            new(Loc.Get("set.09"), DeviceLostPolicy.SplitOnReturn),
         };
         SpeedCombo.ItemsSource = SpeedSteps
             .Select(v => new Choice<double>(v.ToString("0.##", CultureInfo.InvariantCulture) + "x", v)).ToList();
@@ -86,13 +86,13 @@ public partial class MainWindow
 
     private void FillDeviceCombo(ComboBox cb, SourceSetting s)
     {
-        var list = new List<DeviceInfo> { new() { Id = "", Display = "(使わない)", Kind = DeviceKind.WasapiCapture } };
+        var list = new List<DeviceInfo> { new() { Id = "", Display = Loc.Get("set.10"), Kind = DeviceKind.WasapiCapture } };
         list.AddRange(ctl.Devices);
         if (!string.IsNullOrWhiteSpace(s.DeviceId) && !list.Any(d => d.Id == s.DeviceId))
         {
             string name = string.IsNullOrWhiteSpace(s.DeviceName) ? s.DeviceId : s.DeviceName;
             missingDeviceNames[s.DeviceId] = name;
-            list.Add(new DeviceInfo { Id = s.DeviceId, Display = "(見つかりません) " + name, Kind = DeviceKind.WasapiCapture });
+            list.Add(new DeviceInfo { Id = s.DeviceId, Display = Loc.Get("set.11") + name, Kind = DeviceKind.WasapiCapture });
         }
         cb.ItemsSource = list;
         cb.SelectedItem = list.FirstOrDefault(d => d.Id == (s.DeviceId ?? "")) ?? list[0];
@@ -127,7 +127,7 @@ public partial class MainWindow
         {
             ctl.RefreshDevices();
             PopulateDeviceCombos();
-            AddLog($"デバイス一覧を更新しました({ctl.Devices.Count} 件)");
+            AddLog(Loc.Get("set.12", ctl.Devices.Count));
             RestartMonitor();
         };
 
@@ -161,7 +161,7 @@ public partial class MainWindow
 
         BtnBrowse.Click += (s, e) =>
         {
-            var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "録音の保存先フォルダを選んでください" };
+            var dlg = new Microsoft.Win32.OpenFolderDialog { Title = Loc.Get("set.13") };
             if (Directory.Exists(FolderBox.Text)) dlg.InitialDirectory = FolderBox.Text;
             if (dlg.ShowDialog(this) == true) { FolderBox.Text = dlg.FolderName; _ = RescanFiles(); }
         };
@@ -174,7 +174,7 @@ public partial class MainWindow
                 Directory.CreateDirectory(dir);
                 FileOps.OpenFolder(dir);
             }
-            catch (Exception ex) { SetInlineError(ErrorText, "フォルダを開けません: " + ex.Message); }
+            catch (Exception ex) { SetInlineError(ErrorText, Loc.Get("set.14") + ex.Message); }
         };
 
         // ゲイン
@@ -218,7 +218,7 @@ public partial class MainWindow
         FfmpegBox.LostFocus += (s, e) => ApplyFfmpegPath();
         BtnFfmpegBrowse.Click += (s, e) =>
         {
-            var dlg = new Microsoft.Win32.OpenFileDialog { Title = "ffmpeg.exe を選んでください", Filter = "ffmpeg.exe|ffmpeg.exe|実行ファイル (*.exe)|*.exe" };
+            var dlg = new Microsoft.Win32.OpenFileDialog { Title = Loc.Get("set.15"), Filter = Loc.Get("set.16") };
             if (dlg.ShowDialog(this) == true) { FfmpegBox.Text = dlg.FileName; ApplyFfmpegPath(); }
         };
 
@@ -273,7 +273,7 @@ public partial class MainWindow
             BitrateCombo.IsEnabled = BitrateLabel.IsEnabled = lossy;
 
             int maxLevel = Preset.MaxCompression(fmt);
-            var levels = new List<Choice<int>> { new(maxLevel == 0 ? "なし(Vorbisは設定不可)" : "標準", -1) };
+            var levels = new List<Choice<int>> { new(maxLevel == 0 ? Loc.Get("set.17") : Loc.Get("set.18"), -1) };
             for (int l = 0; l <= maxLevel; l++) levels.Add(new Choice<int>(l.ToString(CultureInfo.InvariantCulture), l));
             CompressionCombo.ItemsSource = levels;
             if (!levels.Any(c => c.Value == curLevel)) curLevel = -1;
@@ -302,15 +302,15 @@ public partial class MainWindow
         if (lossy)
         {
             double mbPerHour = p.BitrateKbps * 1000.0 / 8 * 3600 / 1048576.0;
-            text = $"{p.BitrateKbps}kbps / {rate} / {ch}    目安: 約 {mbPerHour:0} MB / 時間";
+            text = Loc.Get("set.19", p.BitrateKbps, rate, ch, mbPerHour);
         }
         else
         {
             double pcm = p.SampleRate * p.Channels * (p.BitDepth / 8.0) * 3600 / 1048576.0;
             string bits = p.BitDepth >= 32 && p.Format == AudioFormat.Wav ? "32bit float" : p.BitDepth + "bit";
             text = p.Format == AudioFormat.Wav
-                ? $"WAV {bits} / {rate} / {ch}    目安: 約 {pcm:0} MB / 時間"
-                : $"FLAC {bits} / {rate} / {ch}    目安: 約 {pcm * 0.4:0}〜{pcm * 0.7:0} MB / 時間(音による)";
+                ? Loc.Get("set.20", bits, rate, ch, pcm)
+                : Loc.Get("set.21", bits, rate, ch, pcm * 0.4, pcm * 0.7);
         }
         QualitySummary.Text = text;
     }
@@ -338,9 +338,9 @@ public partial class MainWindow
             {
                 date = NameTemplate.RenderFolder(p.DateFolderFormat, DateTime.Now) + "\\";
             }
-            TemplatePreview.Text = $"例: {date}{name}{ext}\n分割後: {date}{name2}{ext}";
+            TemplatePreview.Text = Loc.Get("set.22", date, name, ext, name2);
         }
-        catch (Exception ex) { TemplatePreview.Text = "プレビューできません: " + ex.Message; }
+        catch (Exception ex) { TemplatePreview.Text = Loc.Get("set.23") + ex.Message; }
     }
 
     private void UpdateGainTexts()
@@ -514,7 +514,7 @@ public partial class MainWindow
             DiskWarnBox.Text = Num(s.DiskWarnGB);
             DiskStopBox.Text = Num(s.DiskStopGB);
             FfmpegBox.Text = s.FfmpegPath;
-            DataDirText.Text = "設定ファイル: " + ctl.SettingsPath + "\n(このファイルをコピーすればバックアップになります。テキストエディタでも編集できます)";
+            DataDirText.Text = Loc.Get("set.24") + ctl.SettingsPath + Loc.Get("set.25");
             UpdateFfmpegStatus();
             LoadScheduleToUi();
         }
@@ -549,8 +549,8 @@ public partial class MainWindow
     private void UpdateFfmpegStatus()
     {
         FfmpegStatus.Text = ctl.FfmpegPath != null
-            ? "使用中: " + ctl.FfmpegPath
-            : "ffmpeg.exe が見つかりません。exeと同じ場所の ffmpeg フォルダに置くか、上で場所を指定してください。";
+            ? Loc.Get("set.26") + ctl.FfmpegPath
+            : Loc.Get("set.27");
     }
 
     private void ApplyFfmpegPath()
@@ -602,7 +602,7 @@ public partial class MainWindow
         {
             sc.Enabled = false;
             ScheduleCheck.IsChecked = false;
-            AddLog("予約の時刻がすでに過ぎているため、予約を有効にできませんでした");
+            AddLog(Loc.Get("set.28"));
         }
         UpdateScheduleStatus();
         MarkDirty();
@@ -612,8 +612,8 @@ public partial class MainWindow
     {
         var sc = ctl.Settings.Schedule;
         ScheduleStatus.Text = sc.Enabled
-            ? $"次の予約: {sc.StartAt:yyyy/MM/dd HH:mm} から {sc.DurationMinutes} 分間{(sc.Daily ? "(毎日くり返し)" : "")}"
-            : "予約は無効です";
+            ? Loc.Get("set.next", sc.StartAt, sc.DurationMinutes, sc.Daily ? Loc.Get("set.daily") : "")
+            : Loc.Get("set.29");
     }
 
     // ---------------------------------------------------------------- プリセット
@@ -627,7 +627,7 @@ public partial class MainWindow
             PresetCombo.ItemsSource = names;
             PresetCombo.SelectedItem = !string.IsNullOrEmpty(select) && names.Contains(select) ? select : null;
             PresetHint.Text = names.Count == 0
-                ? "保存したプリセットはありません。いまの画面の設定を「名前を付けて保存」できます。"
+                ? Loc.Get("set.30")
                 : "";
         }
         finally { loading = prev; }
@@ -644,7 +644,7 @@ public partial class MainWindow
         UpdateMeterSlots();
         RestartMonitor();
         MarkDirty();
-        AddLog($"プリセット「{name}」を読み込みました");
+        AddLog(Loc.Get("set.31", name));
     }
 
     private void OnPresetSave()
@@ -688,15 +688,15 @@ public partial class MainWindow
     private void UpdateSplitHint()
     {
         var parsed = ParseHms(AutoSplitBox.Text);
-        SetInlineError(SplitError, parsed.HasValue ? null : "自動分割は 時:分:秒 で入力してください(例 00:30:00、24:00:00まで)。いまは直前の値のままです。");
+        SetInlineError(SplitError, parsed.HasValue ? null : Loc.Get("set.32"));
         int sec = ReadAutoSplitSeconds();
         int hours = ParseInt(MaxHoursBox.Text, 24, 1, 168);
         long cap = hours * 3600L;
         string t;
-        if (sec <= 0) t = $"→ 自動分割はしません。ただし1つのファイルが {hours} 時間になる前に必ず分割します。";
-        else if (sec >= cap) t = $"→ {hours} 時間ごとに分割されます(安全上限のほうが先に働くため、{FormatHms(sec)} の指定は使われません)。";
-        else t = $"→ {FormatHms(sec)} ごとに分割されます(安全上限 {hours} 時間は、その前に分割されるため働きません)。";
-        SplitHint.Text = t + " 手動の分割ボタンはいつでも使えます。";
+        if (sec <= 0) t = Loc.Get("set.33", hours);
+        else if (sec >= cap) t = Loc.Get("set.34", hours, FormatHms(sec));
+        else t = Loc.Get("set.35", FormatHms(sec), hours);
+        SplitHint.Text = t + Loc.Get("set.36");
     }
 
     /// <summary>エラーを音の鳴るポップアップではなく、原因の近くに赤文字で出す。null で消す。</summary>
@@ -715,7 +715,7 @@ public partial class MainWindow
             ThemeHelper.Apply(ctl.Settings.Theme);
             ApplyCustomColors();
             ApplyBackdrop();
-            SetTray(ctl.IsRecording ? "録音中" : null);
+            SetTray(ctl.IsRecording ? Loc.Get("set.37") : null);
             MarkDirty();
         }) { Owner = this };
         w.ShowDialog();
@@ -782,7 +782,7 @@ public partial class MainWindow
         if (t.Length == 0) return;
         string initial = TemplateCombo.SelectedIndex >= 0 && !AllTemplates()[TemplateCombo.SelectedIndex].BuiltIn
             ? AllTemplates()[TemplateCombo.SelectedIndex].Name : "";
-        string? input = PromptWindow.Show(this, "テンプレートを保存", "このファイル名テンプレートの名前を入力してください。", initial);
+        string? input = PromptWindow.Show(this, Loc.Get("set.38"), Loc.Get("set.39"), initial);
         if (input == null) return;
         string name = input.Trim();
         string? err = TemplateLibrary.ValidateName(name);
@@ -791,14 +791,14 @@ public partial class MainWindow
         int i = list.FindIndex(x => x.Name == name);
         if (i >= 0)
         {
-            var r = MessageBox.Show(this, $"「{name}」はすでにあります。上書きしますか？", "LokuOn", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var r = MessageBox.Show(this, Loc.Get("set.40", name), "LokuOn", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (r != MessageBoxResult.Yes) return;
             list[i].Template = t;
         }
         else list.Add(new SavedTemplate { Name = name, Template = t });
         RefreshTemplateCombo();
         ctl.SaveSettings();
-        AddLog($"テンプレート「{name}」を保存しました");
+        AddLog(Loc.Get("set.41", name));
     }
 
     /// <summary>最初のテンプレートを全部復活させて、日時形式に戻す。</summary>
@@ -808,7 +808,7 @@ public partial class MainWindow
         TemplateBox.Text = Preset.DefaultTemplate;
         RefreshTemplateCombo();
         ctl.SaveSettings();
-        AddLog("最初のテンプレートを復元しました(日時形式に戻しました)");
+        AddLog(Loc.Get("set.42"));
     }
 
     private void OnTemplateDelete()
@@ -819,15 +819,15 @@ public partial class MainWindow
         string name = all[idx].Name;
         bool builtIn = all[idx].BuiltIn;
         var r = MessageBox.Show(this, builtIn
-                ? $"テンプレート「{name}」を一覧から削除しますか？\n(「初期に戻す」でいつでも復活できます)"
-                : $"テンプレート「{name}」を削除しますか？",
+                ? Loc.Get("set.43", name)
+                : Loc.Get("set.44", name),
             "LokuOn", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
         if (r != MessageBoxResult.Yes) return;
         if (builtIn) { if (!ctl.Settings.HiddenTemplates.Contains(name)) ctl.Settings.HiddenTemplates.Add(name); }
         else ctl.Settings.Templates.RemoveAll(x => x.Name == name);
         RefreshTemplateCombo();
         ctl.SaveSettings();
-        AddLog($"テンプレート「{name}」を削除しました");
+        AddLog(Loc.Get("set.45", name));
     }
 
     private string PresetFolderPath => PresetStore.FolderFor(ctl.SettingsPath);
@@ -836,14 +836,14 @@ public partial class MainWindow
     {
         SetInlineError(PresetError, null);
         string initial = PresetCombo.SelectedItem as string ?? "";
-        string? input = PromptWindow.Show(this, "プリセットを保存", "プリセット名を入力してください(Presets フォルダに「名前.json」で保存されます)。", initial);
+        string? input = PromptWindow.Show(this, Loc.Get("set.46"), Loc.Get("set.47"), initial);
         if (input == null) return;
         // ファイル名になるので、使えない文字は全角に置き換えた名前で保存する
         string name = NameTemplate.Sanitize(input.Trim());
-        if (input.Trim().Length == 0) { SetInlineError(PresetError, "プリセット名を入力してください。"); return; }
+        if (input.Trim().Length == 0) { SetInlineError(PresetError, Loc.Get("set.48")); return; }
         if (name != initial && ctl.Settings.Presets.Any(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)))
         {
-            var r = MessageBox.Show(this, $"「{name}」はすでにあります。上書きしますか？", "LokuOn", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var r = MessageBox.Show(this, Loc.Get("set.40", name), "LokuOn", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (r != MessageBoxResult.Yes) return;
         }
         StorePreset(name);
@@ -860,7 +860,7 @@ public partial class MainWindow
         }
         catch (Exception ex)
         {
-            SetInlineError(PresetError, "プリセットを保存できませんでした: " + ex.Message);
+            SetInlineError(PresetError, Loc.Get("set.49") + ex.Message);
             return;
         }
         var list = ctl.Settings.Presets;
@@ -870,21 +870,21 @@ public partial class MainWindow
         RefreshPresetCombo(name);
         SyncSettingsFromUi();
         ctl.SaveSettings();
-        AddLog($"プリセット「{name}」を保存しました");
+        AddLog(Loc.Get("set.50", name));
     }
 
     private void OnPresetDelete()
     {
         if (PresetCombo.SelectedItem is not string name) return;
-        var r = MessageBox.Show(this, $"プリセット「{name}」を削除しますか？", "LokuOn", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
+        var r = MessageBox.Show(this, Loc.Get("set.51", name), "LokuOn", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
         if (r != MessageBoxResult.Yes) return;
         try { PresetStore.Delete(PresetFolderPath, name); SetInlineError(PresetError, null); }
-        catch (Exception ex) { SetInlineError(PresetError, "プリセットを削除できませんでした: " + ex.Message); return; }
+        catch (Exception ex) { SetInlineError(PresetError, Loc.Get("set.52") + ex.Message); return; }
         ctl.Settings.Presets.RemoveAll(x => x.Name == name);
         ctl.Settings.LastPresetName = "";
         RefreshPresetCombo(null);
         ctl.SaveSettings();
-        AddLog($"プリセット「{name}」を削除しました");
+        AddLog(Loc.Get("set.53", name));
     }
 
     private void OnPresetFolder()
@@ -895,7 +895,7 @@ public partial class MainWindow
             FileOps.OpenFolder(PresetFolderPath);
             SetInlineError(PresetError, null);
         }
-        catch (Exception ex) { SetInlineError(PresetError, "Presets フォルダを開けません: " + ex.Message); }
+        catch (Exception ex) { SetInlineError(PresetError, Loc.Get("set.54") + ex.Message); }
     }
 
     /// <summary>Presets フォルダに手でコピー/削除されたファイルを一覧へ反映する。</summary>
@@ -906,6 +906,6 @@ public partial class MainWindow
         SettingsStore.LoadPresets(ctl.Settings, ctl.SettingsPath);
         if (!before.SequenceEqual(ctl.Settings.Presets.Select(x => x.Name))) RefreshPresetCombo(sel);
         SetInlineError(PresetError, ctl.Settings.PresetProblems.Count > 0
-            ? "読み込めないプリセットがあります: " + string.Join(" / ", ctl.Settings.PresetProblems.Take(2)) : null);
+            ? Loc.Get("set.55") + string.Join(" / ", ctl.Settings.PresetProblems.Take(2)) : null);
     }
 }

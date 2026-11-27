@@ -11,15 +11,15 @@ public partial class MainWindow
     {
         BtnVarTemplate.Click += (s, e) =>
         {
-            string? r = VariableEditorWindow.Show(this, "ファイル名テンプレート", TemplateBox.Text, VariableHelp.FileName, PreviewFileName,
-                "コロンは自動で全角「：」になり、使えない文字は別の文字に置き換わります。同じ名前があるときは (2)(3) が付きます。");
+            string? r = VariableEditorWindow.Show(this, Loc.Get("help.01"), TemplateBox.Text, VariableHelp.FileName, PreviewFileName,
+                Loc.Get("help.02"));
             if (r != null) TemplateBox.Text = r;
         };
         BtnVarDate.Click += (s, e) =>
         {
-            string? r = VariableEditorWindow.Show(this, "日付フォルダ名", DateFormatBox.Text, VariableHelp.DateFolder,
+            string? r = VariableEditorWindow.Show(this, Loc.Get("help.03"), DateFormatBox.Text, VariableHelp.DateFolder,
                 t => NameTemplate.RenderFolder(t, DateTime.Now),
-                "録音を始めた日で固定されます。保存先の中に、この名前のフォルダが作られます。");
+                Loc.Get("help.04"));
             if (r != null) DateFormatBox.Text = r;
         };
 

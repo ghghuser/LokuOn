@@ -15,7 +15,7 @@ namespace LokuOn.App;
 public partial class MainWindow : Window
 {
     private static readonly string[] MasterLabels = { "L", "R" };
-    private static readonly string[] SourceLabels = { "入力1", "入力2", "入力3", "入力4" };
+    private static readonly string[] SourceLabels = { Loc.Get("ui.01"), Loc.Get("ui.02"), Loc.Get("ui.03"), Loc.Get("ui.04") };
     private readonly RecorderController ctl;
     private readonly DispatcherTimer timer;
     private readonly ObservableCollection<string> logItems = new();
@@ -87,10 +87,10 @@ public partial class MainWindow : Window
 
         if (ctl.FfmpegPath == null)
         {
-            AddLog("ffmpeg.exe が見つかりません。exeと同じ場所の ffmpeg フォルダに置くか、「アプリ設定」で指定してください。");
+            AddLog(Loc.Get("ui.05"));
             Tabs.SelectedIndex = 2;
         }
-        AddLog("起動しました");
+        AddLog(Loc.Get("ui.06"));
 
         _ = RescanFiles();
         _ = RecoverPendingAsync();
@@ -105,20 +105,20 @@ public partial class MainWindow : Window
             var pending = ctl.PendingRecoveryFiles();
             if (pending.Count == 0) { ctl.DiscardRecovery(); return; }
             var ask = MessageBox.Show(this,
-                $"前回、正常に終了しなかった録音ファイルが {pending.Count} 件あります。\n\n" +
+                Loc.Get("ui.07", pending.Count) +
                 string.Join("\n", pending.Take(8).Select(x => System.IO.Path.GetFileName(x))) + (pending.Count > 8 ? "\n…" : "") +
-                "\n\n長さを調べて、名前の終わりに「_restored」を付けたファイルに整えますか？\n(「いいえ」の場合、ファイルはそのまま残します)",
-                "LokuOn - 録音の復旧", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (ask != MessageBoxResult.Yes) { ctl.DiscardRecovery(); AddLog("前回の録音ファイルの復旧は行いませんでした"); return; }
+                Loc.Get("ui.08"),
+                Loc.Get("ui.09"), MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (ask != MessageBoxResult.Yes) { ctl.DiscardRecovery(); AddLog(Loc.Get("ui.10")); return; }
             var list = await ctl.RecoverPendingAsync();
             if (list.Count == 0) return;
             foreach (var f in list) files.Insert(0, FileItem.FromPath(f.Path, f.Seconds));
             UpdateFileCount();
-            AddLog($"前回、正常に終了しなかった録音を {list.Count} 件復旧しました");
-            MessageBox.Show(this, $"{list.Count} 件を復旧しました。\n\n" +
+            AddLog(Loc.Get("ui.11", list.Count));
+            MessageBox.Show(this, Loc.Get("ui.12", list.Count) +
                                   string.Join("\n", list.Take(8).Select(x => System.IO.Path.GetFileName(x.Path))) +
                                   (list.Count > 8 ? "\n…" : ""),
-                "LokuOn - 録音の復旧", MessageBoxButton.OK, MessageBoxImage.Information);
+                Loc.Get("ui.09"), MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex) { App.WriteCrashLog("復旧: " + ex); }
     }
@@ -242,12 +242,12 @@ public partial class MainWindow : Window
         if (eng == null)
         {
             ElapsedText.Text = "0:00:00";
-            StateText.Text = ctl.IsMonitoring ? "待機中(入力確認)" : "待機中";
-            TrackInfoText.Text = $"次の No.{ParseInt(NoBox.Text, 1, 0, 99999999)}";
+            StateText.Text = ctl.IsMonitoring ? Loc.Get("ui.13") : Loc.Get("ui.14");
+            TrackInfoText.Text = Loc.Get("ui.15", ParseInt(NoBox.Text, 1, 0, 99999999));
             FileNameText.Text = "";
             DiskText.Text = "";
             string probs = ctl.IsMonitoring ? ctl.DescribeSourceProblems() : "";
-            if (probs.Length > 0) DiskText.Text = "未接続: " + probs;
+            if (probs.Length > 0) DiskText.Text = Loc.Get("ui.16") + probs;
             SetTray(null);
             return;
         }
@@ -256,23 +256,23 @@ public partial class MainWindow : Window
         switch (st)
         {
             case EngineState.Armed:
-                StateText.Text = "音が出るのを待っています";
+                StateText.Text = Loc.Get("ui.17");
                 ElapsedText.Text = "0:00:00";
                 break;
             case EngineState.Stopping:
-                StateText.Text = "保存しています…";
+                StateText.Text = Loc.Get("ui.18");
                 break;
             default:
-                StateText.Text = eng.IsUserPaused ? "❚❚ 一時停止中(この間の音は保存されません)"
-                    : eng.IsPaused ? "デバイス待機中(一時停止)" : "● 録音中";
+                StateText.Text = eng.IsUserPaused ? Loc.Get("ui.19")
+                    : eng.IsPaused ? Loc.Get("ui.20") : Loc.Get("ui.21");
                 ElapsedText.Text = Hms(eng.ElapsedSeconds);
                 break;
         }
-        TrackInfoText.Text = $"No.{eng.No}  Track {eng.CurrentTrack}  このファイル {Hms(eng.CurrentFileSeconds)}";
+        TrackInfoText.Text = Loc.Get("ui.22", eng.No, eng.CurrentTrack, Hms(eng.CurrentFileSeconds));
         FileNameText.Text = string.IsNullOrEmpty(eng.CurrentFilePath) ? "" : Path.GetFileName(eng.CurrentFilePath);
         long free = eng.FreeDiskBytes;
-        DiskText.Text = free >= 0 ? $"ディスク空き {free / 1073741824.0:0.0} GB" : "";
-        SetTray(st == EngineState.Recording ? (eng.IsUserPaused ? "一時停止中 " : "録音中 ") + Hms(eng.ElapsedSeconds) : "待機");
+        DiskText.Text = free >= 0 ? Loc.Get("ui.23", free / 1073741824.0) : "";
+        SetTray(st == EngineState.Recording ? (eng.IsUserPaused ? Loc.Get("ui.24") : Loc.Get("ui.25")) + Hms(eng.ElapsedSeconds) : Loc.Get("ui.26"));
         UpdateButtons();
     }
 
@@ -280,11 +280,11 @@ public partial class MainWindow : Window
     {
         bool rec = ctl.IsRecording;
         var st = ctl.EngineState;
-        BtnRecord.Content = rec ? "■  録音停止" : "●  録音開始";
+        BtnRecord.Content = rec ? Loc.Get("ui.27") : Loc.Get("ui.28");
         BtnRecord.IsEnabled = st != EngineState.Stopping;
         BtnSplit.IsEnabled = rec && st == EngineState.Recording && !ctl.IsUserPaused;
         BtnPauseRec.IsEnabled = rec && st == EngineState.Recording;
-        BtnPauseRec.Content = ctl.IsUserPaused ? "▶  再開" : "❚❚  一時停止";
+        BtnPauseRec.Content = ctl.IsUserPaused ? Loc.Get("ui.29") : Loc.Get("ui.30");
         LockPanel.IsEnabled = !rec;
         PresetCombo.IsEnabled = !rec;
         BtnPresetSave.IsEnabled = BtnPresetSaveAs.IsEnabled = BtnPresetDelete.IsEnabled = !rec;
@@ -305,7 +305,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             App.WriteCrashLog("録音ボタン: " + ex);
-            SetInlineError(ErrorText, "録音の操作でエラーが起きました: " + ex.Message);
+            SetInlineError(ErrorText, Loc.Get("ui.31") + ex.Message);
         }
     }
 
@@ -317,8 +317,8 @@ public partial class MainWindow : Window
         string? err = ctl.StartRecording(p);
         if (err != null)
         {
-            AddLog("録音を開始できません: " + err);
-            SetInlineError(ErrorText, "録音を開始できません: " + err);
+            AddLog(Loc.Get("ui.32") + err);
+            SetInlineError(ErrorText, Loc.Get("ui.32") + err);
             if (ctl.Settings.MonitorInput || ctl.OutputWanted) StartMonitorSafe();
             return;
         }
@@ -328,14 +328,14 @@ public partial class MainWindow : Window
     private async Task StopRecordingUi()
     {
         BtnRecord.IsEnabled = false;
-        StateText.Text = "保存しています…";
+        StateText.Text = Loc.Get("ui.18");
         await ctl.StopRecordingAsync();
         UpdateButtons();
     }
 
     private void OnRecordingStarted()
     {
-        AddLog("録音を開始しました");
+        AddLog(Loc.Get("ui.33"));
         WaveView.Refresh(null);
         MasterMeter.Reset();
         SourceMeter.Reset();
@@ -353,10 +353,10 @@ public partial class MainWindow : Window
             Dispatcher.InvokeAsync(() =>
             {
                 ShowFromTray();
-                SetInlineError(ErrorText, "録音が停止しました: " + reason);
+                SetInlineError(ErrorText, Loc.Get("ui.34") + reason);
             });
         }
-        else AddLog("録音を終了しました");
+        else AddLog(Loc.Get("ui.35"));
         if (ctl.Settings.MonitorInput || ctl.OutputWanted) StartMonitorSafe();
         else WaveView.Refresh(null);
     }
@@ -364,7 +364,7 @@ public partial class MainWindow : Window
     private void OnSplitClick(object sender, RoutedEventArgs e)
     {
         ctl.Split();
-        AddLog("分割します");
+        AddLog(Loc.Get("ui.36"));
     }
 
     private void StartMonitorSafe()
@@ -403,15 +403,15 @@ public partial class MainWindow : Window
             if (ctl.Settings.ConfirmCloseWhileRecording)
             {
                 var r = MessageBox.Show(this,
-                    "録音中です。\n\n「はい」: 録音を停止してファイルを保存し、終了します。\n「いいえ」: 録音を続けます。",
-                    "LokuOn - 録音中です", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
+                    Loc.Get("ui.37"),
+                    Loc.Get("ui.38"), MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
                 if (r != MessageBoxResult.Yes) { e.Cancel = true; return; }
             }
             e.Cancel = true;
             try
             {
                 BtnRecord.IsEnabled = false;
-                StateText.Text = "保存して終了します…";
+                StateText.Text = Loc.Get("ui.39");
                 await ctl.StopRecordingAsync();
             }
             catch (Exception ex) { App.WriteCrashLog("終了時の停止: " + ex); }
