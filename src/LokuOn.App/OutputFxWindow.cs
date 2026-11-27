@@ -14,7 +14,7 @@ public sealed class OutputFxWindow : Window
 {
     private readonly OutputSetting card;
     private readonly Action apply;
-    private readonly CheckBox bypassCheck = new() { Content = "すべてバイパス(効果を一時的に切る。設定は残る)", Margin = new Thickness(0, 3, 0, 0) };
+    private readonly CheckBox bypassCheck = new() { Content = Loc.Get("outfx.01"), Margin = new Thickness(0, 3, 0, 0) };
     private readonly TextBlock summary = new() { Margin = new Thickness(0, 3, 0, 0), Opacity = 0.85, FontWeight = FontWeights.SemiBold };
     private readonly ComboBox presetBox = new() { MinWidth = 180 };
     private readonly Controls.GraphicEqControl eqView = new();
@@ -43,7 +43,7 @@ public sealed class OutputFxWindow : Window
         var root = new StackPanel { Margin = new Thickness(8, 5, 8, 5) };
         root.Children.Add(new TextBlock
         {
-            Text = "この出力に流れる最終ミックス(全体音量のあと)にだけかかります。入力ごとのエフェクトとは別です。",
+            Text = Loc.Get("outfx.02"),
             TextWrapping = TextWrapping.Wrap, Opacity = 0.7, FontSize = 11.5,
         });
         root.Children.Add(summary);
@@ -51,7 +51,7 @@ public sealed class OutputFxWindow : Window
         bypassCheck.Click += (s, e) => Edit(f => f.Bypass = bypassCheck.IsChecked == true);
 
         // グラフィックEQ(曲線はローカット・パラメトリックも含めた全体。常に見える)
-        var g = Section(root, "グラフィックEQ(曲線はローカット・パラメトリックも含めた全体)", f => f.EqOn, (f, v) => f.EqOn = v, cb => eqCheck = cb, false);
+        var g = Section(root, Loc.Get("outfx.03"), f => f.EqOn, (f, v) => f.EqOn = v, cb => eqCheck = cb, false);
         var top = new Grid { Margin = new Thickness(0, 0, 0, 3) };
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -63,7 +63,7 @@ public sealed class OutputFxWindow : Window
             Edit(f => { f.Bands = (double[])d.Clone(); f.EqOn = presetBox.SelectedIndex > 0 || f.EqOn; });
             eqView.SetBands(Fx.Bands);
         };
-        var reset = new Button { Content = "リセット", Padding = new Thickness(12, 1, 12, 1), Margin = new Thickness(6, 0, 0, 0) };
+        var reset = new Button { Content = Loc.Get("outfx.04"), Padding = new Thickness(12, 1, 12, 1), Margin = new Thickness(6, 0, 0, 0) };
         reset.Click += (s, e) => { Edit(f => f.Bands = new double[EqBands.Count]); eqView.SetBands(Fx.Bands); loading = true; presetBox.SelectedIndex = 0; loading = false; };
         Grid.SetColumn(reset, 1);
         top.Children.Add(presetBox); top.Children.Add(reset);
@@ -77,22 +77,22 @@ public sealed class OutputFxWindow : Window
         refreshers.Add(() => { eqView.SetBands(Fx.Bands); presetBox.SelectedIndex = MatchPreset(Fx.Bands); });
 
         // ローカット
-        var lc = Section(root, "ローカット(低い音を削る。風・振動・こもりの低音に)", null, null, null);
-        AddSlider(lc, "カットする周波数", 0, 400, 5, f => f.HpfHz, (f, v) => f.HpfHz = v < 20 ? 0 : v, v => v < 20 ? "なし" : $"{v:0} Hz", 0);
+        var lc = Section(root, Loc.Get("outfx.05"), null, null, null);
+        AddSlider(lc, Loc.Get("outfx.06"), 0, 400, 5, f => f.HpfHz, (f, v) => f.HpfHz = v < 20 ? 0 : v, v => v < 20 ? Loc.Get("outfx.07") : $"{v:0} Hz", 0);
 
         BuildParametric(root);
 
         // リミッター
-        var lim = Section(root, "リミッター(音の大きすぎる部分を、割れないように自動で下げる)", f => f.LimiterOn, (f, v) => f.LimiterOn = v);
-        AddSlider(lim, "上限", OutputFxSetting.CeilingMinDb, OutputFxSetting.CeilingMaxDb, 0.5, f => f.CeilingDb, (f, v) => f.CeilingDb = v, v => v.ToString("0.0", CultureInfo.InvariantCulture) + " dB", -1.0);
-        AddSlider(lim, "戻り時間", OutputFxSetting.ReleaseMinMs, OutputFxSetting.ReleaseMaxMs, 10, f => f.ReleaseMs, (f, v) => f.ReleaseMs = v, v => $"{v:0} ms", 150);
+        var lim = Section(root, Loc.Get("outfx.08"), f => f.LimiterOn, (f, v) => f.LimiterOn = v);
+        AddSlider(lim, Loc.Get("outfx.09"), OutputFxSetting.CeilingMinDb, OutputFxSetting.CeilingMaxDb, 0.5, f => f.CeilingDb, (f, v) => f.CeilingDb = v, v => v.ToString("0.0", CultureInfo.InvariantCulture) + " dB", -1.0);
+        AddSlider(lim, Loc.Get("outfx.10"), OutputFxSetting.ReleaseMinMs, OutputFxSetting.ReleaseMaxMs, 10, f => f.ReleaseMs, (f, v) => f.ReleaseMs = v, v => $"{v:0} ms", 150);
 
         root.Children.Add(new TextBlock
         {
-            Text = "かける順番: 全体音量 → ローカット → グラフィックEQ → パラメトリックEQ → リミッター。リミッターは1.5ミリ秒先読みするので、この出力だけわずかに遅れます(録音には影響しません)。スライダーはダブルクリックで初期値に戻ります。",
+            Text = Loc.Get("outfx.11"),
             TextWrapping = TextWrapping.Wrap, Opacity = 0.65, FontSize = 11.5, Margin = new Thickness(0, 4, 0, 4),
         });
-        var all = new Button { Content = "この出力のエフェクトを初期値に戻す", Padding = new Thickness(10, 1, 10, 1), HorizontalAlignment = HorizontalAlignment.Left };
+        var all = new Button { Content = Loc.Get("outfx.12"), Padding = new Thickness(10, 1, 10, 1), HorizontalAlignment = HorizontalAlignment.Left };
         all.Click += (s, e) => { card.Fx = new OutputFxSetting(); apply(); Reload(); };
         root.Children.Add(all);
 
@@ -101,7 +101,7 @@ public sealed class OutputFxWindow : Window
     }
 
     /// <summary>出力の名前が変わったときなど。</summary>
-    public void UpdateTitle() => Title = $"LokuOn - 出力のエフェクト「{card.Name}」";
+    public void UpdateTitle() => Title = Loc.Get("outfx.13", card.Name);
 
     public void Reload()
     {
@@ -121,11 +121,11 @@ public sealed class OutputFxWindow : Window
     private void UpdateSummary()
     {
         var l = new List<string>();
-        if (Fx.HpfHz >= 20) l.Add("ローカット");
-        if (Fx.EqOn) l.Add("グラフィック");
-        if (Fx.ParamOn) l.Add("パラメトリック");
-        if (Fx.LimiterOn) l.Add("リミッター");
-        summary.Text = l.Count == 0 ? "かかっているもの: なし" : (Fx.Bypass ? "○ バイパス中(設定は残っています): " : "● かかっているもの: ") + string.Join("・", l);
+        if (Fx.HpfHz >= 20) l.Add(Loc.Get("outfx.14"));
+        if (Fx.EqOn) l.Add(Loc.Get("outfx.15"));
+        if (Fx.ParamOn) l.Add(Loc.Get("outfx.16"));
+        if (Fx.LimiterOn) l.Add(Loc.Get("outfx.17"));
+        summary.Text = l.Count == 0 ? Loc.Get("outfx.18") : (Fx.Bypass ? Loc.Get("outfx.19") : Loc.Get("outfx.20")) + string.Join("・", l);
     }
 
     private void Edit(Action<OutputFxSetting> change)
@@ -154,11 +154,11 @@ public sealed class OutputFxWindow : Window
 
     private void BuildParametric(StackPanel parent)
     {
-        var panel = Section(parent, "パラメトリックEQ(気になる周波数をピンポイントで上げ下げ)", f => f.ParamOn, (f, v) => f.ParamOn = v, x => paramCheck = x);
+        var panel = Section(parent, Loc.Get("outfx.21"), f => f.ParamOn, (f, v) => f.ParamOn = v, x => paramCheck = x);
         paramCheckRefresh = () => { paramCheck!.IsChecked = Fx.ParamOn; panel.Opacity = Fx.ParamOn ? 1.0 : 0.55; };
         var head = new Grid { Margin = new Thickness(0, 0, 0, 1), Opacity = 0.7 };
         ParamCols(head);
-        AddHead(head, "周波数", 1); AddHead(head, "ゲイン", 3); AddHead(head, "幅(大きいほど狭い)", 5);
+        AddHead(head, Loc.Get("outfx.22"), 1); AddHead(head, Loc.Get("outfx.23"), 3); AddHead(head, Loc.Get("outfx.24"), 5);
         panel.Children.Add(head);
         for (int i = 0; i < ParamBand.Count; i++)
         {
@@ -173,7 +173,7 @@ public sealed class OutputFxWindow : Window
             ParamSlider(row, 5, ParamBand.MinQ, ParamBand.MaxQ, 0.1, f => f.Params[bi].Q, (f, v) => f.Params[bi].Q = v, v => "Q " + v.ToString("0.0", CultureInfo.InvariantCulture), ParamBand.DefaultQ);
             panel.Children.Add(row);
         }
-        var rs = new Button { Content = "パラメトリックを初期値に戻す", Padding = new Thickness(10, 2, 10, 2), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 3, 0, 0) };
+        var rs = new Button { Content = Loc.Get("outfx.25"), Padding = new Thickness(10, 2, 10, 2), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 3, 0, 0) };
         rs.Click += (s, e) => { Edit(f => f.Params = ParamBand.Defaults()); Reload(); };
         panel.Children.Add(rs);
     }

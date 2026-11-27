@@ -26,6 +26,7 @@
 - 2026-11-27: **段階0 実装(push済み・ビルド確認待ち)**: Core/Loc.cs・Core/Lang/ja.ini(埋め込み)・App/TExtension.cs(`{ui:T キー}`)・tests/LocTests.cs(キーの整合検査)。見本として AppInfoWindow(⚙)を全文言移行(info.* の34キー)。自己テスト334件成功(Linux)。**次の一歩**: ビルド成功を確認 → ユーザーに実機確認を依頼(⚙の見た目が前と同じ・文言が体言止めに変わっていること) → 実機OKなら段階1(MainWindow.xaml の137か所)へ。段階の一覧は PLAN-localization.txt。
 - 2026-11-27: 段階0はビルド成功・Sonar 0件(実機確認は依頼済み・結果待ち)。ユーザー指示「実機確認を待たず先に進めてよい」。sonar-issues の Artifact が増え続ける問題を修正(sonar-issues.yml: retention 1日+直近2件だけ残す整理。既存の古い4件は削除済み)。
 - 2026-11-27: **段階1 実装(push済み・ビルド確認待ち)**: MainWindow.xaml の日本語(132キー)を `{ui:T main.…}` に移行(ja.ini の [main])。ツールチップ等は体言止めに書き換え済み。コードで設定する文言(MainWindow*.cs。録音ボタンの切替など)は段階3。自己テスト334件成功。**次の一歩**: ビルド成功を確認 → 段階2(OutputWindow / OutputFxWindow / EffectWindow / VariableEditorWindow / VariableHelp / PromptWindow ほか小さなウィンドウ)。実機確認は段階0〜2をまとめて依頼する(メイン画面の見た目が前と同じ・文字がキー名のままでない・ツールチップが出る)。
+- 2026-11-27: 段階1はビルド成功・Sonar 0件。**段階2 実装(push済み・ビルド確認待ち)**: OutputWindow / OutputFxWindow / EffectWindow / VariableEditorWindow / VariableHelp / PromptWindow / HotkeyCapture の日本語(107キー、ja.ini の [windows])を Loc.Get へ。体言止めに書き換え済み。クラッシュログ(WriteCrashLog)の文は技術ログなので対象外。HotkeyCapture.Tip は const から static プロパティに変更。**次の一歩**: ビルド成功を確認 → 段階3(MainWindow の .cs 群: Settings / xaml.cs / Files / Output / Fx / Help / Tray)。段階3の後で、段階0〜3の実機確認をまとめて依頼。
 - 運用: 大きな作業は小さな単位に分け、1単位ごとに「コミット+この欄の更新」をする。途中で切れても、ここを読めば続きから進められる。同じ依頼を受け取ったら、まずこの欄で完了済みか確認し、やり直さない。
 
 ## 0-D. 開発方針(ユーザー提供の共通ルールの要点。2026-11-27 取り込み。原文のチェックリストは必要なときだけユーザーに求める)

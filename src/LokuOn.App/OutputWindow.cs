@@ -45,8 +45,8 @@ public sealed class OutputWindow : Window
     private readonly Action changed;
     private readonly Action namesChanged;
     private readonly WrapPanel wrap = new() { Orientation = Orientation.Horizontal };
-    private readonly Button addBtn = new() { Content = "＋ 出力を追加", Padding = new Thickness(12, 4, 12, 4), Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
-    private readonly TextBlock emptyText = new() { Text = "出力はありません。「＋ 出力を追加」から始めます。", Opacity = 0.7, Margin = new Thickness(4, 6, 0, 6) };
+    private readonly Button addBtn = new() { Content = Loc.Get("out.01"), Padding = new Thickness(12, 4, 12, 4), Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+    private readonly TextBlock emptyText = new() { Text = Loc.Get("out.02"), Opacity = 0.7, Margin = new Thickness(4, 6, 0, 6) };
     private readonly List<CardView> views = new();
     private readonly Dictionary<OutputSetting, OutputFxWindow> fxWins = new(ReferenceEqualityComparer.Instance);
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(100) };
@@ -63,7 +63,7 @@ public sealed class OutputWindow : Window
         this.ctl = ctl; this.cards = cards; names = inputNames;
         this.readPreset = readPreset; this.changed = changed; this.namesChanged = namesChanged;
 
-        Title = "LokuOn - 出力";
+        Title = Loc.Get("out.03");
         Width = 760; Height = 470; MinWidth = 380; MinHeight = 240;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         FontFamily = new FontFamily("Yu Gothic UI, Meiryo UI, Segoe UI");
@@ -74,7 +74,7 @@ public sealed class OutputWindow : Window
         var root = new StackPanel { Margin = new Thickness(10) };
         root.Children.Add(new TextBlock
         {
-            Text = "入力の音を、再生デバイス(スピーカー・ヘッドホン・VB-CABLEのCABLE Inputなど)へ流します。録音とは独立していて、このウィンドウを閉じても出力は止まりません。入力として取り込み中のデバイスは選べません。",
+            Text = Loc.Get("out.04"),
             TextWrapping = TextWrapping.Wrap, Opacity = 0.7, Margin = new Thickness(0, 0, 0, 6),
         });
         root.Children.Add(emptyText);
@@ -92,7 +92,7 @@ public sealed class OutputWindow : Window
             {
                 new TextBlock
                 {
-                    Text = "読み込み中…\n出力デバイスを調べています。少しお待ちください。",
+                    Text = Loc.Get("out.05"),
                     Foreground = new SolidColorBrush(dark ? Color.FromRgb(0xDD, 0xDD, 0xDD) : Color.FromRgb(0x33, 0x33, 0x33)),
                     FontSize = 14, TextAlignment = TextAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
@@ -169,7 +169,7 @@ public sealed class OutputWindow : Window
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var nameBox = new TextBox { Text = card.Name, MaxLength = OutputSetting.NameMax, FontWeight = FontWeights.SemiBold, FontSize = 13, MinHeight = 24, ToolTip = "名前(自由に変えられます)" };
+        var nameBox = new TextBox { Text = card.Name, MaxLength = OutputSetting.NameMax, FontWeight = FontWeights.SemiBold, FontSize = 13, MinHeight = 24, ToolTip = Loc.Get("out.06") };
         nameBox.LostFocus += (s, e) =>
         {
             string t = nameBox.Text.Trim();
@@ -178,9 +178,9 @@ public sealed class OutputWindow : Window
             if (card.Name != t) { card.Name = t; if (fxWins.TryGetValue(card, out var fw)) fw.UpdateTitle(); changed(); }
         };
         v.StatusText = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 8, 0), Opacity = 0.85, MaxWidth = 130, TextTrimming = TextTrimming.CharacterEllipsis };
-        var del = new Button { Content = "✕", Width = 26, Height = 24, Padding = new Thickness(0), ToolTip = "この出力を削除" };
+        var del = new Button { Content = "✕", Width = 26, Height = 24, Padding = new Thickness(0), ToolTip = Loc.Get("out.07") };
         del.Click += (s, e) => DeleteCard(card);
-        v.FxBtn = new Button { Content = "FX", Width = 40, Height = 24, Padding = new Thickness(0), Margin = new Thickness(0, 0, 4, 0), ToolTip = "この出力のエフェクト(ローカット・EQ・リミッター)" };
+        v.FxBtn = new Button { Content = "FX", Width = 40, Height = 24, Padding = new Thickness(0), Margin = new Thickness(0, 0, 4, 0), ToolTip = Loc.Get("out.08") };
         v.FxBtn.Click += (s, e) => OpenFx(v);
         UpdateFxButton(v);
         Grid.SetColumn(v.StatusText, 1); Grid.SetColumn(v.FxBtn, 2); Grid.SetColumn(del, 3);
@@ -198,7 +198,7 @@ public sealed class OutputWindow : Window
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        v.OnCheck = new CheckBox { Content = "出力する", VerticalContentAlignment = VerticalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsChecked = ctl.IsOutputWanted(card) };
+        v.OnCheck = new CheckBox { Content = Loc.Get("out.09"), VerticalContentAlignment = VerticalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsChecked = ctl.IsOutputWanted(card) };
         v.OnCheck.Click += (s, e) => OnToggle(v);
         var vol = MakeSlider(card.MasterGainDb);
         var volText = new TextBlock { Width = 52, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
@@ -209,7 +209,7 @@ public sealed class OutputWindow : Window
             ctl.ApplyOutputLive(card); changed();
         };
         vol.MouseDoubleClick += (s, e) => vol.Value = 0;
-        vol.ToolTip = "この出力の全体音量(ダブルクリックで0dB)";
+        vol.ToolTip = Loc.Get("out.10");
         Grid.SetColumn(vol, 1); Grid.SetColumn(volText, 2);
         row.Children.Add(v.OnCheck); row.Children.Add(vol); row.Children.Add(volText);
         panel.Children.Add(row);
@@ -232,7 +232,7 @@ public sealed class OutputWindow : Window
             v.InputsPanel.Children.Add(v.Rows[^1].Root);
         }
         if (v.Rows.Count == 0)
-            v.InputsPanel.Children.Add(new TextBlock { Text = "入力デバイスが選ばれていません(メイン画面で選びます)", Opacity = 0.7, Margin = new Thickness(6, 2, 0, 2) });
+            v.InputsPanel.Children.Add(new TextBlock { Text = Loc.Get("out.11"), Opacity = 0.7, Margin = new Thickness(6, 2, 0, 2) });
         panel.Children.Add(v.InputsPanel);
         UpdateFold(v);
         return border;
@@ -250,7 +250,7 @@ public sealed class OutputWindow : Window
         var nameText = new TextBlock
         {
             Text = p.InputName(slot), TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 76, VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(2, 0, 0, 0), ToolTip = p.Sources[slot].DeviceName + "\n(ダブルクリックで名前を変更)",
+            Margin = new Thickness(2, 0, 0, 0), ToolTip = p.Sources[slot].DeviceName + Loc.Get("out.12"),
         };
         nameText.MouseLeftButtonDown += (s, e) => { if (e.ClickCount == 2) { RenameInput(slot); e.Handled = true; } };
         var first = new StackPanel { Orientation = Orientation.Horizontal };
@@ -268,7 +268,7 @@ public sealed class OutputWindow : Window
             ctl.ApplyOutputLive(card); changed();
         };
         r.Gain.MouseDoubleClick += (s, e) => r.Gain.Value = 0;
-        r.Gain.ToolTip = "この入力をこの出力へ送る音量(ダブルクリックで0dB)";
+        r.Gain.ToolTip = Loc.Get("out.13");
         Grid.SetColumn(r.Gain, 1); Grid.SetColumn(r.GainText, 2);
         g.Children.Add(first); g.Children.Add(r.Gain); g.Children.Add(r.GainText);
         r.Root = g;
@@ -288,7 +288,7 @@ public sealed class OutputWindow : Window
         var card = v.Card;
         int total = v.Rows.Count, on = v.Rows.Count(r => card.SendOn[r.Slot]);
         v.InputsPanel.Visibility = card.Collapsed ? Visibility.Collapsed : Visibility.Visible;
-        v.FoldBtn.Content = (card.Collapsed ? "▸ " : "▾ ") + (card.Collapsed ? $"入力 {on}/{total} を送信中" : $"入力(送る入力にチェック {on}/{total})");
+        v.FoldBtn.Content = (card.Collapsed ? "▸ " : "▾ ") + (card.Collapsed ? Loc.Get("out.14", on, total) : Loc.Get("out.15", on, total));
     }
 
     // ---------------------------------------------------------------- 出力先
@@ -296,14 +296,14 @@ public sealed class OutputWindow : Window
     private void FillDevices(CardView v, Preset p)
     {
         var card = v.Card;
-        var list = new List<DeviceInfo> { new() { Id = "", Kind = DeviceKind.WasapiOutput, Display = "(未選択)" } };
+        var list = new List<DeviceInfo> { new() { Id = "", Kind = DeviceKind.WasapiOutput, Display = Loc.Get("out.16") } };
         foreach (var d in devices)
         {
             string? loop = RecorderController.CheckLoop(p, d.Id);
-            list.Add(loop == null ? d : new DeviceInfo { Id = d.Id, Kind = d.Kind, Display = d.Display + "  (入力と同じ=選べません)" });
+            list.Add(loop == null ? d : new DeviceInfo { Id = d.Id, Kind = d.Kind, Display = d.Display + Loc.Get("out.17") });
         }
         if (card.DeviceId.Length > 0 && !list.Any(d => d.Id == card.DeviceId))
-            list.Add(new DeviceInfo { Id = card.DeviceId, Kind = DeviceKind.WasapiOutput, Display = (card.DeviceName.Length > 0 ? card.DeviceName : card.DeviceId) + "  (見つかりません)" });
+            list.Add(new DeviceInfo { Id = card.DeviceId, Kind = DeviceKind.WasapiOutput, Display = (card.DeviceName.Length > 0 ? card.DeviceName : card.DeviceId) + Loc.Get("out.18") });
         v.DevCombo.ItemsSource = list;
         v.DevCombo.SelectedItem = list.FirstOrDefault(d => d.Id == card.DeviceId) ?? list[0];
     }
@@ -355,7 +355,7 @@ public sealed class OutputWindow : Window
         {
             App.WriteCrashLog("出力: " + ex);
             v.OnCheck.IsChecked = false;
-            SetError(v, "出力でエラー: " + ex.Message);
+            SetError(v, Loc.Get("out.19") + ex.Message);
         }
     }
 
@@ -406,9 +406,9 @@ public sealed class OutputWindow : Window
 
     private void DeleteCard(OutputSetting card)
     {
-        string extra = ctl.IsOutputWanted(card) ? "\n(出力中です。止めてから削除します)" : "";
-        var r = MessageBox.Show(this, $"出力「{card.Name}」を削除しますか?{extra}\n\n保存済みのプリセットは、上書き保存するまで変わりません。",
-            "LokuOn - 出力の削除", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
+        string extra = ctl.IsOutputWanted(card) ? Loc.Get("out.20") : "";
+        var r = MessageBox.Show(this, Loc.Get("out.21", card.Name, extra),
+            Loc.Get("out.22"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
         if (r != MessageBoxResult.Yes) return;
         ctl.ForgetOutput(card);
         cards.Remove(card);
@@ -419,7 +419,7 @@ public sealed class OutputWindow : Window
 
     private void RenameInput(int slot)
     {
-        string? t = PromptWindow.Show(this, "入力の名前", $"入力{slot + 1}の名前(中身を覚えるための目印です。{OutputSetting.NameMax}文字まで。空欄で「入力{slot + 1}」に戻ります)", names[slot] ?? "");
+        string? t = PromptWindow.Show(this, Loc.Get("out.23"), Loc.Get("out.24", slot + 1, OutputSetting.NameMax), names[slot] ?? "");
         if (t == null) return;
         t = t.Trim();
         if (t.Length > OutputSetting.NameMax) t = t.Substring(0, OutputSetting.NameMax);
@@ -445,8 +445,8 @@ public sealed class OutputWindow : Window
                 var card = v.Card;
                 bool wanted = ctl.IsOutputWanted(card), running = ctl.IsOutputRunning(card);
                 string st = ctl.OutputStatus(card);
-                v.StatusText.Text = !wanted ? "停止" : running ? "● 出力中" : (st.Length > 0 ? st : "接続中…");
-                v.StatusText.ToolTip = st + (running ? "\n[診断] " + ctl.OutputDiagnostics(card) : "");
+                v.StatusText.Text = !wanted ? Loc.Get("out.25") : running ? Loc.Get("out.26") : (st.Length > 0 ? st : Loc.Get("out.27"));
+                v.StatusText.ToolTip = st + (running ? Loc.Get("out.28") + ctl.OutputDiagnostics(card) : "");
                 if (v.OnCheck.IsChecked != wanted) v.OnCheck.IsChecked = wanted;
                 var (l, r, clip) = ctl.ReadOutputPeaks(card);
                 double pk = Math.Max(l, r);

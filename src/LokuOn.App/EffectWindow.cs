@@ -20,11 +20,11 @@ public sealed class EffectWindow : Window
     private readonly Func<Preset> readPreset;
     private readonly Action changed;
     private readonly ComboBox slotBox = new();
-    private readonly CheckBox bypassCheck = new() { Content = "すべてバイパス(効果を一時的に切る。設定は残る)", Margin = new Thickness(0, 3, 0, 0) };
-    private readonly CheckBox toRecCheck = new() { Content = "録音に反映(オフ=録音は素の音)" };
-    private readonly CheckBox toOutCheck = new() { Content = "出力に反映" };
+    private readonly CheckBox bypassCheck = new() { Content = Loc.Get("outfx.01"), Margin = new Thickness(0, 3, 0, 0) };
+    private readonly CheckBox toRecCheck = new() { Content = Loc.Get("fx.01") };
+    private readonly CheckBox toOutCheck = new() { Content = Loc.Get("fx.02") };
     private readonly List<Action> refreshers = new();
-    private readonly Button pasteBtn = new() { Content = "貼り付け", Padding = new Thickness(10, 1, 10, 1), Margin = new Thickness(6, 0, 0, 0) };
+    private readonly Button pasteBtn = new() { Content = Loc.Get("fx.03"), Padding = new Thickness(10, 1, 10, 1), Margin = new Thickness(6, 0, 0, 0) };
     private readonly ComboBox presetBox = new() { MinWidth = 180 };
     private readonly Controls.GraphicEqControl eqView = new();
     private CheckBox? eqCheck;
@@ -37,7 +37,7 @@ public sealed class EffectWindow : Window
     public EffectWindow(EffectSetting[] fx, Func<Preset> readPreset, Action changed, int initialSlot)
     {
         this.fx = fx; this.readPreset = readPreset; this.changed = changed;
-        Title = "LokuOn - エフェクト";
+        Title = Loc.Get("fx.04");
         Width = 620; SizeToContent = SizeToContent.Height; MaxHeight = 900;
         ResizeMode = ResizeMode.CanMinimize;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -53,7 +53,7 @@ public sealed class EffectWindow : Window
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var copyBtn = new Button { Content = "コピー", Padding = new Thickness(10, 1, 10, 1), Margin = new Thickness(6, 0, 0, 0) };
+        var copyBtn = new Button { Content = Loc.Get("fx.05"), Padding = new Thickness(10, 1, 10, 1), Margin = new Thickness(6, 0, 0, 0) };
         copyBtn.Click += (s, e) => { clipboard = Cur.Clone(); UpdatePaste(); };
         pasteBtn.Click += (s, e) => PasteSound();
         Grid.SetColumn(copyBtn, 1); Grid.SetColumn(pasteBtn, 2);
@@ -74,7 +74,7 @@ public sealed class EffectWindow : Window
         root.Children.Add(mainTabs);
 
         // グラフィックEQ(曲線は常に見える。ローカット・パラメトリックの効果もこの曲線に合成される)
-        var gPanel = Section(eqPanel, "グラフィックEQ(曲線はローカット・パラメトリックも含めた全体)", c => c.EqOn, (c, v) => c.EqOn = v, cb => eqCheck = cb, false);
+        var gPanel = Section(eqPanel, Loc.Get("outfx.03"), c => c.EqOn, (c, v) => c.EqOn = v, cb => eqCheck = cb, false);
         var eqTop = new Grid { Margin = new Thickness(0, 0, 0, 3) };
         eqTop.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         eqTop.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -87,7 +87,7 @@ public sealed class EffectWindow : Window
             eqView.SetBands(Cur.Bands);
             RefreshEqSwitch();
         };
-        var eqReset = new Button { Content = "リセット", Padding = new Thickness(12, 1, 12, 1), Margin = new Thickness(6, 0, 0, 0) };
+        var eqReset = new Button { Content = Loc.Get("outfx.04"), Padding = new Thickness(12, 1, 12, 1), Margin = new Thickness(6, 0, 0, 0) };
         eqReset.Click += (s, e) => { Edit(c => c.Bands = new double[EqBands.Count]); eqView.SetBands(Cur.Bands); loading = true; presetBox.SelectedIndex = 0; loading = false; };
         Grid.SetColumn(eqReset, 1);
         eqTop.Children.Add(presetBox); eqTop.Children.Add(eqReset);
@@ -104,35 +104,35 @@ public sealed class EffectWindow : Window
         refreshers.Add(() => { eqView.SetBands(Cur.Bands); eqView.Dimmed = !Cur.EqOn; presetBox.SelectedIndex = MatchPreset(Cur.Bands); });
 
         // ローカット(0=なし)
-        var lc = Section(eqPanel, "ローカット(低い音を削る。風・振動・こもりの低音に)", null, null, null);
-        AddSlider(lc, "カットする周波数", 0, 400, 5, c => c.HpfHz, (c, v) => c.HpfHz = v < 20 ? 0 : v,
-            v => v < 20 ? "なし" : $"{v:0} Hz", 0);
+        var lc = Section(eqPanel, Loc.Get("outfx.05"), null, null, null);
+        AddSlider(lc, Loc.Get("outfx.06"), 0, 400, 5, c => c.HpfHz, (c, v) => c.HpfHz = v < 20 ? 0 : v,
+            v => v < 20 ? Loc.Get("outfx.07") : $"{v:0} Hz", 0);
         refreshers.Add(() => eqView.SetHpf(Cur.HpfHz));
 
         BuildParametric(eqPanel);
 
         // ノイズゲート(いちばん最初にかかる)
-        var gate = Section(gatePanel, "ノイズゲート(小さい音=ノイズを自動で下げる)", c => c.GateOn, (c, v) => c.GateOn = v);
-        AddSlider(gate, "しきい値", -70, -10, 1, c => c.GateThresholdDb, (c, v) => c.GateThresholdDb = v, v => $"{v:0} dB", -45);
-        AddSlider(gate, "戻り時間", 20, 1000, 10, c => c.GateReleaseMs, (c, v) => c.GateReleaseMs = v, v => $"{v:0} ms", 200);
-        AddSlider(gate, "下げる量", 6, 80, 1, c => c.GateReductionDb, (c, v) => c.GateReductionDb = v, v => $"{v:0} dB", 40);
+        var gate = Section(gatePanel, Loc.Get("fx.06"), c => c.GateOn, (c, v) => c.GateOn = v);
+        AddSlider(gate, Loc.Get("fx.07"), -70, -10, 1, c => c.GateThresholdDb, (c, v) => c.GateThresholdDb = v, v => $"{v:0} dB", -45);
+        AddSlider(gate, Loc.Get("outfx.10"), 20, 1000, 10, c => c.GateReleaseMs, (c, v) => c.GateReleaseMs = v, v => $"{v:0} ms", 200);
+        AddSlider(gate, Loc.Get("fx.08"), 6, 80, 1, c => c.GateReductionDb, (c, v) => c.GateReductionDb = v, v => $"{v:0} dB", 40);
         gatePanel.Children.Add(new TextBlock
         {
-            Text = "しきい値より大きい音のときだけ通し、小さい音(ハム・息・部屋のノイズ)のときは「下げる量」だけ下げます。しきい値は、ノイズだけのときのメーターの位置より少し上に合わせます。声の語尾が切れるときは、しきい値を下げるか戻り時間を長くします。ノイズゲートは、かける順番でいちばん最初(EQより前)です。",
+            Text = Loc.Get("fx.09"),
             TextWrapping = TextWrapping.Wrap, Opacity = 0.65, FontSize = 11.5, Margin = new Thickness(2, 6, 2, 2),
         });
 
         // エコー
-        var echo = Section(fxPanel, "エコー", c => c.EchoOn, (c, v) => c.EchoOn = v);
-        AddSlider(echo, "間隔", 20, 1000, 10, c => c.EchoMs, (c, v) => c.EchoMs = v, v => $"{v:0} ms", 300);
-        AddSlider(echo, "くり返し", 0, 0.9, 0.05, c => c.EchoFeedback, (c, v) => c.EchoFeedback = v, Pct, 0.35);
-        AddSlider(echo, "量", 0, 1, 0.05, c => c.EchoMix, (c, v) => c.EchoMix = v, Pct, 0.3);
+        var echo = Section(fxPanel, Loc.Get("fx.10"), c => c.EchoOn, (c, v) => c.EchoOn = v);
+        AddSlider(echo, Loc.Get("fx.11"), 20, 1000, 10, c => c.EchoMs, (c, v) => c.EchoMs = v, v => $"{v:0} ms", 300);
+        AddSlider(echo, Loc.Get("fx.12"), 0, 0.9, 0.05, c => c.EchoFeedback, (c, v) => c.EchoFeedback = v, Pct, 0.35);
+        AddSlider(echo, Loc.Get("fx.13"), 0, 1, 0.05, c => c.EchoMix, (c, v) => c.EchoMix = v, Pct, 0.3);
 
         // リバーブ
-        var rev = Section(fxPanel, "リバーブ", c => c.ReverbOn, (c, v) => c.ReverbOn = v);
-        AddSlider(rev, "部屋の広さ", 0, 1, 0.05, c => c.ReverbRoom, (c, v) => c.ReverbRoom = v, Pct, 0.5);
-        AddSlider(rev, "こもり", 0, 1, 0.05, c => c.ReverbDamp, (c, v) => c.ReverbDamp = v, Pct, 0.5);
-        AddSlider(rev, "量", 0, 1, 0.05, c => c.ReverbMix, (c, v) => c.ReverbMix = v, Pct, 0.25);
+        var rev = Section(fxPanel, Loc.Get("fx.14"), c => c.ReverbOn, (c, v) => c.ReverbOn = v);
+        AddSlider(rev, Loc.Get("fx.15"), 0, 1, 0.05, c => c.ReverbRoom, (c, v) => c.ReverbRoom = v, Pct, 0.5);
+        AddSlider(rev, Loc.Get("fx.16"), 0, 1, 0.05, c => c.ReverbDamp, (c, v) => c.ReverbDamp = v, Pct, 0.5);
+        AddSlider(rev, Loc.Get("fx.13"), 0, 1, 0.05, c => c.ReverbMix, (c, v) => c.ReverbMix = v, Pct, 0.25);
 
         // 反映先
         root.Children.Add(new Separator { Margin = new Thickness(0, 4, 0, 3) });
@@ -144,10 +144,10 @@ public sealed class EffectWindow : Window
         toOutCheck.Click += (s, e) => Edit(c => c.ToOutput = toOutCheck.IsChecked == true);
         root.Children.Add(new TextBlock
         {
-            Text = "かける順番: ローカット → グラフィックEQ → パラメトリックEQ → エコー → リバーブ。無音での自動分割・自動開始は、エフェクトをかける前の音で判定します。スライダーはダブルクリックで初期値に戻ります。",
+            Text = Loc.Get("fx.17"),
             TextWrapping = TextWrapping.Wrap, Opacity = 0.65, FontSize = 11.5, Margin = new Thickness(0, 3, 0, 4),
         });
-        var reset = new Button { Content = "この入力を初期値に戻す", Padding = new Thickness(10, 1, 10, 1), HorizontalAlignment = HorizontalAlignment.Left };
+        var reset = new Button { Content = Loc.Get("fx.18"), Padding = new Thickness(10, 1, 10, 1), HorizontalAlignment = HorizontalAlignment.Left };
         reset.Click += (s, e) =>
         {
             var d = new EffectSetting { ToRecording = Cur.ToRecording, ToOutput = Cur.ToOutput };
@@ -166,13 +166,13 @@ public sealed class EffectWindow : Window
     private void BuildParametric(StackPanel parent)
     {
         CheckBox? cb = null;
-        var panel = Section(parent, "パラメトリックEQ(気になる周波数をピンポイントで上げ下げ)", c => c.ParamOn, (c, v) => c.ParamOn = v, x => cb = x);
+        var panel = Section(parent, Loc.Get("outfx.21"), c => c.ParamOn, (c, v) => c.ParamOn = v, x => cb = x);
         paramCheckRefresh = () => { cb!.IsChecked = Cur.ParamOn; panel.Opacity = Cur.ParamOn ? 1.0 : 0.55; };
         refreshers.Add(() => eqView.SetParams(Cur.ParamOn ? Cur.Params : null));
 
         var head = new Grid { Margin = new Thickness(0, 0, 0, 1), Opacity = 0.7 };
         ParamCols(head);
-        AddHead(head, "周波数", 1); AddHead(head, "ゲイン", 3); AddHead(head, "幅(大きいほど狭い)", 5);
+        AddHead(head, Loc.Get("outfx.22"), 1); AddHead(head, Loc.Get("outfx.23"), 3); AddHead(head, Loc.Get("outfx.24"), 5);
         panel.Children.Add(head);
         for (int i = 0; i < ParamBand.Count; i++)
         {
@@ -187,7 +187,7 @@ public sealed class EffectWindow : Window
             ParamSlider(g, 5, ParamBand.MinQ, ParamBand.MaxQ, 0.1, c => c.Params[bi].Q, (c, v) => c.Params[bi].Q = v, v => "Q " + v.ToString("0.0", CultureInfo.InvariantCulture), ParamBand.DefaultQ);
             panel.Children.Add(g);
         }
-        var rs = new Button { Content = "パラメトリックを初期値に戻す", Padding = new Thickness(10, 2, 10, 2), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 3, 0, 0) };
+        var rs = new Button { Content = Loc.Get("outfx.25"), Padding = new Thickness(10, 2, 10, 2), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 3, 0, 0) };
         rs.Click += (s, e) => { Edit(c => c.Params = ParamBand.Defaults()); Reload(); };
         panel.Children.Add(rs);
     }
@@ -242,9 +242,9 @@ public sealed class EffectWindow : Window
             var items = new List<string>();
             for (int i = 0; i < Preset.SourceSlots; i++)
             {
-                string tail = string.IsNullOrWhiteSpace(p.Sources[i].DeviceId) ? "(デバイス未選択)" : "";
-                string mark = fx[i].IsActive ? "  ● かかっています" : fx[i].HasAny ? "  (バイパス中)" : "";
-                items.Add($"入力{i + 1}: {p.InputName(i)} {tail}{mark}");
+                string tail = string.IsNullOrWhiteSpace(p.Sources[i].DeviceId) ? Loc.Get("fx.19") : "";
+                string mark = fx[i].IsActive ? Loc.Get("fx.20") : fx[i].HasAny ? Loc.Get("fx.21") : "";
+                items.Add(Loc.Get("fx.22", i + 1, p.InputName(i), tail, mark));
             }
             slotBox.ItemsSource = items;
             slotBox.SelectedIndex = slot;
@@ -299,10 +299,10 @@ public sealed class EffectWindow : Window
     private void UpdateTabLabels()
     {
         var c = Cur;
-        string Join(params (bool on, string name)[] a) { var l = a.Where(x => x.on).Select(x => x.name).ToList(); return l.Count == 0 ? "" : (c.Bypass ? "  ○ バイパス中: " : "  ● ") + string.Join("・", l); }
-        eqTab.Header = "イコライザ" + Join((c.EqOn, "グラフィック"), (c.HpfHz >= 20, "ローカット"), (c.ParamOn, "パラメトリック"));
-        gateTab.Header = "ノイズゲート" + Join((c.GateOn, "オン"));
-        fxTab.Header = "エコー・リバーブ" + Join((c.EchoOn, "エコー"), (c.ReverbOn, "リバーブ"));
+        string Join(params (bool on, string name)[] a) { var l = a.Where(x => x.on).Select(x => x.name).ToList(); return l.Count == 0 ? "" : (c.Bypass ? Loc.Get("fx.23") : "  ● ") + string.Join("・", l); }
+        eqTab.Header = Loc.Get("fx.24") + Join((c.EqOn, Loc.Get("outfx.15")), (c.HpfHz >= 20, Loc.Get("outfx.14")), (c.ParamOn, Loc.Get("outfx.16")));
+        gateTab.Header = Loc.Get("fx.25") + Join((c.GateOn, Loc.Get("fx.26")));
+        fxTab.Header = Loc.Get("fx.27") + Join((c.EchoOn, Loc.Get("fx.10")), (c.ReverbOn, Loc.Get("fx.14")));
     }
 
     private void UpdateSlotLabels()
@@ -315,9 +315,9 @@ public sealed class EffectWindow : Window
             var items = new List<string>();
             for (int i = 0; i < Preset.SourceSlots; i++)
             {
-                string tail = string.IsNullOrWhiteSpace(p.Sources[i].DeviceId) ? "(デバイス未選択)" : "";
-                string mark = fx[i].IsActive ? "  ● かかっています" : fx[i].HasAny ? "  (バイパス中)" : "";
-                items.Add($"入力{i + 1}: {p.InputName(i)} {tail}{mark}");
+                string tail = string.IsNullOrWhiteSpace(p.Sources[i].DeviceId) ? Loc.Get("fx.19") : "";
+                string mark = fx[i].IsActive ? Loc.Get("fx.20") : fx[i].HasAny ? Loc.Get("fx.21") : "";
+                items.Add(Loc.Get("fx.22", i + 1, p.InputName(i), tail, mark));
             }
             slotBox.ItemsSource = items; slotBox.SelectedIndex = slot;
         }

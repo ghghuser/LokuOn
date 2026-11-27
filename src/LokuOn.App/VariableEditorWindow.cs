@@ -1,3 +1,4 @@
+using LokuOn.Core;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -29,7 +30,7 @@ public sealed class VariableEditorWindow : Window
         var grid = new Grid { Margin = new Thickness(14) };
         for (int i = 0; i < 6; i++) grid.RowDefinitions.Add(new RowDefinition { Height = i == 4 ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
 
-        var label = new TextBlock { Text = "入力欄(下の変数のボタンを押すと、カーソルの位置に入ります)", Margin = new Thickness(0, 0, 0, 4) };
+        var label = new TextBlock { Text = Loc.Get("var.01"), Margin = new Thickness(0, 0, 0, 4) };
         Grid.SetRow(label, 0);
         Grid.SetRow(box, 1);
         previewText.Margin = new Thickness(0, 6, 0, 8);
@@ -72,7 +73,7 @@ public sealed class VariableEditorWindow : Window
 
         var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, 0, 0) };
         var ok = new Button { Content = "OK", Width = 84, MinHeight = 26, IsDefault = true, Margin = new Thickness(0, 0, 8, 0) };
-        var cancel = new Button { Content = "キャンセル", Width = 84, MinHeight = 26, IsCancel = true };
+        var cancel = new Button { Content = Loc.Get("var.02"), Width = 84, MinHeight = 26, IsCancel = true };
         ok.Click += (s, e) => DialogResult = true;
         bottom.Children.Add(ok);
         bottom.Children.Add(cancel);
@@ -99,8 +100,8 @@ public sealed class VariableEditorWindow : Window
     private void UpdatePreview()
     {
         string p;
-        try { p = preview(box.Text); } catch (Exception ex) { p = "プレビューできません: " + ex.Message; }
-        previewText.Text = "例: " + p;
+        try { p = preview(box.Text); } catch (Exception ex) { p = Loc.Get("var.03") + ex.Message; }
+        previewText.Text = Loc.Get("var.04") + p;
     }
 
     /// <summary>OKなら編集後の文字、キャンセルなら null。</summary>

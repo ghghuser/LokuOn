@@ -1,3 +1,4 @@
+using LokuOn.Core;
 using System.Windows.Controls;
 using System.Windows.Input;
 
@@ -10,7 +11,7 @@ namespace LokuOn.App;
 /// </summary>
 public static class HotkeyCapture
 {
-    public const string Tip = "欄をクリックして、割り当てたいキーを押します(Ctrl・Alt・Shift・Win のどれかと一緒に)。Delete か BackSpace で未設定にします";
+    public static string Tip => Loc.Get("hotkey.01");
 
     public static void Attach(TextBox tb)
     {

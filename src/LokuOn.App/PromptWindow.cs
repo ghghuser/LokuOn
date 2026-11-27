@@ -1,3 +1,4 @@
+using LokuOn.Core;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -31,7 +32,7 @@ public sealed class PromptWindow : Window
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         var ok = new Button { Content = "OK", Width = 84, MinHeight = 26, IsDefault = true, Margin = new Thickness(0, 0, 8, 0) };
-        var cancel = new Button { Content = "キャンセル", Width = 84, MinHeight = 26, IsCancel = true };
+        var cancel = new Button { Content = Loc.Get("var.02"), Width = 84, MinHeight = 26, IsCancel = true };
         ok.Click += (s, e) => { DialogResult = true; };
         buttons.Children.Add(ok);
         buttons.Children.Add(cancel);
