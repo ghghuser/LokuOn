@@ -88,6 +88,9 @@ jobs:
 
               New-Item -ItemType Directory -Force -Path ffmpeg-dl/bin | Out-Null
               Copy-Item $exe.FullName ffmpeg-dl/bin/ffmpeg.exe -Force
+              # FFmpeg のライセンス文(LGPL/GPL)を同梱する。アーカイブ内の LICENSE* を、exe の場所とその1つ上から探す(無い場合は警告のみ)。
+              $lic = @($exe.Directory.FullName, $exe.Directory.Parent.FullName) | ForEach-Object { Get-ChildItem $_ -File -Filter 'LICENSE*' -ErrorAction SilentlyContinue } | Select-Object -First 1
+              if ($lic) { Copy-Item $lic.FullName ffmpeg-dl/bin/LICENSE.txt -Force } else { Write-Host '::warning::FFmpeg の LICENSE が見つかりません' }
               if ($u -like '*gyan.dev*') { Write-Host '::warning::LGPL版を取得できなかったため、GPL版の FFmpeg を同梱します'; }
               $ok = $true
               break
@@ -98,9 +101,9 @@ jobs:
           if (-not $ok) { throw 'FFmpeg を用意できませんでした' }
           & ffmpeg-dl/bin/ffmpeg.exe -version | Select-Object -First 2
 
+      # 自己テストが1件でも失敗したら、ここでビルドを止める(配布物を作らない)。
       - name: コアの自己テスト(録音・分割・命名・復旧など)
         shell: pwsh
-        continue-on-error: true
         run: |
           $env:PATH = "$((Resolve-Path ffmpeg-dl/bin).Path);$env:PATH"
           dotnet run --project tests/LokuOn.SelfTest -c Release
@@ -121,6 +124,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path publish/LokuOn/ffmpeg | Out-Null
           Copy-Item publish-tmp/LokuOn.exe publish/LokuOn/LokuOn.exe -Force
           Copy-Item ffmpeg-dl/bin/ffmpeg.exe publish/LokuOn/ffmpeg/ffmpeg.exe -Force
+          if (Test-Path ffmpeg-dl/bin/LICENSE.txt) { Copy-Item ffmpeg-dl/bin/LICENSE.txt publish/LokuOn/ffmpeg/LICENSE.txt -Force }
           Copy-Item LICENSE publish/LokuOn/LICENSE.txt -Force
           Write-Host '--- 配布フォルダの中身 ---'
           Get-ChildItem publish -Recurse -File | ForEach-Object { '{0}  {1:N1} MB' -f $_.FullName.Substring((Get-Location).Path.Length + 1), ($_.Length / 1MB) }

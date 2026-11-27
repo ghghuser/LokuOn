@@ -37,6 +37,9 @@ static partial class LocTests
         var entries = Loc.Parse(File.ReadAllText(iniPath), dups);
         check(dups.Count == 0, "ja.ini にキーの重複がない", string.Join(",", dups));
         check(entries.All(e => e.Value.Length > 0), "空の文言がない");
+        // 文体: 体言止め中心。です・ます調と命令形(してください)を残さない
+        var polite = entries.Where(e => Polite().IsMatch(e.Value)).Select(e => e.Key).ToList();
+        check(polite.Count == 0, "文言が です・ます調になっていない", string.Join(",", polite));
         var badPh = entries.Where(e => !PlaceholdersOk(e.Value)).Select(e => e.Key).ToList();
         check(badPh.Count == 0, "{0}{1} が 0 から連続している", string.Join(",", badPh));
 
@@ -65,6 +68,9 @@ static partial class LocTests
 
     [GeneratedRegex(@"\{ui:T\s+([^\s}]+)\}", RegexOptions.None, 2000)]
     private static partial Regex XamlKey();
+
+    [GeneratedRegex("(です|ます|ません|ました|でした|ください|ましょう|でしょう)", RegexOptions.None, 2000)]
+    private static partial Regex Polite();
 
     [GeneratedRegex(@"\{(\d+)(?::[^}]*)?\}", RegexOptions.None, 2000)]
     private static partial Regex Placeholder();

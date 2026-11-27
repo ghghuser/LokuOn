@@ -1,3 +1,4 @@
+using LokuOn.Core;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -21,7 +22,7 @@ public partial class App : Application
         singleInstance = new Mutex(true, "LokuOn.SingleInstance." + hash, out bool createdNew);
         if (!createdNew)
         {
-            MessageBox.Show("このフォルダの LokuOn はすでに起動しています。\nタスクトレイや他のウィンドウの後ろを確認してください。\n(設定ファイルを守るため、2つ目は起動しません)",
+            MessageBox.Show(Loc.Get("app.01"),
                 "LokuOn", MessageBoxButton.OK, MessageBoxImage.Information);
             singleInstance = null;
             Shutdown();
@@ -36,8 +37,7 @@ public partial class App : Application
             if (!crashDialogShown)
             {
                 crashDialogShown = true;
-                MessageBox.Show("画面の処理でエラーが発生しました。録音は続行されています。\n\n" + ex.Exception.Message +
-                                "\n\n詳細は lokuon-crash.log に記録しました。",
+                MessageBox.Show(Loc.Get("app.02", ex.Exception.Message),
                     "LokuOn", MessageBoxButton.OK, MessageBoxImage.Warning);
                 crashDialogShown = false;
             }
@@ -55,8 +55,7 @@ public partial class App : Application
         {
             // 起動に失敗したときは、記録して、プロセスを残さず終了する(ウィンドウの無いまま常駐させない)
             WriteCrashLog("起動失敗: " + ex);
-            MessageBox.Show("LokuOn を起動できませんでした。\n\n" + ex.Message +
-                            "\n\n詳細は lokuon-crash.log に記録しました。",
+            MessageBox.Show(Loc.Get("app.03", ex.Message),
                 "LokuOn", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
         }
