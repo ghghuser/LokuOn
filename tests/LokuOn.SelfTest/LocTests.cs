@@ -59,8 +59,25 @@ static partial class LocTests
         var have = entries.Select(e => e.Key).ToHashSet();
         var missing = used.Where(k => !have.Contains(k)).OrderBy(k => k).ToList();
         check(missing.Count == 0, $"使われているキー {used.Count} 個がすべて ja.ini にある", string.Join(",", missing));
-        var unused = have.Where(k => !used.Contains(k)).OrderBy(k => k).ToList();
+        var unused = have.Where(k => !used.Contains(k) && !k.StartsWith("eq.preset.", StringComparison.Ordinal)).OrderBy(k => k).ToList();
         check(unused.Count == 0, "ja.ini に未使用のキーがない", string.Join(",", unused));
+
+        // 英語(en.ini): ja にあるキーだけを持ち、ja の全キーを網羅し、{n} の組が同じで、日本語が混ざらない
+        var enDup = new List<string>();
+        var en = Loc.Parse(Loc.ReadEmbedded("en"), enDup);
+        var jaMap = entries.ToDictionary(e => e.Key, e => e.Value);
+        var enMap = en.GroupBy(e => e.Key).ToDictionary(g => g.Key, g => g.Last().Value);
+        check(enDup.Count == 0, "en.ini にキーの重複がない", string.Join(",", enDup));
+        var enExtra = enMap.Keys.Where(k => !jaMap.ContainsKey(k)).OrderBy(k => k).ToList();
+        check(enExtra.Count == 0, "en.ini のキーがすべて ja.ini にもある", string.Join(",", enExtra));
+        var enMissing = jaMap.Keys.Where(k => !enMap.ContainsKey(k)).OrderBy(k => k).ToList();
+        check(enMissing.Count == 0, $"ja.ini の全キーが英訳されている({jaMap.Count} 個)", string.Join(",", enMissing.Take(12)) + (enMissing.Count > 12 ? $" …ほか{enMissing.Count - 12}" : ""));
+        var enPh = enMap.Where(kv => jaMap.TryGetValue(kv.Key, out var jv) && PlaceholderSet(jv) != PlaceholderSet(kv.Value)).Select(kv => kv.Key).ToList();
+        check(enPh.Count == 0, "英訳の {n} が日本語と同じ組", string.Join(",", enPh));
+        var enJp = enMap.Where(kv => kv.Value.Any(ch => ch >= '\u3040' && ch <= '\u9FFF')).Select(kv => kv.Key).ToList();
+        check(enJp.Count == 0, "英訳に日本語が混ざっていない", string.Join(",", enJp.Take(12)));
+        check(enMap.TryGetValue("ui.25", out var u25) && enMap.TryGetValue("tray.08", out var t08) && u25.StartsWith(t08, StringComparison.Ordinal)
+              && jaMap["ui.25"].StartsWith(jaMap["tray.08"], StringComparison.Ordinal), "トレイの録音判定(tray.08)が録音中の表示文(ui.25)の先頭と一致(日英とも)");
     }
 
     [GeneratedRegex("\"([a-z][a-z0-9]*(?:\\.[a-z0-9_]+)+)\"", RegexOptions.None, 2000)]
@@ -74,6 +91,9 @@ static partial class LocTests
 
     [GeneratedRegex(@"\{(\d+)(?::[^}]*)?\}", RegexOptions.None, 2000)]
     private static partial Regex Placeholder();
+
+    private static string PlaceholderSet(string v)
+        => string.Join(",", Placeholder().Matches(v).Select(m => int.Parse(m.Groups[1].Value)).Distinct().OrderBy(x => x));
 
     private static bool PlaceholdersOk(string v)
     {

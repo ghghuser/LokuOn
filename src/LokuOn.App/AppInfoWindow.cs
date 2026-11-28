@@ -13,6 +13,7 @@ public sealed class AppInfoWindow : Window
 
     private readonly AppSettings settings;
     private readonly Action changed;
+    private readonly ComboBox langBox = new();
     private readonly ComboBox themeBox = new();
     private readonly ComboBox backdropBox = new();
     private readonly Slider strengthSlider = new()
@@ -25,6 +26,7 @@ public sealed class AppInfoWindow : Window
     {
         Width = 48, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
     };
+    private readonly TextBlock langNote = new() { Opacity = 0.65, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 8), TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock backdropNote = new()
     {
         Opacity = 0.65, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8),
@@ -54,6 +56,10 @@ public sealed class AppInfoWindow : Window
         var panel = new StackPanel { Margin = new Thickness(16) };
 
         panel.Children.Add(Header(Loc.Get("info.sec.display")));
+        langBox.ItemsSource = new List<Choice<string>> { new("日本語", "ja"), new("English", "en") };
+        panel.Children.Add(Row(Loc.Get("info.row.language"), langBox));
+        langNote.Text = Loc.Get("info.lang.restart");
+        panel.Children.Add(langNote);
         themeBox.ItemsSource = new List<Choice<string>>
         {
             new(Loc.Get("info.theme.system"), "system"), new(Loc.Get("info.theme.dark"), "dark"), new(Loc.Get("info.theme.softdark"), "softdark"), new(Loc.Get("info.theme.light"), "light"),
@@ -112,12 +118,20 @@ public sealed class AppInfoWindow : Window
 
         // 現在の値を反映してから、変更を受け付ける
         Select(themeBox, string.IsNullOrWhiteSpace(settings.Theme) ? "system" : settings.Theme.ToLowerInvariant());
+        Select(langBox, LanguageRules.Normalize(settings.Language));
         sleepCheck.IsChecked = settings.PreventSleep;
         taskbarRadio.IsChecked = !settings.MinimizeToTray;
         trayRadio.IsChecked = settings.MinimizeToTray;
         UpdateBackdropUi();
         loading = false;
 
+        langBox.SelectionChanged += (s, e) =>
+        {
+            if (loading) return;
+            settings.Language = LanguageRules.Normalize(ValueOf(langBox, "ja"));
+            changed();
+            langNote.Visibility = settings.Language == Loc.Language ? Visibility.Collapsed : Visibility.Visible;   // 再起動後に反映
+        };
         themeBox.SelectionChanged += (s, e) =>
         {
             if (loading) return;

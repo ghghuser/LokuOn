@@ -11,6 +11,12 @@ public static class Loc
     private static readonly object Gate = new();
     private static Dictionary<string, string>? table;
 
+    /// <summary>いま使っている言語("ja" / "en")。</summary>
+    public static string Language { get; private set; } = "ja";
+
+    /// <summary>キーが定義されているか(確認用)。</summary>
+    public static bool Has(string key) { Ensure(); return table!.ContainsKey(key); }
+
     /// <summary>読み込み済みの文言の数(確認用)。</summary>
     public static int Count { get { Ensure(); return table!.Count; } }
 
@@ -30,14 +36,19 @@ public static class Loc
         catch (FormatException) { return t; }
     }
 
-    /// <summary>起動時に呼ぶ(呼ばなくても最初の Get で読み込む)。外部ファイルの場所を変えたいときは引数で指定。</summary>
-    public static void Init(string? externalPath = null)
+    /// <summary>
+    /// 起動時に呼ぶ(呼ばなくても最初の Get で日本語を読み込む)。読み込み順: 埋め込みの ja.ini(全キー) → 言語が ja 以外なら埋め込みのその言語
+    /// (定義の無いキーは日本語のまま) → exe と同じ場所の Lang\&lt;言語&gt;.ini(キーごとに上書き)。外部ファイルの場所は引数で指定できる。
+    /// </summary>
+    public static void Init(string? externalPath = null, string language = "ja")
     {
         lock (Gate)
         {
             var d = new Dictionary<string, string>(StringComparer.Ordinal);
-            try { Merge(d, ReadEmbedded()); } catch { /* 埋め込みが読めなくてもキー名表示で動く */ }
-            string path = externalPath ?? Path.Combine(AppContext.BaseDirectory, "Lang", "ja.ini");
+            try { Merge(d, ReadEmbedded("ja")); } catch { /* 埋め込みが読めなくてもキー名表示で動く */ }
+            if (language != "ja") { try { Merge(d, ReadEmbedded(language)); } catch { /* 無い言語は日本語のまま */ } }
+            Language = language;
+            string path = externalPath ?? Path.Combine(AppContext.BaseDirectory, "Lang", language + ".ini");
             try { if (File.Exists(path)) Merge(d, File.ReadAllText(path)); } catch { /* 外部ファイルが壊れていても埋め込みで動く */ }
             table = d;
         }
@@ -49,10 +60,11 @@ public static class Loc
         lock (Gate) { if (table == null) Init(); }
     }
 
-    private static string ReadEmbedded()
+    /// <summary>埋め込みの Lang/&lt;言語&gt;.ini の本文(テストからも使う)。無ければ例外。</summary>
+    public static string ReadEmbedded(string language)
     {
         var asm = typeof(Loc).Assembly;
-        string name = asm.GetManifestResourceNames().First(n => n.EndsWith("Lang.ja.ini", StringComparison.Ordinal));
+        string name = asm.GetManifestResourceNames().First(n => n.EndsWith("Lang." + language + ".ini", StringComparison.Ordinal));
         using var s = asm.GetManifestResourceStream(name)!;
         using var r = new StreamReader(s, System.Text.Encoding.UTF8);
         return r.ReadToEnd();

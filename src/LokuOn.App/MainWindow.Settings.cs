@@ -746,7 +746,7 @@ public partial class MainWindow
         templateComboBusy = true;
         try
         {
-            TemplateCombo.ItemsSource = AllTemplates().Select(t => t.BuiltIn ? "*" + t.Name : t.Name).ToList();
+            TemplateCombo.ItemsSource = AllTemplates().Select(t => t.BuiltIn ? "*" + TemplateLibrary.DisplayName(t.Name) : t.Name).ToList();
         }
         finally { templateComboBusy = false; }
         SyncTemplateCombo();

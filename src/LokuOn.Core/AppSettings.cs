@@ -43,6 +43,14 @@ public sealed class SavedTemplate
 /// <summary>最初から入っているテンプレート(削除・上書きはできない)。</summary>
 public static class TemplateLibrary
 {
+    /// <summary>一覧に出す名前。保存・判定に使う名前(日本語)は変えず、表示だけ言語に合わせる。</summary>
+    public static string DisplayName(string name) => name switch
+    {
+        "日時形式" => Loc.Get("tpl.datetime"),
+        "トラック形式" => Loc.Get("tpl.track"),
+        _ => name,
+    };
+
     public static readonly (string Name, string Template)[] BuiltIn =
     {
         ("日時形式", Preset.DefaultTemplate),
@@ -63,8 +71,22 @@ public static class TemplateLibrary
     }
 }
 
+/// <summary>表示言語。"ja"(既定)と "en"。</summary>
+public static class LanguageRules
+{
+    public static readonly string[] Supported = { "ja", "en" };
+    public static string Normalize(string? v)
+    {
+        string t = (v ?? "").Trim().ToLowerInvariant();
+        return Array.IndexOf(Supported, t) >= 0 ? t : "ja";
+    }
+}
+
 public sealed class AppSettings
 {
+    /// <summary>表示言語("ja" / "en")。変更は再起動後に反映。</summary>
+    public string Language { get; set; } = "ja";
+
     /// <summary>次に使う録音ナンバー(録音が終わるたびに+1。アプリを閉じても保持)。</summary>
     public int No { get; set; } = 1;
     /// <summary>録音ごとのトラック番号の開始値(入力値をそのまま保持)。</summary>
@@ -115,6 +137,17 @@ public static class SettingsStore
         "LokuOn 設定ファイル (UTF-8)。テキストエディタで編集できます。アプリを終了した状態で編集してください。\n" +
         "[App]=全体設定 / [Current]=現在の画面の設定 / 保存済みプリセットは Presets フォルダの「名前.json」です。バックアップはこのファイルと Presets フォルダをコピーするだけです。";
 
+    /// <summary>起動の最初(画面を作る前)に、settings.ini から表示言語だけを読む。読めなければ "ja"。</summary>
+    public static string PeekLanguage(string path)
+    {
+        try
+        {
+            if (!File.Exists(path)) return "ja";
+            return LanguageRules.Normalize(IniDocument.Load(path).Find("App")?.GetString("Language", "ja"));
+        }
+        catch { return "ja"; }
+    }
+
     public static AppSettings Load(string path)
     {
         var s = new AppSettings();
@@ -139,6 +172,7 @@ public static class SettingsStore
             s.MonitorInput = a.GetBool("MonitorInput", d.MonitorInput);
             s.ConfirmCloseWhileRecording = a.GetBool("ConfirmCloseWhileRecording", d.ConfirmCloseWhileRecording);
             s.MinimizeToTray = string.Equals(a.GetString("MinimizeBehavior", "taskbar"), "tray", StringComparison.OrdinalIgnoreCase);
+            s.Language = LanguageRules.Normalize(a.GetString("Language", d.Language));
             s.Backdrop = a.GetString("Backdrop", d.Backdrop).Trim().ToLowerInvariant();
             if (s.Backdrop != "mica" && s.Backdrop != "acrylic") s.Backdrop = "none";
             s.BackdropStrength = Math.Clamp(a.GetInt("BackdropStrength", d.BackdropStrength), BackdropRules.MinStrength, BackdropRules.MaxStrength);
@@ -204,6 +238,7 @@ public static class SettingsStore
         a.Set("No", s.No, "次の録音ナンバー({No})。録音が終わると+1されます");
         a.Set("TrackStart", s.TrackStart, "トラック番号({Track})の開始値");
         a.Set("LastPresetName", s.LastPresetName);
+        a.Set("Language", s.Language, "表示言語(再起動後に反映): ja / en");
         a.Set("Theme", s.Theme, "dark / softdark(ニューモーフィズム・ダーク) / light / system");
         a.Set("PreventSleep", s.PreventSleep, "録音中にPCがスリープしないようにする");
         a.Set("MonitorInput", s.MonitorInput, "録音していないときも入力のメーターと波形を表示する(入力確認)");

@@ -14,7 +14,8 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        LokuOn.Core.Loc.Init();      // 画面の文言(Lang/ja.ini)を最初に読み込む
+        // 画面の文言を最初に読み込む(言語は settings.ini の Language。画面を作る前に決める必要がある)
+        LokuOn.Core.Loc.Init(null, LokuOn.Core.SettingsStore.PeekLanguage(Path.Combine(AppContext.BaseDirectory, "settings.ini")));
 
         // 多重起動の判定は「同じフォルダのexe」だけ(別のフォルダにコピーした LokuOn は同時に起動できる)
         string dirKey = Path.GetFullPath(AppContext.BaseDirectory).TrimEnd('\\', '/').ToLowerInvariant();

@@ -418,7 +418,7 @@ public sealed class EffectChain
 public sealed class ParamBand
 {
     public const int Count = 4;
-    public static readonly string[] Names = { "低域", "中低域", "中高域", "高域" };
+    public static string[] Names => new[] { Loc.Get("eq.band1"), Loc.Get("eq.band2"), Loc.Get("eq.band3"), Loc.Get("eq.band4") };
     public static readonly double[] DefaultFreqs = { 100, 500, 2000, 8000 };
     public const double MaxDb = 12, MinQ = 0.3, MaxQ = 8, DefaultQ = 1.0, MinHz = 20, MaxHz = 20000;
 
@@ -463,6 +463,9 @@ public static class EqBands
     public static readonly string[] Labels = { "31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k" };
 
     /// <summary>よく使う設定(名前, 10帯域のdB)。先頭は「フラット」。</summary>
+    /// <summary>プリセットの表示名(番号順。Presets[i].Name は日本語の識別名のまま、表示だけ言語に合わせる)。</summary>
+    public static string PresetLabel(int i) => Loc.Has("eq.preset." + i) ? Loc.Get("eq.preset." + i) : Presets[i].Name;
+
     public static readonly (string Name, double[] Db)[] Presets =
     {
         ("フラット", new double[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }),

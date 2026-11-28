@@ -78,7 +78,7 @@ public sealed class EffectWindow : Window
         var eqTop = new Grid { Margin = new Thickness(0, 0, 0, 3) };
         eqTop.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         eqTop.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        foreach (var pr in EqBands.Presets) presetBox.Items.Add(pr.Name);
+        for (int pi = 0; pi < EqBands.Presets.Length; pi++) presetBox.Items.Add(EqBands.PresetLabel(pi));
         presetBox.SelectionChanged += (s, e) =>
         {
             if (loading || presetBox.SelectedIndex < 0) return;

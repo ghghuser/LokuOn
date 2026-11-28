@@ -12,6 +12,7 @@
   <ItemGroup>
     <!-- 画面の文言(既定)。exe に埋め込む -->
     <EmbeddedResource Include="Lang\ja.ini" />
+    <EmbeddedResource Include="Lang\en.ini" />
   </ItemGroup>
 
 </Project>
